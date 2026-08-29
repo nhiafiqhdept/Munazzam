@@ -1,0 +1,6 @@
+{
+  "name": "Organization Program Manager",
+  "description": "A comprehensive, responsive management and documentation system for academic and student organizations to manage organizers, conduct programs, organize seasons and episodes, and archive activity proofs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
