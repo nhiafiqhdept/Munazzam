@@ -47,9 +47,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Unable to connect to the authentication server. Please try again.');
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Unable to connect to the authentication server. Please try again.');
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed.');
+        throw new Error(data?.error || 'Authentication failed.');
       }
 
       localStorage.setItem('org_token', data.token);
