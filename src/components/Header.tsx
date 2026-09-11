@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Building2,
-  Lock,
-  Unlock,
   ChevronDown,
   PlusCircle,
-  ShieldCheck,
-  Eye,
-  Settings,
-  Sparkles,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SAMPLE_ORG_LOGOS } from '../utils/helpers';
@@ -17,11 +12,18 @@ interface HeaderProps {
   onOpenAdminLogin: () => void;
   onOpenNewOrgModal?: () => void;
   onOpenOnboarding?: () => void;
+  isMenuOpen: boolean;
+  setIsMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgModal, onOpenOnboarding }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenNewOrgModal,
+  onOpenOnboarding,
+  isMenuOpen,
+  setIsMenuOpen,
+}) => {
   const handleOpenNewOrg = onOpenNewOrgModal || onOpenOnboarding || (() => {});
-  const { currentOrg, organizations, currentOrgId, setCurrentOrgId, isAdmin, setIsAdmin, setActiveTab } =
+  const { currentOrg, organizations, currentOrgId, setCurrentOrgId } =
     useApp();
   const [showOrgDropdown, setShowOrgDropdown] = useState(false);
 
@@ -30,12 +32,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgMo
   return (
     <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs backdrop-blur-md bg-white/95">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3.5 sm:py-4 gap-4">
+        <div className="flex items-center justify-between py-3 sm:py-4 gap-3 sm:gap-4">
           {/* Main Brand Identity Section */}
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
             {/* Organization Logo */}
             <div className="relative group shrink-0">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-50 border-2 border-emerald-600/30 p-1 shadow-xs flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-slate-50 border-2 border-emerald-600/30 p-1 shadow-xs flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
                 <img
                   src={currentOrg.logo || SAMPLE_ORG_LOGOS[0].url}
                   alt={`${currentOrg.name} Logo`}
@@ -48,15 +50,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgMo
             </div>
 
             {/* Organization & Institution Name */}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate tracking-tight font-serif leading-tight">
                   {currentOrg.name}
                 </h1>
 
                 {/* Multi-Org Switcher dropdown button */}
                 {organizations.length > 1 && (
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <button
                       id="org-switcher-dropdown-btn"
                       onClick={() => setShowOrgDropdown(!showOrgDropdown)}
@@ -116,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgMo
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 font-medium">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-600 font-medium">
                 <span className="text-emerald-700 font-semibold truncate">{currentOrg.college_name}</span>
                 {currentOrg.established_year && (
                   <>
@@ -130,46 +132,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgMo
             </div>
           </div>
 
-          {/* Right Action: Admin / Public Mode Indicator & Settings */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Mode Switch Badge / Button */}
-            {isAdmin ? (
-              <div className="flex items-center bg-emerald-50 border border-emerald-200 rounded-xl p-1 pr-2.5 gap-2">
-                <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Admin Mode</span>
-                  <span className="sm:hidden">Admin</span>
-                </span>
-                <button
-                  id="lock-admin-btn"
-                  onClick={() => setIsAdmin(false)}
-                  className="text-xs text-emerald-800 hover:text-emerald-950 font-medium flex items-center gap-1 hover:underline cursor-pointer"
-                  title="Switch to Public Visitor Preview"
-                >
-                  <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden md:inline">Lock / View Mode</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                id="unlock-admin-btn"
-                onClick={onOpenAdminLogin}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition-all shadow-2xs cursor-pointer"
-                title="Unlock Administrative Privileges"
-              >
-                <Lock className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden sm:inline">Admin Login</span>
-                <span className="sm:hidden">Login</span>
-              </button>
-            )}
-
-            {/* Settings shortcut button */}
+          {/* Upper Right Corner: Hamburger Menu [☰] ONLY */}
+          <div className="flex items-center shrink-0">
+            {/* Hamburger / Menu toggle button */}
             <button
-              onClick={() => setActiveTab('settings')}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl border border-slate-200/80 transition-colors"
-              title="Organization Settings & Data Management"
+              id="header-menu-toggle-btn"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className={`p-2 sm:p-2.5 rounded-xl border transition-colors cursor-pointer flex items-center justify-center ${
+                isMenuOpen
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border-slate-200/80 bg-white'
+              }`}
+              title={isMenuOpen ? 'Close Menu' : 'Open Navigation Menu'}
+              aria-label={isMenuOpen ? 'Close Menu' : 'Open Navigation Menu'}
             >
-              <Settings className="w-4 h-4" />
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -177,3 +154,4 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdminLogin, onOpenNewOrgMo
     </header>
   );
 };
+

@@ -10,11 +10,13 @@ import {
   Plus,
   Camera,
   Video,
+  Link,
 } from 'lucide-react';
 import { Program, ProgramMedia } from '../types';
 import { useApp } from '../context/AppContext';
 import {
   fileToDataUrl,
+  uploadFile,
   DEFAULT_AUDIENCES,
   generateId,
 } from '../utils/helpers';
@@ -30,10 +32,11 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   onClose,
   programToEdit,
 }) => {
-  const { addProgram, updateProgram, addProgramMedia } = useApp();
+  const { addProgram, updateProgram, addProgramMedia, deleteProgramMedia } = useApp();
 
   // Core required fields
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('');
   const [place, setPlace] = useState('');
@@ -51,20 +54,35 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   const [posterTab, setPosterTab] = useState<'upload' | 'url'>('upload');
   const [customPosterUrl, setCustomPosterUrl] = useState('');
   const [isUploadingPoster, setIsUploadingPoster] = useState(false);
+  const [uploadProgressPoster, setUploadProgressPoster] = useState(0);
 
-  // Initial Proofs / Media for new program
-  const [initialProofs, setInitialProofs] = useState<{ type: 'photo' | 'video' | 'document'; url: string; caption: string }[]>([]);
-  const [proofType, setProofType] = useState<'photo' | 'video' | 'document'>('photo');
-  const [proofUrl, setProofUrl] = useState('');
-  const [proofCaption, setProofCaption] = useState('');
-  const [proofUploadTab, setProofUploadTab] = useState<'upload' | 'url'>('upload');
-  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [initialProofs, setInitialProofs] = useState<{ id?: string; type: 'photo' | 'video' | 'document'; url: string; caption: string }[]>([]);
+
+  // Photos Proof State
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoCaption, setPhotoCaption] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [uploadProgressPhoto, setUploadProgressPhoto] = useState(0);
+
+  // Video Proof State
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoCaption, setVideoCaption] = useState('');
+  const [videoTab, setVideoTab] = useState<'upload' | 'url'>('upload');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [uploadProgressVideo, setUploadProgressVideo] = useState(0);
+
+  // Document Proof State
+  const [docUrl, setDocUrl] = useState('');
+  const [docCaption, setDocCaption] = useState('');
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadProgressDoc, setUploadProgressDoc] = useState(0);
 
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (programToEdit) {
       setName(programToEdit.name);
+      setCategory(programToEdit.category || '');
       setDate(programToEdit.date);
       setTime(programToEdit.time || '');
       setPlace(programToEdit.place);
@@ -80,9 +98,20 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setPoster(programToEdit.poster || '');
       setStatus(programToEdit.status || 'completed');
       setAttendanceCount(programToEdit.attendance_count || '');
-      setInitialProofs([]);
+      // Load existing media into initialProofs for management
+      if (programToEdit.media) {
+        setInitialProofs(programToEdit.media.map(m => ({
+          id: m.id, // Keep ID to identify existing media
+          type: m.type as any,
+          url: m.url,
+          caption: m.caption || m.file_name || 'Proof'
+        })));
+      } else {
+        setInitialProofs([]);
+      }
     } else {
       setName('');
+      setCategory('');
       setDate(new Date().toISOString().split('T')[0]);
       setTime('10:00 AM – 01:00 PM');
       setPlace('Main College Auditorium');
@@ -106,9 +135,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
     try {
       setIsUploadingPoster(true);
+      setUploadProgressPoster(0);
       setError('');
-      const dataUrl = await fileToDataUrl(file);
-      setPoster(dataUrl);
+      const url = await uploadFile(file, (percent) => setUploadProgressPoster(percent));
+      setPoster(url);
     } catch (err: any) {
       setError(err.message || 'Failed to upload poster image.');
     } finally {
@@ -116,52 +146,99 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
     }
   };
 
-  const handleProofFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
-      setIsUploadingProof(true);
+      setIsUploadingPhoto(true);
+      setUploadProgressPhoto(0);
       setError('');
-      const dataUrl = await fileToDataUrl(file);
-      setProofUrl(dataUrl);
-      if (!proofCaption) setProofCaption(file.name);
+      const url = await uploadFile(file, (percent) => setUploadProgressPhoto(percent));
+      setPhotoUrl(url);
+      if (!photoCaption) setPhotoCaption(file.name);
     } catch (err: any) {
-      setError(err.message || 'Failed to upload proof file.');
+      setError(err.message || 'Photo upload failed.');
     } finally {
-      setIsUploadingProof(false);
+      setIsUploadingPhoto(false);
     }
   };
 
-  const handleAddProof = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!proofUrl.trim()) {
-      setError('Please provide a file or URL for the proof.');
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingVideo(true);
+      setUploadProgressVideo(0);
+      setError('');
+      const url = await uploadFile(file, (percent) => setUploadProgressVideo(percent));
+      setVideoUrl(url);
+      if (!videoCaption) setVideoCaption(file.name);
+    } catch (err: any) {
+      setError(err.message || 'Video upload failed.');
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingDoc(true);
+      setUploadProgressDoc(0);
+      setError('');
+      const url = await uploadFile(file, (percent) => setUploadProgressDoc(percent));
+      setDocUrl(url);
+      if (!docCaption) setDocCaption(file.name);
+    } catch (err: any) {
+      setError(err.message || 'Document upload failed.');
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const addPhotoProof = () => {
+    if (!photoUrl) {
+      setError('Please upload or provide a photo URL.');
       return;
     }
+    setInitialProofs(prev => [...prev, { type: 'photo', url: photoUrl, caption: photoCaption || 'Photo Proof' }]);
+    setPhotoUrl('');
+    setPhotoCaption('');
+  };
 
-    setInitialProofs((prev) => [
-      ...prev,
-      {
-        type: proofType,
-        url: proofUrl.trim(),
-        caption: proofCaption.trim() || 'Documentation Proof',
-      },
-    ]);
+  const addVideoProof = () => {
+    if (!videoUrl) {
+      setError('Please upload or provide a video URL.');
+      return;
+    }
+    setInitialProofs(prev => [...prev, { type: 'video', url: videoUrl, caption: videoCaption || 'Video Proof' }]);
+    setVideoUrl('');
+    setVideoCaption('');
+  };
 
-    setProofUrl('');
-    setProofCaption('');
-    setError('');
+  const addDocProof = () => {
+    if (!docUrl) {
+      setError('Please upload or provide a document URL.');
+      return;
+    }
+    setInitialProofs(prev => [...prev, { type: 'document', url: docUrl, caption: docCaption || 'Document Proof' }]);
+    setDocUrl('');
+    setDocCaption('');
   };
 
   const removeProof = (index: number) => {
     setInitialProofs((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Please provide a Program Name.');
+      return;
+    }
+    if (!category.trim()) {
+      setError('Please enter a program category.');
       return;
     }
     if (!date) {
@@ -186,53 +263,66 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
     const finalPoster = posterTab === 'url' && customPosterUrl ? customPosterUrl : poster;
 
-    if (programToEdit) {
-      updateProgram({
-        id: programToEdit.id,
-        name: name.trim(),
-        date,
-        time: time.trim(),
-        place: place.trim(),
-        audience: finalAudience,
-        description: description.trim(),
-        poster: finalPoster,
-        status,
-        attendance_count: attendanceCount === '' ? undefined : Number(attendanceCount),
-      });
+    const programData = {
+      name: name.trim(),
+      category: category.trim(),
+      date,
+      time: time.trim(),
+      place: place.trim(),
+      audience: finalAudience,
+      description: description.trim(),
+      poster: finalPoster,
+      status,
+      attendance_count: attendanceCount === '' ? undefined : Number(attendanceCount),
+    };
 
-      // Add any new initial proofs if added during edit
-      initialProofs.forEach((proof) => {
-        addProgramMedia(programToEdit.id, {
-          type: proof.type,
-          url: proof.url,
-          caption: proof.caption,
+    try {
+      if (programToEdit) {
+        await updateProgram({
+          id: programToEdit.id,
+          ...programData,
         });
-      });
-    } else {
-      const newProgram = addProgram({
-        name: name.trim(),
-        date,
-        time: time.trim(),
-        place: place.trim(),
-        audience: finalAudience,
-        description: description.trim(),
-        poster: finalPoster,
-        status,
-        attendance_count: attendanceCount === '' ? undefined : Number(attendanceCount),
-        media: [],
-      });
 
-      // Add initial proofs
-      initialProofs.forEach((proof) => {
-        addProgramMedia(newProgram.id, {
-          type: proof.type,
-          url: proof.url,
-          caption: proof.caption,
+        // Manage Media Changes
+        const existingMedia = programToEdit.media || [];
+        const currentMediaIds = initialProofs.filter(p => p.id).map(p => p.id);
+        
+        // 1. Identify and delete removed media
+        const mediaToDelete = existingMedia.filter(m => !currentMediaIds.includes(m.id));
+        for (const m of mediaToDelete) {
+          await deleteProgramMedia(programToEdit.id, m.id);
+        }
+
+        // 2. Identify and add new media
+        const mediaToAdd = initialProofs.filter(p => !p.id);
+        for (const m of mediaToAdd) {
+          await addProgramMedia(programToEdit.id, {
+            type: m.type,
+            url: m.url,
+            caption: m.caption,
+            file_name: m.caption,
+          });
+        }
+      } else {
+        const newProgram = await addProgram({
+          ...programData,
+          media: [],
         });
-      });
+
+        // Add initial proofs
+        for (const proof of initialProofs) {
+          await addProgramMedia(newProgram.id, {
+            type: proof.type,
+            url: proof.url,
+            caption: proof.caption,
+            file_name: proof.caption,
+          });
+        }
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save program.');
     }
-
-    onClose();
   };
 
   return (
@@ -272,6 +362,21 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Annual Fiqh Seminar on Modern Transactions"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              required
+            />
+          </div>
+
+          {/* Program Category */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Program Category <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="Enter program category"
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               required
             />
@@ -445,7 +550,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 {posterTab === 'upload' ? (
                   <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold">
                     <Upload className="w-4 h-4 text-emerald-600" />
-                    <span>{isUploadingPoster ? 'Uploading poster...' : 'Choose Poster File'}</span>
+                    <span>{isUploadingPoster ? `Uploading (${uploadProgressPoster}%)...` : 'Choose Poster File'}</span>
                     <input type="file" accept="image/*" onChange={handlePosterFileUpload} className="hidden" />
                   </label>
                 ) : (
@@ -461,121 +566,208 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             </div>
           </div>
 
-          {/* Photos / Proof & Videos / Proof section */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
+          {/* Documentation Proofs Section */}
+          <div className="space-y-6 pt-6 border-t border-slate-100">
             <div>
               <h3 className="text-sm font-bold text-slate-900 font-serif">Documentation Proofs</h3>
-              <p className="text-xs text-slate-500">Attach photos, video recordings, or official reports.</p>
+              <p className="text-xs text-slate-500">Attach photos, video recordings, and official reports to document the activity.</p>
             </div>
 
-            {/* List of added initial proofs */}
-            {initialProofs.length > 0 && (
-              <div className="space-y-2">
-                {initialProofs.map((proof, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      {proof.type === 'photo' && <Camera className="w-4 h-4 text-emerald-600 shrink-0" />}
-                      {proof.type === 'video' && <Video className="w-4 h-4 text-blue-600 shrink-0" />}
-                      {proof.type === 'document' && <FileText className="w-4 h-4 text-amber-600 shrink-0" />}
-                      <span className="font-semibold text-slate-800 truncate">{proof.caption}</span>
-                      <span className="text-slate-400 truncate">({proof.url})</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeProof(idx)}
-                      className="text-rose-600 hover:text-rose-700 font-bold px-2 py-1"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+            {/* 1. Photo Proofs Card */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                <Camera className="w-4 h-4 text-emerald-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Photo Proofs</h4>
               </div>
-            )}
 
-            {/* Add proof inline form */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Proof Type
+              {/* Display existing photos */}
+              {initialProofs.filter(p => p.type === 'photo').length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pb-2">
+                  {initialProofs.map((proof, idx) => proof.type === 'photo' ? (
+                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white group">
+                      <img src={proof.url} alt={proof.caption} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-1">
+                        <p className="text-[8px] text-white font-bold truncate w-full text-center mb-1">{proof.caption}</p>
+                        <button 
+                          type="button" 
+                          onClick={() => removeProof(idx)}
+                          className="p-1 bg-rose-600 text-white rounded-md hover:bg-rose-700"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : null)}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-xs font-semibold text-slate-700">
+                    <Upload className="w-4 h-4 text-emerald-600" />
+                    <span>{isUploadingPhoto ? `Uploading (${uploadProgressPhoto}%)...` : 'Choose Photo File'}</span>
+                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                   </label>
-                  <select
-                    value={proofType}
-                    onChange={(e: any) => setProofType(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
+                  <input
+                    type="text"
+                    value={photoCaption}
+                    onChange={(e) => setPhotoCaption(e.target.value)}
+                    placeholder="Photo Caption (e.g. Stage Event)"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addPhotoProof}
+                  disabled={!photoUrl}
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Attach Photo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Video Proofs Card */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                <Video className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Video Proofs</h4>
+              </div>
+
+              {/* Display existing videos */}
+              {initialProofs.filter(p => p.type === 'video').length > 0 && (
+                <div className="space-y-2 pb-2">
+                  {initialProofs.map((proof, idx) => proof.type === 'video' ? (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-[11px]">
+                      <div className="flex items-center gap-2 truncate">
+                        <Video className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="font-bold text-slate-800 truncate">{proof.caption}</span>
+                        <span className="text-slate-400 truncate hidden sm:inline">({proof.url})</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removeProof(idx)}
+                        className="text-rose-600 hover:bg-rose-50 p-1 rounded-md"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : null)}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="flex gap-2 text-[10px] mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setVideoTab('upload')}
+                    className={`px-3 py-1 rounded-lg font-bold ${videoTab === 'upload' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}
                   >
-                    <option value="photo">Photograph</option>
-                    <option value="video">Video / YouTube</option>
-                    <option value="document">Document / PDF</option>
-                  </select>
+                    Upload Video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoTab('url')}
+                    className={`px-3 py-1 rounded-lg font-bold ${videoTab === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}
+                  >
+                    YouTube / Link
+                  </button>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                      File or URL
-                    </label>
-                    <div className="flex gap-2 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setProofUploadTab('upload')}
-                        className={`px-2 py-0.5 rounded font-semibold ${
-                          proofUploadTab === 'upload' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProofUploadTab('url')}
-                        className={`px-2 py-0.5 rounded font-semibold ${
-                          proofUploadTab === 'url' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        URL
-                      </button>
-                    </div>
-                  </div>
-
-                  {proofUploadTab === 'upload' ? (
-                    <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-xs font-semibold text-slate-700">
-                      <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{isUploadingProof ? 'Uploading...' : 'Choose File'}</span>
-                      <input type="file" accept={proofType === 'photo' ? 'image/*' : '*'} onChange={handleProofFileUpload} className="hidden" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {videoTab === 'upload' ? (
+                    <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-500 text-xs font-semibold text-slate-700">
+                      <Upload className="w-4 h-4 text-blue-600" />
+                      <span>{isUploadingVideo ? `Uploading (${uploadProgressVideo}%)...` : 'Choose Video File'}</span>
+                      <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
                     </label>
                   ) : (
-                    <input
-                      type="url"
-                      value={proofUrl}
-                      onChange={(e) => setProofUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
-                    />
+                    <div className="relative">
+                      <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="url"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        placeholder="YouTube / Video URL"
+                        className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
+                      />
+                    </div>
                   )}
+                  <input
+                    type="text"
+                    value={videoCaption}
+                    onChange={(e) => setVideoCaption(e.target.value)}
+                    placeholder="Video Title (e.g. Keynote Speech)"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
+                  />
                 </div>
+                <button
+                  type="button"
+                  onClick={addVideoProof}
+                  disabled={!videoUrl}
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Attach Video</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Document & PDF Proofs Card */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                <FileText className="w-4 h-4 text-amber-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Document & PDF Proofs</h4>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Caption / File Title
-                </label>
-                <input
-                  type="text"
-                  value={proofCaption}
-                  onChange={(e) => setProofCaption(e.target.value)}
-                  placeholder="e.g. Inaugural session photograph"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs"
-                />
-              </div>
+              {/* Display existing documents */}
+              {initialProofs.filter(p => p.type === 'document').length > 0 && (
+                <div className="space-y-2 pb-2">
+                  {initialProofs.map((proof, idx) => proof.type === 'document' ? (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-[11px]">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="font-bold text-slate-800 truncate">{proof.caption}</span>
+                        <span className="text-slate-400 truncate hidden sm:inline">({proof.url.split('/').pop()})</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removeProof(idx)}
+                        className="text-rose-600 hover:bg-rose-50 p-1 rounded-md"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : null)}
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={handleAddProof}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Attach Proof to List</span>
-              </button>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-amber-500 text-xs font-semibold text-slate-700">
+                    <Upload className="w-4 h-4 text-amber-600" />
+                    <span>{isUploadingDoc ? `Uploading (${uploadProgressDoc}%)...` : 'Choose Doc / PDF'}</span>
+                    <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={handleDocUpload} className="hidden" />
+                  </label>
+                  <input
+                    type="text"
+                    value={docCaption}
+                    onChange={(e) => setDocCaption(e.target.value)}
+                    placeholder="Document Title (e.g. Program Report)"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addDocProof}
+                  disabled={!docUrl}
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Attach Document</span>
+                </button>
+              </div>
             </div>
           </div>
 

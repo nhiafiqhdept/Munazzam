@@ -1,19 +1,25 @@
 import React from 'react';
-import { Printer, X, FileText, CheckCircle } from 'lucide-react';
+import { Printer, X, FileText } from 'lucide-react';
 import { Program, Organization } from '../types';
-import { formatFullDate, formatDate } from '../utils/helpers';
+import { formatDate } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
 
 interface PrintActivityReportProps {
   program: Program;
-  organization: Organization;
+  organization?: Organization;
+  org?: Organization;
   onClose: () => void;
 }
 
 export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
   program,
-  organization,
+  organization: organizationProp,
+  org,
   onClose,
 }) => {
+  const { currentOrg } = useApp();
+  const organization = organizationProp || org || currentOrg;
+
   const handlePrint = () => {
     window.print();
   };
@@ -52,7 +58,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-6">
             <div className="flex items-center gap-4">
               <img
-                src={organization.logo || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80'}
+                src={organization?.logo || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80'}
                 alt="Org Logo"
                 className="w-20 h-20 object-contain rounded-xl border border-slate-300 p-1"
                 onError={(e) => {
@@ -61,10 +67,10 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
               />
               <div>
                 <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">
-                  {organization.name}
+                  {organization?.name || 'Organization'}
                 </h1>
-                <p className="text-sm font-semibold text-emerald-800">{organization.college_name}</p>
-                {organization.tagline && (
+                <p className="text-sm font-semibold text-emerald-800">{organization?.college_name || ''}</p>
+                {organization?.tagline && (
                   <p className="text-xs text-slate-500 italic mt-0.5 font-serif">{organization.tagline}</p>
                 )}
               </div>
@@ -78,9 +84,16 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
 
           {/* Program Title Banner */}
           <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-              PROGRAM TITLE
-            </span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                PROGRAM TITLE
+              </span>
+              {program.category && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                  Category: {program.category}
+                </span>
+              )}
+            </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif mt-1">
               {program.name}
             </h2>
@@ -165,7 +178,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                 <span className="font-serif italic text-slate-400 text-[11px]">[Verified Signature]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">General Secretary</p>
-              <p className="text-[10px] text-slate-500">{organization.name}</p>
+              <p className="text-[10px] text-slate-500">{organization?.name || ''}</p>
             </div>
 
             <div>
@@ -173,7 +186,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                 <span className="font-serif italic text-slate-400 text-[11px]">[Verified Signature]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">President</p>
-              <p className="text-[10px] text-slate-500">{organization.name}</p>
+              <p className="text-[10px] text-slate-500">{organization?.name || ''}</p>
             </div>
 
             <div>
@@ -181,7 +194,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                 <span className="font-serif italic text-slate-400 text-[11px]">[Verified Stamp]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">Staff Advisor / HOD</p>
-              <p className="text-[10px] text-slate-500">{organization.college_name}</p>
+              <p className="text-[10px] text-slate-500">{organization?.college_name || ''}</p>
             </div>
           </div>
         </div>

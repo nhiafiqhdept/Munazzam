@@ -45,6 +45,7 @@ export interface Program {
   id: string;
   organization_id: string;
   name: string;
+  category?: string;
   date: string; // YYYY-MM-DD
   time?: string;
   place: string;

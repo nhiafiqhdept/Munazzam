@@ -161,10 +161,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           throw new Error('Failed to fetch organizations');
         }
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Server returned invalid data format');
-        }
         return res.json();
       })
       .then((data: Organization[]) => {

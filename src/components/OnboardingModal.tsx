@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, GraduationCap, Upload, Check, Sparkles, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, SAMPLE_ORG_LOGOS } from '../utils/helpers';
+import { fileToDataUrl, uploadFile, SAMPLE_ORG_LOGOS } from '../utils/helpers';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -27,6 +27,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [logoTab, setLogoTab] = useState<'preset' | 'upload' | 'url'>('preset');
   const [customLogoUrl, setCustomLogoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
@@ -37,9 +38,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
     try {
       setIsUploading(true);
+      setUploadProgress(0);
       setError('');
-      const dataUrl = await fileToDataUrl(file);
-      setLogo(dataUrl);
+      const url = await uploadFile(file, (percent) => setUploadProgress(percent));
+      setLogo(url);
     } catch (err: any) {
       setError(err.message || 'Failed to upload image. Please choose a valid image file.');
     } finally {
@@ -305,7 +307,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <div>
                     <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold hover:bg-emerald-50/50 transition-colors">
                       <Upload className="w-4 h-4 text-emerald-600" />
-                      <span>{isUploading ? 'Processing Image...' : 'Click to Upload Logo File'}</span>
+                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : 'Click to Upload Logo File'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -313,7 +315,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         className="hidden"
                       />
                     </label>
-                    <p className="text-[11px] text-slate-500 mt-1">Supports PNG, JPG, WebP, SVG (Max 5MB)</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Supports PNG, JPG, WebP, SVG</p>
                   </div>
                 )}
 

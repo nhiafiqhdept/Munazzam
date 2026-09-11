@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { ZoomIn, ZoomOut, RotateCcw, RotateCw, RefreshCw, Check, X, Eye, Image as ImageIcon } from 'lucide-react';
 import { getCroppedImg } from '../utils/cropImage';
+import { uploadFile } from '../utils/helpers';
 
 interface ImageCropModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [livePreview, setLivePreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string>('');
 
   // Reset controls when a new imageSrc is opened
@@ -83,6 +85,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
 
     try {
       setIsProcessing(true);
+      setUploadProgress(0);
       setError('');
 
       // Generate cropped profile image at 400x400
@@ -91,33 +94,16 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
       // Create File object for server upload
       const file = new File([blob], `organizer_profile_${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-      // Check if user token exists for server upload
-      const token = localStorage.getItem('org_token');
-      if (token) {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          if (uploadData.url) {
-            onCropComplete(uploadData.url, file);
-            onClose();
-            return;
-          }
-        }
+      try {
+        const url = await uploadFile(file, (percent) => setUploadProgress(percent));
+        onCropComplete(url, file);
+        onClose();
+        return;
+      } catch (uploadErr) {
+        // Fallback to optimized dataUrl if upload endpoint fails or not logged in
+        onCropComplete(dataUrl, file);
+        onClose();
       }
-
-      // Fallback to optimized dataUrl if upload endpoint not reached
-      onCropComplete(dataUrl, file);
-      onClose();
     } catch (err: any) {
       console.error('Crop error:', err);
       setError(err.message || 'Failed to crop image. CORS or format error.');
@@ -306,7 +292,7 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
               {isProcessing ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Saving Photo...</span>
+                  <span>{uploadProgress > 0 ? `Saving (${uploadProgress}%)...` : 'Processing...'}</span>
                 </>
               ) : (
                 <>

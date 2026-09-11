@@ -44,19 +44,92 @@ export function extractYouTubeEmbedUrl(url: string): string | null {
   return null;
 }
 
+export function extractYouTubeVideoId(url: string): string | null {
+  if (!url) return null;
+  const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
+  const match = url.match(regExp);
+  return match && match[1] ? match[1] : null;
+}
+
 export function isYouTubeUrl(url: string): boolean {
   if (!url) return false;
   return /(?:youtube\.com|youtu\.be)/i.test(url);
 }
 
-// Convert uploaded File to Data URL (base64) with size limits
+export function getVideoFilename(url: string, caption?: string): string {
+  if (caption && caption.trim()) {
+    const cleanCap = caption.trim().replace(/[^a-zA-Z0-9_\-\.\s]/g, '_');
+    if (!isYouTubeUrl(url) && !/\.(mp4|webm|mov|mkv|avi)$/i.test(cleanCap)) {
+      return `${cleanCap}.mp4`;
+    }
+    return cleanCap;
+  }
+  if (!url) return 'video.mp4';
+  if (url.startsWith('data:video/')) {
+    const mime = url.substring(11, url.indexOf(';'));
+    return `video_${Date.now()}.${mime || 'mp4'}`;
+  }
+  try {
+    const parsed = new URL(url, window.location.href);
+    const pathname = parsed.pathname;
+    const parts = pathname.split('/');
+    const last = parts[parts.length - 1];
+    if (last && last.includes('.')) {
+      return decodeURIComponent(last);
+    }
+  } catch {}
+  return `video_${Date.now()}.mp4`;
+}
+
+// Upload file to server and return URL with progress support
+export async function uploadFile(
+  file: File, 
+  onProgress?: (percent: number) => void
+): Promise<string> {
+  const token = localStorage.getItem('org_token');
+  if (!token) throw new Error('Authentication required for upload.');
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    xhr.open('POST', '/api/upload');
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data.url);
+        } catch (err) {
+          reject(new Error('Invalid server response.'));
+        }
+      } else {
+        try {
+          const errorData = JSON.parse(xhr.responseText);
+          reject(new Error(errorData.error || 'Failed to upload file.'));
+        } catch {
+          reject(new Error('Failed to upload file.'));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error during upload.'));
+    xhr.send(formData);
+  });
+}
+
+// Convert uploaded File to Data URL (base64)
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Check size limit: max 5MB for storage in browser
-    if (file.size > 5 * 1024 * 1024) {
-      reject(new Error('File size exceeds 5MB limit. Please choose a smaller image.'));
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => {
       resolve(reader.result as string);

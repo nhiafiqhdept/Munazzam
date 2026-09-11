@@ -42,6 +42,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const filteredPrograms = programs.filter((prog) => {
     const matchesSearch =
       prog.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (prog.category && prog.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
       prog.place.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prog.audience.toLowerCase().includes(searchQuery.toLowerCase());
@@ -199,7 +200,12 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                       {prog.description}
                     </p>
 
-                    <div className="pt-2 flex items-center gap-2">
+                    <div className="pt-2 flex items-center gap-2 flex-wrap">
+                      {prog.category && (
+                        <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md">
+                          {prog.category}
+                        </span>
+                      )}
                       <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
                         For: {prog.audience}
                       </span>

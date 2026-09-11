@@ -85,11 +85,6 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      setError('Image file is too large. Please select an image under 15MB.');
-      return;
-    }
-
     try {
       setIsUploading(true);
       setError('');

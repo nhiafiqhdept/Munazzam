@@ -13,7 +13,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl } from '../utils/helpers';
+import { fileToDataUrl, uploadFile } from '../utils/helpers';
 
 interface OrgSettingsViewProps {
   onOpenNewOrgModal: () => void;
@@ -31,6 +31,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
   const [logoTab, setLogoTab] = useState<'upload' | 'url'>('upload');
   const [customLogoUrl, setCustomLogoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -54,9 +55,10 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
 
     try {
       setIsUploading(true);
+      setUploadProgress(0);
       setErrorMsg('');
-      const dataUrl = await fileToDataUrl(file);
-      setLogo(dataUrl);
+      const url = await uploadFile(file, (percent) => setUploadProgress(percent));
+      setLogo(url);
       setLogoTab('upload');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to upload logo.');
@@ -228,7 +230,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
                   {logoTab === 'upload' ? (
                     <label className="flex items-center justify-center gap-2 px-3.5 py-2 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold">
                       <Upload className="w-4 h-4 text-emerald-600" />
-                      <span>{isUploading ? 'Uploading...' : 'Choose Logo Image'}</span>
+                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : 'Choose Logo Image'}</span>
                       <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                     </label>
                   ) : (

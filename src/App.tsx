@@ -40,6 +40,7 @@ const MainLayout: React.FC = () => {
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Organizer modal state
   const [isOrganizerModalOpen, setIsOrganizerModalOpen] = useState(false);
@@ -94,10 +95,17 @@ const MainLayout: React.FC = () => {
       <Header
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
       />
 
-      {/* Main Navigation Bar */}
-      <Navigation />
+      {/* Main Navigation Bar & Drawer */}
+      <Navigation
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
+      />
 
       {/* Treasury Sub-Navigation if in treasury section */}
       {isTreasuryTab && <TreasuryNav />}
