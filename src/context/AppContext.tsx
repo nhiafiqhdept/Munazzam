@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { safeApiFetch } from '../utils/api';
+import { syncLegacyLocalDataToServer } from '../utils/migration';
 import {
   Organization,
   Organizer,
@@ -140,8 +141,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-migrate legacy localStorage data on initial load
   useEffect(() => {
-    import('../utils/migration').then(({ syncLegacyLocalDataToServer }) => {
-      syncLegacyLocalDataToServer();
+    syncLegacyLocalDataToServer().catch((err) => {
+      console.warn('Migration check notice:', err);
     });
   }, []);
 
