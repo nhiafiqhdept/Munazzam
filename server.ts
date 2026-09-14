@@ -13,9 +13,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'org_management_secure_jwt_secret_k
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Request Logger
+// Request Logger for API routes
 app.use((req, res, next) => {
-  console.log(`[REQUEST] ${req.method} ${req.url}`);
+  if (req.url.startsWith('/api')) {
+    console.log(`[API REQUEST] ${req.method} ${req.url}`);
+  }
   next();
 });
 

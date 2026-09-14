@@ -42,3 +42,5 @@ export function getFirebaseErrorMessage(error: any): string {
       return error.message || 'Something went wrong. Please try again.';
   }
 }
+
+export default getFirebaseErrorMessage;
