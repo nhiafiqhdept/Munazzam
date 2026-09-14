@@ -2,26 +2,40 @@ import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Upload,
+  Trash2,
   Check,
   Save,
   Download,
   FileCode,
-  Shield,
-  PlusCircle,
-  Sparkles,
-  GraduationCap,
-  Info,
+  LogOut,
+  User,
   Image as ImageIcon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, uploadFile } from '../utils/helpers';
+import { uploadFile, DEFAULT_ORG_LOGO } from '../utils/helpers';
 
 interface OrgSettingsViewProps {
-  onOpenNewOrgModal: () => void;
+  onOpenNewOrgModal?: () => void;
+  onOpenAdminLogin?: () => void;
 }
 
-export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgModal }) => {
-  const { currentOrg, updateOrganization, exportDataAsJson, importDataFromJson, isAdmin } = useApp();
+export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
+  onOpenNewOrgModal,
+  onOpenAdminLogin,
+}) => {
+  const {
+    currentOrg,
+    updateOrganization,
+    exportDataAsJson,
+    importDataFromJson,
+    isAdmin,
+    setIsAdmin,
+    user,
+    logoutUser,
+    organizations,
+    currentOrgId,
+    setCurrentOrgId,
+  } = useApp();
 
   const [name, setName] = useState('');
   const [collegeName, setCollegeName] = useState('');
@@ -54,10 +68,22 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
 
     try {
       setIsUploading(true);
-      setUploadProgress(0);
       setErrorMsg('');
-      const url = await uploadFile(file, (percent) => setUploadProgress(percent));
+      const url = await uploadFile(file);
       setLogo(url);
+      
+      // Auto save updated logo to current organization immediately
+      if (currentOrg) {
+        updateOrganization({
+          id: currentOrg.id,
+          name: currentOrg.name,
+          college_name: currentOrg.college_name,
+          tagline: currentOrg.tagline,
+          about: currentOrg.about,
+          academic_year: currentOrg.academic_year,
+          logo: url,
+        });
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to upload logo.');
     } finally {
@@ -132,30 +158,22 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
   };
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Header */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100">
-              <Building2 className="w-5 h-5" />
-            </span>
+    <div className="space-y-6 pb-20">
+      {/* Settings Header */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100">
+            <Building2 className="w-5 h-5" />
+          </span>
+          <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
-              Organization Profile & Institutional Settings
+              Settings & Preferences
             </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Manage organization profile, institutional identity, user account session, and database backups.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage academic entity identity, branding logos, session notes, and database backups.
-          </p>
         </div>
-
-        <button
-          onClick={onOpenNewOrgModal}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs shrink-0"
-        >
-          <PlusCircle className="w-4 h-4 text-emerald-400" />
-          <span>Set Up New Organization</span>
-        </button>
       </div>
 
       {successMsg && (
@@ -184,7 +202,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 ORGANIZATION LOGO / CREST
               </label>
-              <div className="flex flex-col sm:flex-row items-center gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80">
                 {/* Preview */}
                 <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
                   {logo ? (
@@ -201,12 +219,12 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
                   )}
                 </div>
 
-                {/* Selector options / Upload Area */}
-                <div className="flex-1 w-full space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-colors shadow-sm">
+                {/* Actions & Description */}
+                <div className="flex-1 w-full space-y-3 text-center sm:text-left">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                    <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-all shadow-xs active:scale-[0.98]">
                       <Upload className="w-4 h-4" />
-                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
+                      <span>{isUploading ? 'Uploading Logo...' : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -219,14 +237,28 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
                     {logo && (
                       <button
                         type="button"
-                        onClick={() => setLogo('')}
-                        className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors"
+                        onClick={() => {
+                          setLogo('');
+                          if (currentOrg) {
+                            updateOrganization({
+                              id: currentOrg.id,
+                              name: currentOrg.name,
+                              college_name: currentOrg.college_name,
+                              tagline: currentOrg.tagline,
+                              about: currentOrg.about,
+                              academic_year: currentOrg.academic_year,
+                              logo: '',
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
                       >
-                        Remove Logo
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Remove Logo</span>
                       </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-normal">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
                     Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
                   </p>
                 </div>
@@ -271,7 +303,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
                   type="text"
                   value={tagline}
                   onChange={(e) => setTagline(e.target.value)}
-                  placeholder="e.g. Advancing Islamic Jurisprudence..."
+                  placeholder="e.g. Advancing Academic Excellence..."
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white"
                 />
               </div>
@@ -316,8 +348,53 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
           </form>
         </div>
 
-        {/* Right Sidebar: Backup & Multi-Org Tools */}
+        {/* Right Sidebar: Backup Tools */}
         <div className="lg:col-span-4 space-y-6">
+          {/* Organization Switcher Card (when multiple exist) */}
+          {organizations.length > 1 && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                  Switch Organization
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Switch active profile between your existing organizations.
+              </p>
+
+              <div className="space-y-2">
+                {organizations.map((org) => (
+                  <button
+                    key={org.id}
+                    onClick={() => setCurrentOrgId(org.id)}
+                    className={`w-full p-3 text-left rounded-2xl border transition-all flex items-center gap-3 cursor-pointer ${
+                      org.id === currentOrgId
+                        ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold shadow-2xs'
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <img
+                      src={org.logo || DEFAULT_ORG_LOGO}
+                      alt=""
+                      className="w-8 h-8 rounded-xl object-contain bg-white p-0.5 border border-slate-200 shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold truncate">{org.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{org.college_name}</p>
+                    </div>
+                    {org.id === currentOrgId && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Backup Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
@@ -327,12 +404,12 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
               </h3>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Export all programs, categories, seasons, and organizers into a standalone JSON file for safety or accreditation records.
+              Export all programs, organizers, and treasury accounts into a standalone JSON backup file.
             </p>
 
             <button
               onClick={handleExport}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
               <Download className="w-4 h-4 text-emerald-400" />
               <span>Export Full Organization JSON</span>
@@ -351,19 +428,30 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
               </div>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* Module Notice */}
-          <div className="bg-amber-50/70 p-5 rounded-3xl border border-amber-200 text-xs space-y-2 text-amber-900">
-            <div className="flex items-center gap-1.5 font-bold">
-              <Info className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>Treasurer / Finance Notice</span>
-            </div>
-            <p className="text-amber-800 leading-relaxed">
-              As per instructions, the Treasurer and Financial accounting modules are decoupled and will be integrated as a specialized ledger submodule in the next development cycle.
-            </p>
+      {/* Bottom Sign Out Bar */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
+            <User className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-900">Signed in as {user?.username || user?.email}</p>
+            <p className="text-[11px] text-slate-500">Active account session</p>
           </div>
         </div>
+
+        <button
+          onClick={logoutUser}
+          className="w-full sm:w-auto px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
+        </button>
       </div>
     </div>
   );
 };
+

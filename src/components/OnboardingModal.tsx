@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, GraduationCap, Upload, Check, Sparkles, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
+import { Building2, GraduationCap, Upload, Trash2, Check, Sparkles, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { fileToDataUrl, uploadFile } from '../utils/helpers';
 
@@ -36,9 +36,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
     try {
       setIsUploading(true);
-      setUploadProgress(0);
       setError('');
-      const url = await uploadFile(file, (percent) => setUploadProgress(percent));
+      const url = await uploadFile(file);
       setLogo(url);
     } catch (err: any) {
       setError(err.message || 'Failed to upload image. Please choose a valid image file.');
@@ -236,7 +235,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               ORGANIZATION LOGO / CREST
             </label>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80">
               {/* Preview */}
               <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
                 {logo ? (
@@ -254,11 +253,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
 
               {/* Selector options / Upload Area */}
-              <div className="flex-1 w-full space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-colors shadow-sm">
+              <div className="flex-1 w-full space-y-3 text-center sm:text-left">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                  <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-all shadow-xs active:scale-[0.98]">
                     <Upload className="w-4 h-4" />
-                    <span>{isUploading ? `Uploading (${uploadProgress}%)...` : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
+                    <span>{isUploading ? 'Uploading Logo...' : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -272,13 +271,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setLogo('')}
-                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
                     >
-                      Remove Logo
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Remove Logo</span>
                     </button>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500 leading-normal">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
                 </p>
               </div>

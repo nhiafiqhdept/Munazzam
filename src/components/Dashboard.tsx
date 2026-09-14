@@ -96,77 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Official Organization Identity Section */}
-      <section className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-7 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="flex items-start gap-4 sm:gap-5 min-w-0">
-            {/* Crest / Logo */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-50 border border-slate-200 p-1.5 shrink-0 flex items-center justify-center overflow-hidden shadow-2xs">
-              <img
-                src={currentOrg.logo || DEFAULT_ORG_LOGO}
-                alt={`${currentOrg.name} Crest`}
-                className="w-full h-full object-contain rounded-lg"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
-                }}
-              />
-            </div>
-
-            {/* Titles and Sub-descriptors */}
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-                  Official Organization Management Portal
-                </span>
-                {currentOrg.established_year && (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    • Est. {currentOrg.established_year}
-                  </span>
-                )}
-              </div>
-
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
-                {currentOrg.name}
-              </h1>
-
-              <p className="text-xs sm:text-sm font-medium text-emerald-800">
-                {currentOrg.college_name}
-              </p>
-
-              {currentOrg.tagline && (
-                <p className="text-xs text-slate-500 italic pt-0.5 max-w-2xl">
-                  "{currentOrg.tagline}"
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Admin Actions (Only for Admin) */}
-          {isAdmin && (
-            <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-              <button
-                id="hero-add-program-btn"
-                onClick={onOpenAddProgram}
-                className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Add Program</span>
-              </button>
-
-              <button
-                id="hero-add-organizer-btn"
-                onClick={onOpenAddOrganizer}
-                className="flex-1 sm:flex-initial px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5 text-slate-500" />
-                <span>Add Organizer</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* 2. Compact Statistics Summary (4 Clean Cards) */}
+      {/* 1. Compact Statistics Summary (4 Clean Cards) */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Programs */}
         <div

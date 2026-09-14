@@ -38,19 +38,22 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   if (!currentOrg) return null;
 
-  // Filter programs
-  const filteredPrograms = programs.filter((prog) => {
-    const matchesSearch =
-      prog.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (prog.category && prog.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      prog.place.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prog.audience.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter & sort programs
+  const filteredPrograms = programs
+    .filter((prog) => {
+      const matchesSearch =
+        prog.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (prog.category && prog.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        prog.place.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        prog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        prog.audience.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = selectedStatus === 'all' || (prog.status || 'completed') === selectedStatus;
+      const matchesStatus =
+        selectedStatus === 'all' || (prog.status || 'completed').toLowerCase() === selectedStatus.toLowerCase();
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
 
   const confirmDelete = () => {
     if (deleteTarget) {
@@ -59,48 +62,56 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     }
   };
 
+  const hasActiveFilters = searchQuery.trim().length > 0 || selectedStatus !== 'all';
+
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100">
-              <CalendarDays className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
-              Programs & Activities
-            </h1>
+    <div className="space-y-4 pb-12">
+      {/* Executive Combined Header & Toolbar Card */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+        {/* Top Header Row */}
+        <div className="flex flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100 shrink-0">
+              <CalendarDays className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
+                  Programs & Activities
+                </h1>
+                <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200 shrink-0">
+                  {programs.length} {programs.length === 1 ? 'Record' : 'Records'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 hidden sm:block mt-0.5">
+                Official register of seminars, workshops, and academic events for {currentOrg.name}.
+              </p>
+            </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Conduct, record, and document all seminars, workshops, and academic events for {currentOrg.name}.
-          </p>
+
+          {isAdmin && (
+            <button
+              id="add-program-btn"
+              onClick={onOpenAddModal}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 text-xs sm:text-sm shrink-0 active:scale-[0.98] cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Add Program</span>
+            </button>
+          )}
         </div>
 
-        {isAdmin && (
-          <button
-            id="add-program-btn"
-            onClick={onOpenAddModal}
-            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl transition-all shadow-xs flex items-center justify-center gap-2 text-sm shrink-0"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add Program</span>
-          </button>
-        )}
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="space-y-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        {/* Search & Filter Toolbar */}
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1 border-t border-slate-100">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               id="search-programs-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search programs by title, venue, audience, or keywords..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="Search programs by title, venue, audience..."
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors"
             />
           </div>
 
@@ -108,7 +119,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:bg-white"
+              className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="completed">Completed</option>
@@ -121,18 +132,30 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
       {/* Programs List */}
       {filteredPrograms.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-slate-300">
-          <CalendarDays className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">No Programs Match Your Filters</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-            Try adjusting your search query or status filter.
-          </p>
-          {isAdmin && (
+        <div className="bg-white rounded-2xl p-8 sm:p-10 text-center border border-dashed border-slate-300 space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+            <CalendarDays className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-slate-800">
+              {hasActiveFilters ? 'No Programs Match Your Search' : 'No Programs Recorded Yet'}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+              {hasActiveFilters
+                ? 'Try adjusting your search terms or status filter to find recorded events.'
+                : 'Click "Add Program" in the header to record your organization\'s first event.'}
+            </p>
+          </div>
+          {hasActiveFilters && (
             <button
-              onClick={onOpenAddModal}
-              className="mt-4 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs"
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedStatus('all');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >
-              + Record New Program
+              Clear Filters
             </button>
           )}
         </div>

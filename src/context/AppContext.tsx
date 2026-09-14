@@ -163,7 +163,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentOrgId, setCurrentOrgId] = useState<string>('');
 
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programs, setPrograms] = useState<Program[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_programs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -359,13 +366,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: d.description || '',
           poster: d.poster || '',
           media: d.media || [],
-          status: d.status || 'upcoming',
+          status: d.status || 'completed',
           attendance_count: d.attendance_count || 0,
           created_at: d.created_at || '',
           updated_at: d.updated_at || '',
         });
       });
+      list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
       setPrograms(list);
+      try {
+        localStorage.setItem('local_programs', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'programs'));
 
     // 4. Accounts
@@ -628,46 +639,111 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Program Mutations
   const addProgram = async (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Program> => {
-    if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'programs'), {
-      accountId: user.id,
+    const uid = user?.id || 'main_account';
+    const tempId = 'prog_' + Date.now();
+    const newProg: Program = {
+      id: tempId,
+      organization_id: uid,
       name: prog.name,
       category: prog.category || 'General',
-      date: prog.date,
+      date: prog.date || now.split('T')[0],
       time: prog.time || '',
       place: prog.place || '',
       audience: prog.audience || 'Students',
       description: prog.description || '',
-      poster: prog.poster || '',
+      poster: prog.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1000&auto=format&fit=crop&q=80',
       media: prog.media || [],
-      status: prog.status || 'upcoming',
+      status: prog.status || 'completed',
       attendance_count: prog.attendance_count || 0,
       created_at: now,
       updated_at: now,
-    });
-    return {
-      id: docRef.id,
-      organization_id: user.id,
-      ...prog,
-      created_at: now,
-      updated_at: now,
     };
+
+    // Immediate optimistic update to React state and localStorage
+    setPrograms((prev) => {
+      const updated = [newProg, ...prev.filter((p) => p.id !== tempId)];
+      try {
+        localStorage.setItem('local_programs', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user?.id) {
+      try {
+        const docRef = await addDoc(collection(db, 'programs'), {
+          accountId: user.id,
+          name: newProg.name,
+          category: newProg.category,
+          date: newProg.date,
+          time: newProg.time,
+          place: newProg.place,
+          audience: newProg.audience,
+          description: newProg.description,
+          poster: newProg.poster,
+          media: newProg.media,
+          status: newProg.status,
+          attendance_count: newProg.attendance_count,
+          created_at: now,
+          updated_at: now,
+        });
+
+        const savedProg: Program = { ...newProg, id: docRef.id };
+        setPrograms((prev) => {
+          const updated = prev.map((p) => (p.id === tempId ? savedProg : p));
+          try {
+            localStorage.setItem('local_programs', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+        return savedProg;
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, 'programs');
+      }
+    }
+    return newProg;
   };
 
   const updateProgram = async (prog: Partial<Program> & { id: string }) => {
-    if (!user?.id) return;
     const now = new Date().toISOString();
-    const docRef = doc(db, 'programs', prog.id);
-    const { id, organization_id, ...updates } = prog;
-    await updateDoc(docRef, {
-      ...updates,
-      updated_at: now,
+    setPrograms((prev) => {
+      const updated = prev.map((p) => (p.id === prog.id ? { ...p, ...prog, updated_at: now } : p));
+      try {
+        localStorage.setItem('local_programs', JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+
+    if (user?.id) {
+      try {
+        const docRef = doc(db, 'programs', prog.id);
+        const { id, organization_id, ...updates } = prog;
+        await updateDoc(docRef, {
+          ...updates,
+          updated_at: now,
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `programs/${prog.id}`);
+      }
+    }
   };
 
   const deleteProgram = async (id: string) => {
-    await deleteDoc(doc(db, 'programs', id));
+    setPrograms((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      try {
+        localStorage.setItem('local_programs', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user?.id) {
+      try {
+        await deleteDoc(doc(db, 'programs', id));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `programs/${id}`);
+      }
+    }
   };
 
   const addProgramMedia = async (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => {

@@ -40,7 +40,6 @@ const MainLayout: React.FC = () => {
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Organizer modal state
   const [isOrganizerModalOpen, setIsOrganizerModalOpen] = useState(false);
@@ -90,28 +89,21 @@ const MainLayout: React.FC = () => {
   const isTreasuryTab = activeTab.startsWith('treasury');
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans relative">
       {/* Top Header */}
       <Header
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-        isMenuOpen={isMenuOpen}
-        setIsMenuOpen={setIsMenuOpen}
       />
 
-      {/* Main Navigation Bar & Drawer */}
-      <Navigation
-        isMenuOpen={isMenuOpen}
-        setIsMenuOpen={setIsMenuOpen}
-        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-        onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
-      />
+      {/* Persistent Bottom Navigation Bar */}
+      <Navigation />
 
       {/* Treasury Sub-Navigation if in treasury section */}
       {isTreasuryTab && <TreasuryNav />}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32">
         {organizations.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 space-y-4 shadow-sm">
             <h2 className="text-2xl font-bold font-heading text-slate-900">Welcome to Organization Manager</h2>
@@ -120,14 +112,14 @@ const MainLayout: React.FC = () => {
             </p>
             <button
               onClick={() => setIsOnboardingOpen(true)}
-              className="py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm inline-flex items-center gap-2"
+              className="py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm inline-flex items-center gap-2 cursor-pointer"
             >
               + Create Organization
             </button>
             <div className="pt-4 border-t border-slate-100 flex justify-center">
               <button
                 onClick={logoutUser}
-                className="text-xs text-rose-600 font-semibold hover:underline flex items-center gap-1"
+                className="text-xs text-rose-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Logout ({user?.username || user?.email})</span>
@@ -162,7 +154,10 @@ const MainLayout: React.FC = () => {
             )}
 
             {activeTab === 'settings' && (
-              <OrgSettingsView onOpenNewOrgModal={() => setIsOnboardingOpen(true)} />
+              <OrgSettingsView
+                onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
+                onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+              />
             )}
 
             {/* Treasury Views */}

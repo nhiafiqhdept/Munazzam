@@ -11,6 +11,8 @@ import {
   Camera,
   Video,
   Link,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { Program, ProgramMedia } from '../types';
 import { useApp } from '../context/AppContext';
@@ -78,6 +80,8 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   const [uploadProgressDoc, setUploadProgressDoc] = useState(0);
 
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (programToEdit) {
@@ -125,6 +129,8 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setInitialProofs([]);
     }
     setError('');
+    setSuccessMessage('');
+    setIsSubmitting(false);
   }, [programToEdit, isOpen]);
 
   if (!isOpen) return null;
@@ -273,6 +279,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
     };
 
     try {
+      setIsSubmitting(true);
+      setError('');
+      setSuccessMessage('');
+
       if (programToEdit) {
         await updateProgram({
           id: programToEdit.id,
@@ -299,6 +309,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             file_name: m.caption,
           });
         }
+        setSuccessMessage('Program changes saved & updated successfully!');
       } else {
         const newProgram = await addProgram({
           ...programData,
@@ -314,9 +325,16 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             file_name: proof.caption,
           });
         }
+        setSuccessMessage('Program uploaded & published successfully!');
       }
-      onClose();
+
+      setIsSubmitting(false);
+
+      setTimeout(() => {
+        onClose();
+      }, 1200);
     } catch (err: any) {
+      setIsSubmitting(false);
       setError(err.message || 'Failed to save program.');
     }
   };
@@ -344,6 +362,13 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
           </div>
         )}
 
@@ -545,7 +570,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 {posterTab === 'upload' ? (
                   <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold">
                     <Upload className="w-4 h-4 text-emerald-600" />
-                    <span>{isUploadingPoster ? `Uploading (${uploadProgressPoster}%)...` : 'Choose Poster File'}</span>
+                    <span>{isUploadingPoster ? 'Uploading Poster...' : 'Choose Poster File'}</span>
                     <input type="file" accept="image/*" onChange={handlePosterFileUpload} className="hidden" />
                   </label>
                 ) : (
@@ -600,7 +625,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-xs font-semibold text-slate-700">
                     <Upload className="w-4 h-4 text-emerald-600" />
-                    <span>{isUploadingPhoto ? `Uploading (${uploadProgressPhoto}%)...` : 'Choose Photo File'}</span>
+                    <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Choose Photo File'}</span>
                     <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                   </label>
                   <input
@@ -674,7 +699,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                   {videoTab === 'upload' ? (
                     <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-500 text-xs font-semibold text-slate-700">
                       <Upload className="w-4 h-4 text-blue-600" />
-                      <span>{isUploadingVideo ? `Uploading (${uploadProgressVideo}%)...` : 'Choose Video File'}</span>
+                      <span>{isUploadingVideo ? 'Uploading Video...' : 'Choose Video File'}</span>
                       <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
                     </label>
                   ) : (
@@ -742,7 +767,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-amber-500 text-xs font-semibold text-slate-700">
                     <Upload className="w-4 h-4 text-amber-600" />
-                    <span>{isUploadingDoc ? `Uploading (${uploadProgressDoc}%)...` : 'Choose Doc / PDF'}</span>
+                    <span>{isUploadingDoc ? 'Uploading Doc...' : 'Choose Doc / PDF'}</span>
                     <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={handleDocUpload} className="hidden" />
                   </label>
                   <input
@@ -777,10 +802,29 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center gap-2"
+              disabled={isSubmitting || !!successMessage}
+              className={`px-6 py-2.5 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer ${
+                successMessage
+                  ? 'bg-emerald-800 text-white'
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-80'
+              }`}
             >
-              <Check className="w-4 h-4" />
-              <span>{programToEdit ? 'Save Changes' : 'Save & Publish Program'}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-300" />
+                  <span>Saving & Publishing...</span>
+                </>
+              ) : successMessage ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  <span>Uploaded & Published Successfully!</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>{programToEdit ? 'Save Changes' : 'Save & Publish Program'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
