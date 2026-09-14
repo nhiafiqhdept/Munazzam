@@ -6,7 +6,7 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { SAMPLE_ORG_LOGOS } from '../utils/helpers';
+import { DEFAULT_ORG_LOGO } from '../utils/helpers';
 
 interface HeaderProps {
   onOpenAdminLogin: () => void;
@@ -39,11 +39,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="relative group shrink-0">
               <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-slate-50 border-2 border-emerald-600/30 p-1 shadow-xs flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
                 <img
-                  src={currentOrg.logo || SAMPLE_ORG_LOGOS[0].url}
+                  src={currentOrg.logo || DEFAULT_ORG_LOGO}
                   alt={`${currentOrg.name} Logo`}
                   className="w-full h-full object-contain rounded-xl"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
+                    (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                   }}
                 />
               </div>
@@ -87,11 +87,11 @@ export const Header: React.FC<HeaderProps> = ({
                             }`}
                           >
                             <img
-                              src={org.logo || SAMPLE_ORG_LOGOS[0].url}
+                              src={org.logo || DEFAULT_ORG_LOGO}
                               alt=""
                               className="w-6 h-6 rounded-md object-cover border border-slate-200"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
+                                (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                               }}
                             />
                             <div className="min-w-0 flex-1">

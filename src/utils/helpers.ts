@@ -191,20 +191,4 @@ export const DEFAULT_CATEGORY_NAMES = [
   { name: 'Academic Program', color: 'emerald' },
 ];
 
-export const SAMPLE_ORG_LOGOS = [
-  {
-    id: 'seal_academic',
-    name: 'Academic Crest',
-    url: 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=300&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'seal_dept',
-    name: 'Islamic Studies / Fiqh Seal',
-    url: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=300&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'seal_union',
-    name: 'Student Union Emblem',
-    url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=300&auto=format&fit=crop&q=80',
-  },
-];
+export const DEFAULT_ORG_LOGO = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>';

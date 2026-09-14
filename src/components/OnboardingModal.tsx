@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, GraduationCap, Upload, Check, Sparkles, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, uploadFile, SAMPLE_ORG_LOGOS } from '../utils/helpers';
+import { fileToDataUrl, uploadFile } from '../utils/helpers';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -23,9 +23,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
-  const [logo, setLogo] = useState(SAMPLE_ORG_LOGOS[0].url);
-  const [logoTab, setLogoTab] = useState<'preset' | 'upload' | 'url'>('preset');
-  const [customLogoUrl, setCustomLogoUrl] = useState('');
+  const [logo, setLogo] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
@@ -57,7 +55,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       setEstablishedYear('2012');
       setDescription('Academic department steering jurisprudential workshops, research symposiums, and legal colloquiums.');
       setEmail('fiqhdept@dhiu.edu');
-      setLogo(SAMPLE_ORG_LOGOS[1].url);
+      setLogo('');
     } else if (type === 'union') {
       setName('Noorul Huda Students Union');
       setCollegeName('Noorul Huda Academic Campus');
@@ -65,7 +63,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       setEstablishedYear('2008');
       setDescription('Central student representative union conducting annual arts festivals, campus debates, and community welfare programs.');
       setEmail('union@noorulhuda.edu');
-      setLogo(SAMPLE_ORG_LOGOS[2].url);
+      setLogo('');
     } else {
       setName('');
       setCollegeName('');
@@ -73,7 +71,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       setEstablishedYear(new Date().getFullYear().toString());
       setDescription('');
       setEmail('');
-      setLogo(SAMPLE_ORG_LOGOS[0].url);
+      setLogo('');
     }
   };
 
@@ -88,12 +86,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       return;
     }
 
-    const finalLogo = logoTab === 'url' && customLogoUrl ? customLogoUrl : logo;
-
     addOrganization({
       name: name.trim(),
       college_name: collegeName.trim(),
-      logo: finalLogo,
+      logo: logo,
       tagline: tagline.trim(),
       established_year: establishedYear.trim(),
       description: description.trim(),
@@ -237,99 +233,54 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           {/* Logo Selection Section */}
           <div className="pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-              Organization Logo / Crest
+              ORGANIZATION LOGO / CREST
             </label>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row items-center gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
               {/* Preview */}
-              <div className="w-20 h-20 rounded-2xl bg-white p-1 border-2 border-emerald-500 shadow-sm flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={(logoTab === 'url' && customLogoUrl) ? customLogoUrl : (logo || SAMPLE_ORG_LOGOS[0].url)}
-                  alt="Logo Preview"
-                  className="w-full h-full object-contain rounded-xl"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
-                  }}
-                />
+              <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
+                {logo ? (
+                  <img
+                    src={logo}
+                    alt="Logo Preview"
+                    className="w-full h-full object-contain rounded-xl"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-center text-slate-400">
+                    <ImageIcon className="w-8 h-8 mb-1 text-slate-300" />
+                    <span className="text-[10px] font-medium text-slate-400">No Logo</span>
+                  </div>
+                )}
               </div>
 
-              {/* Selector options */}
+              {/* Selector options / Upload Area */}
               <div className="flex-1 w-full space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setLogoTab('preset')}
-                    className={`text-xs font-semibold px-3 py-1 rounded-lg transition-colors ${
-                      logoTab === 'preset' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Preset Crests
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLogoTab('upload')}
-                    className={`text-xs font-semibold px-3 py-1 rounded-lg transition-colors ${
-                      logoTab === 'upload' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Upload Image
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLogoTab('url')}
-                    className={`text-xs font-semibold px-3 py-1 rounded-lg transition-colors ${
-                      logoTab === 'url' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Image URL
-                  </button>
-                </div>
-
-                {logoTab === 'preset' && (
-                  <div className="flex items-center gap-2">
-                    {SAMPLE_ORG_LOGOS.map((sample) => (
-                      <button
-                        key={sample.id}
-                        type="button"
-                        onClick={() => setLogo(sample.url)}
-                        className={`p-1.5 rounded-xl border-2 transition-all ${
-                          logo === sample.url ? 'border-emerald-600 bg-white shadow-xs' : 'border-slate-200 hover:border-slate-300'
-                        }`}
-                        title={sample.name}
-                      >
-                        <img src={sample.url} alt={sample.name} className="w-10 h-10 object-cover rounded-lg" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {logoTab === 'upload' && (
-                  <div>
-                    <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold hover:bg-emerald-50/50 transition-colors">
-                      <Upload className="w-4 h-4 text-emerald-600" />
-                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : 'Click to Upload Logo File'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-[11px] text-slate-500 mt-1">Supports PNG, JPG, WebP, SVG</p>
-                  </div>
-                )}
-
-                {logoTab === 'url' && (
-                  <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-colors shadow-sm">
+                    <Upload className="w-4 h-4" />
+                    <span>{isUploading ? `Uploading (${uploadProgress}%)...` : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
                     <input
-                      type="url"
-                      value={customLogoUrl}
-                      onChange={(e) => setCustomLogoUrl(e.target.value)}
-                      placeholder="https://example.com/logo.png"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={isUploading}
                     />
-                  </div>
-                )}
+                  </label>
+
+                  {logo && (
+                    <button
+                      type="button"
+                      onClick={() => setLogo('')}
+                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors"
+                    >
+                      Remove Logo
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
+                </p>
               </div>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   Sparkles,
   GraduationCap,
   Info,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { fileToDataUrl, uploadFile } from '../utils/helpers';
@@ -28,8 +29,6 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
   const [about, setAbout] = useState('');
   const [academicYear, setAcademicYear] = useState('');
   const [logo, setLogo] = useState('');
-  const [logoTab, setLogoTab] = useState<'upload' | 'url'>('upload');
-  const [customLogoUrl, setCustomLogoUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +58,6 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
       setErrorMsg('');
       const url = await uploadFile(file, (percent) => setUploadProgress(percent));
       setLogo(url);
-      setLogoTab('upload');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to upload logo.');
     } finally {
@@ -79,7 +77,6 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
 
     try {
       setIsSaving(true);
-      const finalLogo = logoTab === 'url' && customLogoUrl.trim() ? customLogoUrl.trim() : logo;
 
       updateOrganization({
         id: currentOrg.id,
@@ -88,14 +85,8 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
         tagline: tagline.trim(),
         about: about.trim(),
         academic_year: academicYear.trim(),
-        logo: finalLogo,
+        logo: logo,
       });
-
-      // If custom logo URL was used, update local logo state as well
-      if (logoTab === 'url' && customLogoUrl.trim()) {
-        setLogo(customLogoUrl.trim());
-        setCustomLogoUrl('');
-      }
 
       setSuccessMsg('Profile changes saved successfully.');
       setTimeout(() => {
@@ -191,57 +182,53 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
             {/* Logo */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                Official Crest / Logo
+                ORGANIZATION LOGO / CREST
               </label>
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200 p-1.5 shrink-0 shadow-2xs flex items-center justify-center">
-                  <img
-                    src={(logoTab === 'url' && customLogoUrl) ? customLogoUrl : (logo || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80')}
-                    alt="Logo"
-                    className="max-h-full max-w-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80';
-                    }}
-                  />
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                {/* Preview */}
+                <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt="Logo Preview"
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-center text-slate-400">
+                      <ImageIcon className="w-8 h-8 mb-1 text-slate-300" />
+                      <span className="text-[10px] font-medium text-slate-400">No Logo</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex-1 space-y-2">
-                  <div className="flex gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setLogoTab('upload')}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                        logoTab === 'upload' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      Upload File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLogoTab('url')}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
-                        logoTab === 'url' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      Image URL
-                    </button>
-                  </div>
-
-                  {logoTab === 'upload' ? (
-                    <label className="flex items-center justify-center gap-2 px-3.5 py-2 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-slate-700 text-xs font-semibold">
-                      <Upload className="w-4 h-4 text-emerald-600" />
-                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : 'Choose Logo Image'}</span>
-                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                {/* Selector options / Upload Area */}
+                <div className="flex-1 w-full space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-colors shadow-sm">
+                      <Upload className="w-4 h-4" />
+                      <span>{isUploading ? `Uploading (${uploadProgress}%)...` : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        disabled={isUploading}
+                      />
                     </label>
-                  ) : (
-                    <input
-                      type="url"
-                      value={customLogoUrl}
-                      onChange={(e) => setCustomLogoUrl(e.target.value)}
-                      placeholder="https://example.com/crest.png"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs"
-                    />
-                  )}
+
+                    {logo && (
+                      <button
+                        type="button"
+                        onClick={() => setLogo('')}
+                        className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors"
+                      >
+                        Remove Logo
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
+                  </p>
                 </div>
               </div>
             </div>

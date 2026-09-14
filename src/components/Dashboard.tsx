@@ -18,7 +18,7 @@ import {
   ArrowDownLeft,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatDate, SAMPLE_ORG_LOGOS } from '../utils/helpers';
+import { formatDate, DEFAULT_ORG_LOGO } from '../utils/helpers';
 import { ActiveTab } from '../types';
 
 interface DashboardProps {
@@ -103,11 +103,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
             {/* Crest / Logo */}
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-50 border border-slate-200 p-1.5 shrink-0 flex items-center justify-center overflow-hidden shadow-2xs">
               <img
-                src={currentOrg.logo || SAMPLE_ORG_LOGOS[0].url}
+                src={currentOrg.logo || DEFAULT_ORG_LOGO}
                 alt={`${currentOrg.name} Crest`}
                 className="w-full h-full object-contain rounded-lg"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
+                  (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                 }}
               />
             </div>

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ActiveTab } from '../types';
-import { SAMPLE_ORG_LOGOS } from '../utils/helpers';
+import { DEFAULT_ORG_LOGO } from '../utils/helpers';
 
 interface NavigationProps {
   isMenuOpen: boolean;
@@ -148,11 +148,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-1">
                   <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-0.5 shrink-0 flex items-center justify-center overflow-hidden shadow-2xs">
                     <img
-                      src={currentOrg?.logo || SAMPLE_ORG_LOGOS[0].url}
+                      src={currentOrg?.logo || DEFAULT_ORG_LOGO}
                       alt=""
                       className="w-full h-full object-contain rounded-md"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
+                        (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                       }}
                     />
                   </div>
@@ -414,11 +414,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                           }`}
                         >
                           <img
-                            src={org.logo || SAMPLE_ORG_LOGOS[0].url}
+                            src={org.logo || DEFAULT_ORG_LOGO}
                             alt=""
                             className="w-4 h-4 rounded-sm object-cover border border-slate-200 shrink-0"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = SAMPLE_ORG_LOGOS[0].url;
+                              (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                             }}
                           />
                           <span className="truncate flex-1 font-medium">{org.name}</span>

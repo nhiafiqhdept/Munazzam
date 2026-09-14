@@ -237,10 +237,6 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setError('Please provide a Program Name.');
       return;
     }
-    if (!category.trim()) {
-      setError('Please enter a program category.');
-      return;
-    }
     if (!date) {
       setError('Please provide the date of the program.');
       return;
@@ -370,7 +366,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
           {/* Program Category */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Program Category <span className="text-rose-500">*</span>
+              PROGRAM CATEGORY
             </label>
             <input
               type="text"
@@ -378,7 +374,6 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Enter program category"
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              required
             />
           </div>
 
