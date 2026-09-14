@@ -76,7 +76,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">
+              <h3 className="text-lg font-bold font-heading text-slate-900">
                 {editingAccount ? 'Edit Account' : 'Add Financial Account'}
               </h3>
               <p className="text-xs text-slate-500">Configure deposit chest or bank account</p>

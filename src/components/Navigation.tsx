@@ -157,7 +157,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight break-words font-serif line-clamp-2">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight break-words font-heading line-clamp-2">
                       {currentOrg?.name || 'Academic Portal'}
                     </h3>
                     <p className="text-[10.5px] text-slate-500 font-medium leading-tight truncate mt-0.5">

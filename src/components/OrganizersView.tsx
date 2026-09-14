@@ -80,7 +80,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
             <span className="p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
               <Users className="w-5 h-5" />
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
               Organizers & Office Bearers
             </h1>
           </div>
@@ -171,7 +171,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
               </div>
 
               {/* Name & Position */}
-              <h3 className="text-xs sm:text-base font-bold text-slate-900 font-serif leading-tight line-clamp-2">
+              <h3 className="text-xs sm:text-base font-bold text-slate-900 font-heading leading-tight line-clamp-2">
                 {orgzr.name}
               </h3>
               <p className="mt-1 text-[10px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wide">

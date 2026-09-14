@@ -114,7 +114,7 @@ const MainLayout: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {organizations.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 space-y-4 shadow-sm">
-            <h2 className="text-2xl font-bold font-serif text-slate-900">Welcome to Organization Manager</h2>
+            <h2 className="text-2xl font-bold font-heading text-slate-900">Welcome to Organization Manager</h2>
             <p className="text-sm text-slate-600">
               You haven't created any organizations yet under your account ({user?.email}). Create your first organization to get started.
             </p>

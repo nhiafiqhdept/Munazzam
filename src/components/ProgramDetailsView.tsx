@@ -405,7 +405,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
 
               {/* Title & Category */}
               <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif tracking-tight text-white leading-tight">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-heading tracking-tight text-white leading-tight">
                   {program.name}
                 </h1>
                 {program.category && (
@@ -517,7 +517,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
           </div>
 
           <div>
-            <h1 className="text-xl font-bold font-serif text-slate-900 leading-tight">
+            <h1 className="text-xl font-bold font-heading text-slate-900 leading-tight">
               {program.name}
             </h1>
             {program.category && (
@@ -552,7 +552,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
 
       {/* 2. PROGRAM DESCRIPTION / REPORT */}
       <div className="bg-white p-6 md:p-8 rounded-[18px] md:rounded-3xl border border-slate-200 shadow-2xs space-y-4 mx-1">
-        <h2 className="text-base md:text-lg font-bold text-slate-900 font-serif pb-2 border-b border-slate-100 flex items-center gap-2">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 font-heading pb-2 border-b border-slate-100 flex items-center gap-2">
           <span>Program Description & Report</span>
         </h2>
         <div className="text-slate-700 text-sm md:text-base leading-relaxed whitespace-pre-line font-sans">
@@ -564,7 +564,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       <div className="hidden md:block space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 font-serif">Documentation & Media Proofs</h2>
+            <h2 className="text-xl font-bold text-slate-900 font-heading">Documentation & Media Proofs</h2>
             <p className="text-xs sm:text-sm text-slate-500">
               Photographs, attendance sheets, video recordings, and official documents.
             </p>
@@ -675,7 +675,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       {/* --- MOBILE DOCUMENTATION & MEDIA (Redesigned) --- */}
       <div className="md:hidden space-y-6 mx-1">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 font-serif">Documentation & Media</h2>
+          <h2 className="text-lg font-bold text-slate-900 font-heading">Documentation & Media</h2>
           <p className="text-[11px] text-slate-500">Official evidence and multimedia coverage.</p>
         </div>
 
@@ -805,7 +805,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       {isAdmin && (
         <div className="bg-white p-6 md:p-8 rounded-[18px] md:rounded-3xl border border-slate-200 shadow-2xs space-y-4 mx-1">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h2 className="text-base md:text-lg font-bold text-slate-900 font-serif">
+            <h2 className="text-base md:text-lg font-bold text-slate-900 font-heading">
               Financial Summary
             </h2>
             <span className="text-[9px] md:text-[10px] uppercase font-bold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md tracking-wider">
@@ -853,7 +853,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900 font-serif">Add Documentation Proof</h3>
+              <h3 className="text-lg font-bold text-slate-900 font-heading">Add Documentation Proof</h3>
               <button
                 onClick={() => setShowAddMediaModal(false)}
                 className="p-2 text-slate-400 hover:text-slate-600 rounded-xl"

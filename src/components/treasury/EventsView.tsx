@@ -121,7 +121,7 @@ export const EventsView: React.FC = () => {
           <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
             <Calendar className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold font-serif text-slate-900">No programs available</h2>
+          <h2 className="text-xl font-bold font-heading text-slate-900">No programs available</h2>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Create a program first to start tracking event finances. Program details and budgets will connect automatically.
           </p>
@@ -134,7 +134,7 @@ export const EventsView: React.FC = () => {
         {/* Header Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">
           <div>
-            <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Events Financial Tracker</h1>
+            <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Events Financial Tracker</h1>
             <p className="text-sm text-slate-500 mt-1">
               Select any existing academic or public program to view ledger accounts, surplus calculations, and detailed receipts.
             </p>
@@ -235,7 +235,7 @@ export const EventsView: React.FC = () => {
                   {/* Body Info */}
                   <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                     <div>
-                      <h2 className="font-bold text-base font-serif text-slate-900 line-clamp-1">
+                      <h2 className="font-bold text-base font-heading text-slate-900 line-clamp-1">
                         {prog.name}
                       </h2>
                       <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
@@ -338,7 +338,7 @@ export const EventsView: React.FC = () => {
           )}
           <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
             <div className="space-y-2">
-              <h1 className="text-xl sm:text-2xl font-bold font-serif text-slate-900 leading-snug">
+              <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900 leading-snug">
                 {currentEvent.name}
               </h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
@@ -461,7 +461,7 @@ export const EventsView: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xs">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-bold font-serif text-base text-slate-900">Event Income Streams</h3>
+                  <h3 className="font-bold font-heading text-base text-slate-900">Event Income Streams</h3>
                   <p className="text-xs text-slate-500">Receipt records linked to this program.</p>
                 </div>
                 {isAdmin && (
@@ -545,7 +545,7 @@ export const EventsView: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xs">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-bold font-serif text-base text-slate-900">Event Expenditures</h3>
+                  <h3 className="font-bold font-heading text-base text-slate-900">Event Expenditures</h3>
                   <p className="text-xs text-slate-500">Invoices and payment records linked to this program.</p>
                 </div>
                 {isAdmin && (
@@ -630,7 +630,7 @@ export const EventsView: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-3xl shadow-xs p-8 max-w-2xl mx-auto space-y-8 font-sans">
             <div className="text-center space-y-1">
               <h2 className="text-xs font-extrabold tracking-wider text-slate-400 uppercase">Event Financial Report</h2>
-              <h3 className="text-xl font-bold font-serif text-slate-900">{currentEvent.name}</h3>
+              <h3 className="text-xl font-bold font-heading text-slate-900">{currentEvent.name}</h3>
               <p className="text-xs text-slate-500">Date: {currentEvent.date} • Venue: {currentEvent.place}</p>
             </div>
 

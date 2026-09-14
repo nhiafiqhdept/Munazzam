@@ -15,7 +15,7 @@ export const ReportsView: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Financial Reports & Statements</h1>
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Financial Reports & Statements</h1>
           <p className="text-sm text-slate-500 mt-1">Comprehensive summary statements for income, expenses, programs, and loans.</p>
         </div>
 
@@ -32,7 +32,7 @@ export const ReportsView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Income Report Summary */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-          <h3 className="text-lg font-bold font-serif text-slate-900 border-b border-slate-100 pb-3">Income Statement Summary</h3>
+          <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-3">Income Statement Summary</h3>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-600 font-medium">Total Inflows / Revenue:</span>
@@ -47,7 +47,7 @@ export const ReportsView: React.FC = () => {
 
         {/* Expense Report Summary */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-          <h3 className="text-lg font-bold font-serif text-slate-900 border-b border-slate-100 pb-3">Expense Statement Summary</h3>
+          <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-3">Expense Statement Summary</h3>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-600 font-medium">Total Outflows / Expenses:</span>
@@ -63,7 +63,7 @@ export const ReportsView: React.FC = () => {
 
       {/* Program Financial Statements */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-        <h3 className="text-lg font-bold font-serif text-slate-900 border-b border-slate-100 pb-3">Event / Program Financial Results</h3>
+        <h3 className="text-lg font-bold font-heading text-slate-900 border-b border-slate-100 pb-3">Event / Program Financial Results</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

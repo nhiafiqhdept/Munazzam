@@ -97,7 +97,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
               <ArrowDownLeft className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">Record Income</h3>
+              <h3 className="text-lg font-bold font-heading text-slate-900">Record Income</h3>
               <p className="text-xs text-slate-500">Add donation, sponsorship, or grant</p>
             </div>
           </div>

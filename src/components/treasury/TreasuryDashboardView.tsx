@@ -119,7 +119,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
       {/* Top Banner & Quick Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">
             Treasurer & Financial Operations Dashboard
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -165,7 +165,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cash in Hand</p>
-            <p className="text-2xl font-bold font-serif text-slate-900 mt-1">₹{cashInHand.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-heading text-slate-900 mt-1">₹{cashInHand.toLocaleString()}</p>
             <p className="text-[11px] text-emerald-600 mt-1 font-medium">Physical currency</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
@@ -177,7 +177,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Bank & Digital Accounts</p>
-            <p className="text-2xl font-bold font-serif text-slate-900 mt-1">₹{bankBalance.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-heading text-slate-900 mt-1">₹{bankBalance.toLocaleString()}</p>
             <p className="text-[11px] text-blue-600 mt-1 font-medium">Institutional deposits</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
@@ -189,7 +189,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
         <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Total Available Balance</p>
-            <p className="text-2xl font-bold font-serif text-white mt-1">₹{totalAvailable.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-heading text-white mt-1">₹{totalAvailable.toLocaleString()}</p>
             <p className="text-[11px] text-emerald-300 mt-1 font-medium">Net liquid reserves</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-200 flex items-center justify-center shrink-0">
@@ -202,7 +202,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold text-emerald-700 uppercase">Total Inflows</p>
-              <p className="text-lg font-bold font-serif text-slate-900">₹{totalIncome.toLocaleString()}</p>
+              <p className="text-lg font-bold font-heading text-slate-900">₹{totalIncome.toLocaleString()}</p>
             </div>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
@@ -212,7 +212,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold text-rose-700 uppercase">Total Outflows</p>
-              <p className="text-lg font-bold font-serif text-slate-900">₹{totalExpense.toLocaleString()}</p>
+              <p className="text-lg font-bold font-heading text-slate-900">₹{totalExpense.toLocaleString()}</p>
             </div>
             <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
               <TrendingDown className="w-4 h-4" />
@@ -225,22 +225,22 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <p className="text-xs font-semibold text-slate-500 uppercase">Money Lent (Receivables)</p>
-          <p className="text-xl font-bold font-serif text-blue-700 mt-1">₹{moneyLent.toLocaleString()}</p>
+          <p className="text-xl font-bold font-heading text-blue-700 mt-1">₹{moneyLent.toLocaleString()}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Outstanding amounts to recover</p>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <p className="text-xs font-semibold text-slate-500 uppercase">Money Borrowed (Payables)</p>
-          <p className="text-xl font-bold font-serif text-amber-700 mt-1">₹{moneyBorrowed.toLocaleString()}</p>
+          <p className="text-xl font-bold font-heading text-amber-700 mt-1">₹{moneyBorrowed.toLocaleString()}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Outstanding liabilities to repay</p>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <p className="text-xs font-semibold text-slate-500 uppercase">Active Accounts</p>
-          <p className="text-xl font-bold font-serif text-slate-900 mt-1">{accounts.filter(a => a.is_active).length}</p>
+          <p className="text-xl font-bold font-heading text-slate-900 mt-1">{accounts.filter(a => a.is_active).length}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Managed deposit locations</p>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <p className="text-xs font-semibold text-slate-500 uppercase">Net Surplus / Deficit</p>
-          <p className={`text-xl font-bold font-serif mt-1 ${totalIncome - totalExpense >= 0 ? 'text-emerald-700' : 'text-rose-750'}`}>
+          <p className={`text-xl font-bold font-heading mt-1 ${totalIncome - totalExpense >= 0 ? 'text-emerald-700' : 'text-rose-750'}`}>
             ₹{(totalIncome - totalExpense).toLocaleString()}
           </p>
           <p className="text-[11px] text-slate-400 mt-0.5">Overall operational result</p>
@@ -251,7 +251,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Income vs Expense */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-          <h3 className="text-base font-bold font-serif text-slate-900 mb-4">Monthly Income vs Expenses</h3>
+          <h3 className="text-base font-bold font-heading text-slate-900 mb-4">Monthly Income vs Expenses</h3>
           {monthlyChartData.length > 0 ? (
             <div className="w-full h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -277,7 +277,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
 
         {/* Expense Category Breakdown */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-          <h3 className="text-base font-bold font-serif text-slate-900 mb-4">Expense Categories Breakdown</h3>
+          <h3 className="text-base font-bold font-heading text-slate-900 mb-4">Expense Categories Breakdown</h3>
           {expensePieData.length > 0 ? (
             <div className="w-full h-72 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">

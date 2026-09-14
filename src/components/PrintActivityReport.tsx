@@ -66,12 +66,12 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                 }}
               />
               <div>
-                <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">
+                <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">
                   {organization?.name || 'Organization'}
                 </h1>
                 <p className="text-sm font-semibold text-emerald-800">{organization?.college_name || ''}</p>
                 {organization?.tagline && (
-                  <p className="text-xs text-slate-500 italic mt-0.5 font-serif">{organization.tagline}</p>
+                  <p className="text-xs text-slate-500 italic mt-0.5">{organization.tagline}</p>
                 )}
               </div>
             </div>
@@ -94,7 +94,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                 </span>
               )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading mt-1">
               {program.name}
             </h2>
           </div>
@@ -175,7 +175,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
           <div className="pt-10 mt-8 border-t border-slate-300 grid grid-cols-3 gap-4 text-center text-xs">
             <div>
               <div className="h-12 flex items-end justify-center">
-                <span className="font-serif italic text-slate-400 text-[11px]">[Verified Signature]</span>
+                <span className="italic text-slate-400 text-[11px]">[Verified Signature]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">General Secretary</p>
               <p className="text-[10px] text-slate-500">{organization?.name || ''}</p>
@@ -183,7 +183,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
 
             <div>
               <div className="h-12 flex items-end justify-center">
-                <span className="font-serif italic text-slate-400 text-[11px]">[Verified Signature]</span>
+                <span className="italic text-slate-400 text-[11px]">[Verified Signature]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">President</p>
               <p className="text-[10px] text-slate-500">{organization?.name || ''}</p>
@@ -191,7 +191,7 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
 
             <div>
               <div className="h-12 flex items-end justify-center">
-                <span className="font-serif italic text-slate-400 text-[11px]">[Verified Stamp]</span>
+                <span className="italic text-slate-400 text-[11px]">[Verified Stamp]</span>
               </div>
               <p className="font-bold text-slate-900 border-t border-slate-400 pt-1">Staff Advisor / HOD</p>
               <p className="text-[10px] text-slate-500">{organization?.college_name || ''}</p>

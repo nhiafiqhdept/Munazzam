@@ -83,7 +83,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({ isOpen, onClose,
               <RefreshCw className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">
+              <h3 className="text-lg font-bold font-heading text-slate-900">
                 {isBorrowed ? 'Repay Loan' : 'Recover Loan'}
               </h3>
               <p className="text-xs text-slate-500">

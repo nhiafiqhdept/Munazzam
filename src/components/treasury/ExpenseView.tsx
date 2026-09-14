@@ -41,7 +41,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onView
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Expense Records</h1>
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Expense Records</h1>
           <p className="text-sm text-slate-500 mt-1">Track all food, printing, transportation, venue, and miscellaneous spending.</p>
         </div>
 

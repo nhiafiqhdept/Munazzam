@@ -68,7 +68,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100">
               <CalendarDays className="w-5 h-5" />
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
               Programs & Activities
             </h1>
           </div>
@@ -184,7 +184,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   <div className="p-5 space-y-3">
                     <h3
                       onClick={() => viewProgramDetails(prog.id)}
-                      className="text-base font-bold text-slate-900 font-serif leading-snug hover:text-emerald-700 cursor-pointer transition-colors line-clamp-2"
+                      className="text-base font-bold text-slate-900 font-heading leading-snug hover:text-emerald-700 cursor-pointer transition-colors line-clamp-2"
                     >
                       {prog.name}
                     </h3>

@@ -125,7 +125,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
                 )}
               </div>
 
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-serif">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
                 {currentOrg.name}
               </h1>
 
@@ -297,7 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
       {/* 4. Recent Programs Section */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 font-serif">
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 font-heading">
             Recent Programs & Activities
           </h2>
           <button
@@ -369,7 +369,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
 
                     <h3
                       onClick={() => viewProgramDetails(prog.id)}
-                      className="text-sm font-bold text-slate-900 font-serif line-clamp-2 hover:text-emerald-700 cursor-pointer transition-colors leading-snug"
+                      className="text-sm font-bold text-slate-900 font-heading line-clamp-2 hover:text-emerald-700 cursor-pointer transition-colors leading-snug"
                     >
                       {prog.name}
                     </h3>
@@ -506,7 +506,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
       {organizers.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 font-serif">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 font-heading">
               Executive Committee & Bearers
             </h2>
             <button

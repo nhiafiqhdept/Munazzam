@@ -108,7 +108,7 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
               <Landmark className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">Add Loan or Advance</h3>
+              <h3 className="text-lg font-bold font-heading text-slate-900">Add Loan or Advance</h3>
               <p className="text-xs text-slate-500">Record money borrowed or lent out</p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Organization,
   Organizer,
@@ -102,7 +102,13 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('org_token'));
+  const [token, setToken] = useState<string | null>(() => {
+    const saved = localStorage.getItem('org_token');
+    if (saved && saved.startsWith('local_')) {
+      return null;
+    }
+    return saved;
+  });
   const [user, setUser] = useState<{ id: string; email: string } | null>(() => {
     try {
       const saved = localStorage.getItem('org_user');
@@ -131,6 +137,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adminPin, setAdminPin] = useState<string>('1234');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
+  // Auto-migrate legacy localStorage data on initial load
+  useEffect(() => {
+    import('../utils/migration').then(({ syncLegacyLocalDataToServer }) => {
+      syncLegacyLocalDataToServer();
+    });
+  }, []);
+
   const loginUser = (newToken: string, newUser: { id: string; email: string }) => {
     setToken(newToken);
     setUser(newUser);
@@ -148,37 +161,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const runAction = async <T extends unknown>(
-    localFn: (db: any) => T | Promise<T>,
+    _localFn: any,
     apiFn: () => Promise<T>
   ): Promise<T> => {
-    if (token && token.startsWith('local_')) {
-      const { localDB: db } = await import('../utils/localDB');
-      return await localFn(db);
-    }
     return await apiFn();
   };
 
-  // Fetch organizations on token change
-  useEffect(() => {
+  // Fetch organizations from shared cloud database
+  const fetchOrganizations = useCallback(() => {
     if (!token) return;
-
-    if (token.startsWith('local_')) {
-      import('../utils/localDB').then(({ localDB: db }) => {
-        const data = db.getOrganizations();
-        setOrganizations(data);
-        if (data.length > 0) {
-          const savedOrgId = localStorage.getItem('current_org_id');
-          if (savedOrgId && data.some((o) => o.id === savedOrgId)) {
-            setCurrentOrgId(savedOrgId);
-          } else {
-            setCurrentOrgId(data[0].id);
-          }
-        } else {
-          setCurrentOrgId('');
-        }
-      });
-      return;
-    }
 
     fetch('/api/organizations', {
       headers: { Authorization: `Bearer ${token}` },
@@ -205,8 +196,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setCurrentOrgId('');
         }
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error('Fetch organizations error:', err));
   }, [token]);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, [fetchOrganizations]);
 
   // Save current org id
   useEffect(() => {
@@ -215,8 +210,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentOrgId]);
 
-  // Fetch entity data for currentOrgId
-  useEffect(() => {
+  // Fetch entity data for currentOrgId from shared cloud database
+  const fetchEntityData = useCallback(() => {
     if (!token || !currentOrgId) {
       setOrganizers([]);
       setPrograms([]);
@@ -227,21 +222,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoans([]);
       setLoanRepayments([]);
       setAuditLogs([]);
-      return;
-    }
-
-    if (token.startsWith('local_')) {
-      import('../utils/localDB').then(({ localDB: db }) => {
-        setOrganizers(db.getItems('local_organizers', currentOrgId));
-        setPrograms(db.getItems('local_programs', currentOrgId));
-        setAccounts(db.getItems('local_accounts', currentOrgId));
-        setIncomes(db.getItems('local_incomes', currentOrgId));
-        setExpenses(db.getItems('local_expenses', currentOrgId));
-        setLoans(db.getItems('local_loans', currentOrgId));
-        setLoanRepayments(db.getItems('local_repayments', currentOrgId));
-        setTransfers(db.getItems('local_transfers', currentOrgId));
-        setAuditLogs(db.getItems('local_audit_logs', currentOrgId));
-      });
       return;
     }
 
@@ -271,6 +251,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .catch((err) => console.error('Error fetching org data:', err));
   }, [token, currentOrgId]);
+
+  useEffect(() => {
+    fetchEntityData();
+  }, [fetchEntityData]);
+
+  // Periodic auto-sync & Window Focus synchronization so changes on other devices reflect immediately
+  useEffect(() => {
+    if (!token || !currentOrgId) return;
+
+    const syncInterval = setInterval(() => {
+      fetchEntityData();
+    }, 10000); // Poll every 10 seconds
+
+    const handleFocus = () => {
+      fetchOrganizations();
+      fetchEntityData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [token, currentOrgId, fetchOrganizations, fetchEntityData]);
 
   const currentOrg = organizations.find((o) => o.id === currentOrgId);
 
@@ -426,11 +438,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const reorderOrganizers = (reordered: Organizer[]) => {
     setOrganizers(reordered);
-    if (token && token.startsWith('local_')) {
-      import('../utils/localDB').then(({ localDB: db }) => {
-        db.reorderItems('local_organizers', reordered);
-      });
-    }
   };
 
   // Program Actions

@@ -55,7 +55,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
               <ArrowLeftRight className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">Transfer Funds</h3>
+              <h3 className="text-lg font-bold font-heading text-slate-900">Transfer Funds</h3>
               <p className="text-xs text-slate-500">Move funds between internal accounts</p>
             </div>
           </div>

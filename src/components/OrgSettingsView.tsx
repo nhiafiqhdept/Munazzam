@@ -140,7 +140,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({ onOpenNewOrgMo
             <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100">
               <Building2 className="w-5 h-5" />
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading">
               Organization Profile & Institutional Settings
             </h1>
           </div>

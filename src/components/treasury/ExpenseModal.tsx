@@ -97,7 +97,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
               <ArrowUpRight className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-serif text-slate-900">Record Expense</h3>
+              <h3 className="text-lg font-bold font-heading text-slate-900">Record Expense</h3>
               <p className="text-xs text-slate-500">Log organizational spending or bills</p>
             </div>
           </div>

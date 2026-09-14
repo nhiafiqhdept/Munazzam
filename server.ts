@@ -114,11 +114,12 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+      return res.status(400).json({ error: 'Username/email and password are required.' });
     }
 
+    const trimmedEmail = email.trim();
     const db = readDB();
-    const existingUser = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const existingUser = db.users.find((u) => u.email.toLowerCase() === trimmedEmail.toLowerCase());
     if (existingUser) {
       return res.status(400).json({ error: 'This username is already registered. Please sign in.' });
     }
@@ -128,7 +129,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 
     const newUser = {
       id: 'usr_' + Date.now() + Math.random().toString(36).substr(2, 5),
-      email: email.toLowerCase(),
+      email: trimmedEmail,
       password_hash,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -137,7 +138,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     db.users.push(newUser);
     writeDB(db);
 
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({
       token,
       user: { id: newUser.id, email: newUser.email },
@@ -152,21 +153,34 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+      return res.status(400).json({ error: 'Username/email and password are required.' });
     }
 
+    const trimmedEmail = email.trim();
     const db = readDB();
-    const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const user = db.users.find((u) => u.email.toLowerCase() === trimmedEmail.toLowerCase());
     if (!user) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
+      return res.status(400).json({ error: 'Invalid username or password.' });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    let validPassword = false;
+    if (user.password_hash && (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$'))) {
+      validPassword = await bcrypt.compare(password, user.password_hash);
+    } else {
+      // Plaintext legacy fallback with auto-upgrade
+      validPassword = password === user.password_hash;
+      if (validPassword) {
+        const salt = await bcrypt.genSalt(10);
+        user.password_hash = await bcrypt.hash(password, salt);
+        writeDB(db);
+      }
+    }
+
     if (!validPassword) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
+      return res.status(400).json({ error: 'Invalid username or password.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({
       token,
       user: { id: user.id, email: user.email },
@@ -186,13 +200,128 @@ app.get('/api/auth/me', authenticateToken, (req: AuthRequest, res: Response) => 
   res.json({ user: { id: user.id, email: user.email } });
 });
 
-// Forgot Password endpoint (simulated / ready for backend email setup)
+// ==================== LOCAL DATA MIGRATION ENDPOINT ====================
+app.post('/api/migration/sync-local', async (req: Request, res: Response) => {
+  try {
+    const {
+      users = [],
+      organizations = [],
+      organizers = [],
+      programs = [],
+      accounts = [],
+      incomes = [],
+      expenses = [],
+      loans = [],
+      repayments = [],
+      transfers = [],
+      audit_logs = [],
+    } = req.body;
+
+    const db = readDB();
+    let migratedUsers = 0;
+    let migratedRecords = 0;
+
+    // 1. Migrate users
+    if (Array.isArray(users)) {
+      for (const u of users) {
+        if (!u.email) continue;
+        const trimmed = u.email.trim();
+        const existingUser = db.users.find((x) => x.email.toLowerCase() === trimmed.toLowerCase());
+        if (!existingUser) {
+          let password_hash = u.password_hash;
+          if (!password_hash && u.password) {
+            const salt = await bcrypt.genSalt(10);
+            password_hash = await bcrypt.hash(u.password, salt);
+          }
+          if (password_hash) {
+            db.users.push({
+              id: u.id || ('usr_' + Date.now() + Math.random().toString(36).substr(2, 5)),
+              email: trimmed,
+              password_hash,
+              created_at: u.created_at || new Date().toISOString(),
+              updated_at: u.updated_at || new Date().toISOString(),
+            });
+            migratedUsers++;
+          }
+        }
+      }
+    }
+
+    // 2. Migrate organizations
+    if (Array.isArray(organizations)) {
+      for (const org of organizations) {
+        if (!org.id && !org.name) continue;
+        const existing = db.organizations.find(
+          (x) => x.id === org.id || (x.name === org.name && x.college_name === org.college_name)
+        );
+        if (!existing) {
+          db.organizations.push(org);
+          migratedRecords++;
+        } else {
+          if (org.logo && !existing.logo) existing.logo = org.logo;
+          if (org.motto && !existing.motto) existing.motto = org.motto;
+          if (org.mission && !existing.mission) existing.mission = org.mission;
+          if (org.academic_year && !existing.academic_year) existing.academic_year = org.academic_year;
+        }
+      }
+    }
+
+    // 3. Migrate entity items
+    const entityKeys: (keyof DBData)[] = [
+      'organizers',
+      'programs',
+      'accounts',
+      'incomes',
+      'expenses',
+      'loans',
+      'repayments',
+      'transfers',
+      'audit_logs',
+    ];
+
+    const payload: Record<string, any[]> = {
+      organizers,
+      programs,
+      accounts,
+      incomes,
+      expenses,
+      loans,
+      repayments,
+      transfers,
+      audit_logs,
+    };
+
+    for (const key of entityKeys) {
+      const incomingList = payload[key];
+      if (Array.isArray(incomingList)) {
+        for (const item of incomingList) {
+          if (!item.id || !item.organization_id) continue;
+          const targetArray = db[key] as any[];
+          const existingIndex = targetArray.findIndex((x) => x.id === item.id);
+          if (existingIndex === -1) {
+            targetArray.push(item);
+            migratedRecords++;
+          } else {
+            targetArray[existingIndex] = { ...targetArray[existingIndex], ...item };
+          }
+        }
+      }
+    }
+
+    writeDB(db);
+    res.json({ success: true, migratedUsers, migratedRecords });
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ error: 'Migration failed' });
+  }
+});
+
+// Forgot Password endpoint
 app.post('/api/auth/forgot-password', (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required.' });
   }
-  // In production, send reset email here.
   res.json({ message: 'If the email exists, password reset instructions have been dispatched.' });
 });
 
@@ -206,17 +335,16 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req: Request,
 });
 
 // ==================== APPLICATION DATA ENDPOINTS ====================
-// Helper to verify organization ownership
-function verifyOrgOwnership(db: DBData, orgId: string, userId: string): boolean {
-  const org = db.organizations.find((o) => o.id === orgId && o.user_id === userId);
+// Helper to verify organization exists and is valid
+function verifyOrgOwnership(db: DBData, orgId: string, userId?: string): boolean {
+  const org = db.organizations.find((o) => o.id === orgId);
   return !!org;
 }
 
-// 1. Organizations
+// 1. Organizations (Shared Cloud Database for Organization Portal)
 app.get('/api/organizations', authenticateToken, (req: AuthRequest, res: Response) => {
   const db = readDB();
-  const userOrgs = db.organizations.filter((o) => o.user_id === req.user?.id);
-  res.json(userOrgs);
+  res.json(db.organizations);
 });
 
 app.post('/api/organizations', authenticateToken, (req: AuthRequest, res: Response) => {

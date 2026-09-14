@@ -153,7 +153,7 @@ export const CashBookView: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Account Cash & Bank Books</h1>
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Account Cash & Bank Books</h1>
           <p className="text-sm text-slate-500 mt-1">Chronological ledger with automated running balance for each account.</p>
         </div>
 
@@ -174,12 +174,12 @@ export const CashBookView: React.FC = () => {
         <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-emerald-700 uppercase">Selected Account</span>
-            <h3 className="text-lg font-bold font-serif text-slate-900">{selectedAccount.name}</h3>
+            <h3 className="text-lg font-bold font-heading text-slate-900">{selectedAccount.name}</h3>
             <p className="text-xs text-slate-500">Opening Balance: ₹{selectedAccount.opening_balance.toLocaleString()}</p>
           </div>
           <div className="text-right">
             <span className="text-xs font-semibold text-slate-500 uppercase">Current Closing Balance</span>
-            <p className="text-2xl font-bold font-serif text-emerald-700">
+            <p className="text-2xl font-bold font-heading text-emerald-700">
               ₹{(entries.length > 0 ? entries[entries.length - 1].balance : selectedAccount.opening_balance).toLocaleString()}
             </p>
           </div>

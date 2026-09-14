@@ -54,7 +54,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Financial Accounts</h1>
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Financial Accounts</h1>
           <p className="text-sm text-slate-500 mt-1">Manage physical cash chests, bank deposits, and digital UPI ledgers.</p>
         </div>
 
@@ -99,7 +99,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
                   <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
                     {getAccountTypeLabel(acc.type)}
                   </span>
-                  <h3 className="text-lg font-bold font-serif text-slate-900 mt-0.5">{acc.name}</h3>
+                  <h3 className="text-lg font-bold font-heading text-slate-900 mt-0.5">{acc.name}</h3>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{acc.description || 'No description provided.'}</p>
                 </div>
               </div>
@@ -111,7 +111,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700 uppercase">Current Balance:</span>
-                  <span className="text-xl font-bold font-serif text-emerald-700">₹{currentBal.toLocaleString()}</span>
+                  <span className="text-xl font-bold font-heading text-emerald-700">₹{currentBal.toLocaleString()}</span>
                 </div>
 
                 {isAdmin && (

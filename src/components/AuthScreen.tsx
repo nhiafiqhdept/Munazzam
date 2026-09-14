@@ -44,71 +44,39 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     setLoading(true);
     try {
-      let data;
-      let usedLocalFallback = false;
+      // Auto-migrate any legacy local storage data to the server if present
+      const { syncLegacyLocalDataToServer } = await import('../utils/migration');
+      await syncLegacyLocalDataToServer();
 
-      try {
-        const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-        const responseText = await res.text();
-        try {
-          data = JSON.parse(responseText);
-        } catch (jsonErr) {
-          if (res.status === 404 || res.status === 403 || res.status === 502 || res.status === 503) {
-            // Server routing is blocked or down (e.g., iframe third-party cookies block) -> Fallback to Local DB
-            usedLocalFallback = true;
-          } else {
-            throw new Error(`Invalid server response (not JSON). Status: ${res.status}`);
-          }
-        }
+      const data = await res.json();
 
-        if (!usedLocalFallback && !res.ok) {
-          throw new Error(data.error || 'Authentication failed.');
-        }
-      } catch (networkErr: any) {
-        // Network connection error -> Use Local DB fallback!
-        usedLocalFallback = true;
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed. Please check your credentials.');
       }
 
-      if (usedLocalFallback) {
-        const { localRegister, localLogin } = await import('../utils/localDB');
-        if (isRegister) {
-          data = await localRegister(email, password);
-        } else {
-          data = await localLogin(email, password);
-        }
-      }
+      localStorage.setItem('org_token', data.token);
+      localStorage.setItem('org_user', JSON.stringify(data.user));
 
       if (isRegister) {
-        localStorage.setItem('org_token', data.token);
-        localStorage.setItem('org_user', JSON.stringify(data.user));
-        setSuccessMessage(
-          usedLocalFallback
-            ? 'Account created locally (Iframe Sandbox Mode)! Logging you in...'
-            : 'Account created successfully! Automatically logging you in...'
-        );
+        setSuccessMessage('Account created successfully in cloud database! Logging you in...');
         setTimeout(() => {
           onLoginSuccess(data.token, data.user);
-        }, 1000);
+        }, 800);
       } else {
-        localStorage.setItem('org_token', data.token);
-        localStorage.setItem('org_user', JSON.stringify(data.user));
-        setSuccessMessage(
-          usedLocalFallback 
-            ? 'Logged in successfully (Sandbox Fallback Mode)!' 
-            : 'Logged in successfully!'
-        );
+        setSuccessMessage('Logged in successfully!');
         setTimeout(() => {
           onLoginSuccess(data.token, data.user);
-        }, 400);
+        }, 300);
       }
     } catch (err: any) {
-      setError(err.message || 'Unable to connect to the server. Please try again.');
+      setError(err.message || 'Unable to connect to the server. Please check your network and try again.');
     } finally {
       setLoading(false);
     }

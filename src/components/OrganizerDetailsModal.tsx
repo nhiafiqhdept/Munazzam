@@ -45,7 +45,7 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
           
           <div className="absolute bottom-6 left-6 right-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white font-serif leading-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white font-heading leading-tight">
               {organizer.name}
             </h2>
             <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full border border-emerald-400 shadow-sm">

@@ -326,7 +326,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 my-auto">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 font-serif">
+            <h2 className="text-xl font-bold text-slate-900 font-heading">
               {programToEdit ? 'Edit Program Activity' : 'Record New Program & Activity'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -564,7 +564,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
           {/* Documentation Proofs Section */}
           <div className="space-y-6 pt-6 border-t border-slate-100">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 font-serif">Documentation Proofs</h3>
+              <h3 className="text-sm font-bold text-slate-900 font-heading">Documentation Proofs</h3>
               <p className="text-xs text-slate-500">Attach photos, video recordings, and official reports to document the activity.</p>
             </div>
 

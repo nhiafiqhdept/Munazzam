@@ -23,7 +23,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({ onOpenAddTransfer 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Account Transfers</h1>
+          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Account Transfers</h1>
           <p className="text-sm text-slate-500 mt-1">Move funds between organization accounts without affecting income or expenses.</p>
         </div>
 

@@ -66,7 +66,7 @@ export const LedgerView: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-        <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight">Central Financial Transactions Ledger</h1>
+        <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">Central Financial Transactions Ledger</h1>
         <p className="text-sm text-slate-500 mt-1">Chronological audit trail of all money movements across accounts.</p>
       </div>
 

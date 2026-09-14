@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Organization & Institution Name */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate tracking-tight font-serif leading-tight">
+                <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate tracking-tight font-heading leading-tight">
                   {currentOrg.name}
                 </h1>
 
