@@ -19,10 +19,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure uploads directory exists safely across local and serverless/Vercel environments
+let uploadsDir = path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch {
+  uploadsDir = path.join('/tmp', 'uploads');
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('Could not initialize uploads directory:', err);
+  }
 }
 app.use('/uploads', express.static(uploadsDir));
 
@@ -39,8 +50,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Database File Path
-const DB_FILE = path.join(process.cwd(), 'server_database.json');
+// Database File Paths (local root and /tmp for serverless platforms like Vercel)
+const LOCAL_DB_FILE = path.join(process.cwd(), 'server_database.json');
+const TMP_DB_FILE = path.join('/tmp', 'server_database.json');
 
 interface DBData {
   users: any[];
@@ -80,33 +92,65 @@ function ensureCollections(data: any): DBData {
   return data as DBData;
 }
 
+function getDBFilePath(): string {
+  if (fs.existsSync(TMP_DB_FILE)) {
+    return TMP_DB_FILE;
+  }
+  if (fs.existsSync(LOCAL_DB_FILE)) {
+    return LOCAL_DB_FILE;
+  }
+  return TMP_DB_FILE;
+}
+
 function readDB(): DBData {
   if (memoryCache) {
     return memoryCache;
   }
+
+  const fileToRead = getDBFilePath();
   try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
+    if (fs.existsSync(fileToRead)) {
+      const data = fs.readFileSync(fileToRead, 'utf-8');
       const parsed = JSON.parse(data);
       memoryCache = ensureCollections(parsed);
       return memoryCache;
     }
   } catch (err) {
-    console.error('Error reading DB file:', err);
+    console.warn('Notice reading primary DB file:', err);
   }
+
+  if (fileToRead === TMP_DB_FILE && fs.existsSync(LOCAL_DB_FILE)) {
+    try {
+      const data = fs.readFileSync(LOCAL_DB_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      memoryCache = ensureCollections(parsed);
+      return memoryCache;
+    } catch {}
+  }
+
   memoryCache = ensureCollections({});
   return memoryCache;
 }
 
 function writeDB(data: DBData) {
   memoryCache = ensureCollections(data);
+  const content = JSON.stringify(memoryCache, null, 2);
+
+  // Write to /tmp (always writable in serverless runtimes)
   try {
-    const tmpFile = `${DB_FILE}.${Date.now()}.${Math.random().toString(36).substr(2, 5)}.tmp`;
-    fs.writeFileSync(tmpFile, JSON.stringify(memoryCache, null, 2), 'utf-8');
-    fs.renameSync(tmpFile, DB_FILE);
+    const tmpFile = `${TMP_DB_FILE}.${Date.now()}.${Math.random().toString(36).substr(2, 5)}.tmp`;
+    fs.writeFileSync(tmpFile, content, 'utf-8');
+    fs.renameSync(tmpFile, TMP_DB_FILE);
   } catch (err) {
-    console.error('Error writing DB file:', err);
+    console.warn('Persistence notice (/tmp write):', err);
   }
+
+  // Attempt to write to local directory if writable
+  try {
+    const localTmp = `${LOCAL_DB_FILE}.${Date.now()}.${Math.random().toString(36).substr(2, 5)}.tmp`;
+    fs.writeFileSync(localTmp, content, 'utf-8');
+    fs.renameSync(localTmp, LOCAL_DB_FILE);
+  } catch {}
 }
 
 // Auth Middleware
@@ -686,16 +730,25 @@ setupEntityEndpoints(app, 'repayments');
 setupEntityEndpoints(app, 'transfers');
 setupEntityEndpoints(app, 'audit_logs');
 
-// Ensure all unhandled /api/* endpoints return JSON (never HTML or Vite SPA index.html)
+// Ensure all unhandled /api/* endpoints return structured JSON
 app.all('/api/*', (req: Request, res: Response) => {
-  res.status(404).json({ error: 'Unable to connect to server' });
+  res.status(404).json({
+    success: false,
+    error: 'API_ENDPOINT_NOT_FOUND',
+    message: `API endpoint ${req.method} ${req.path} was not found.`,
+  });
 });
 
 // Express global error handler for all requests
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('[API ERROR]', err);
+  console.error('[API SERVER EXCEPTION]', err);
   if (req.path.startsWith('/api') || !res.headersSent) {
-    return res.status(500).json({ error: 'Unable to load account. Please try again.' });
+    const diagnosticMessage = err?.message || 'An unexpected error occurred on the server.';
+    return res.status(500).json({
+      success: false,
+      error: 'SERVER_EXCEPTION',
+      message: diagnosticMessage,
+    });
   }
   next(err);
 });

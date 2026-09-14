@@ -71,6 +71,14 @@
       "password_hash": "$2b$10$0R5QQXLozZuVWwErDgq9Cu15pJtwRMb2wnkT/W8ubpACeCOK5N7eG",
       "created_at": "2026-09-14T12:48:46.862Z",
       "updated_at": "2026-09-14T12:48:46.862Z"
+    },
+    {
+      "id": "usr_1789395171957iz8l0",
+      "username": "test_account_verify",
+      "email": "test_account_verify@munazzam.local",
+      "password_hash": "$2b$10$PFmLd1N6oM0R58yD7ZivceyuC8RTHjboA61vpQa.JgZkEVFehGPbi",
+      "created_at": "2026-09-14T14:12:51.957Z",
+      "updated_at": "2026-09-14T14:12:51.957Z"
     }
   ],
   "organizations": [
@@ -85,6 +93,18 @@
       "mission": "",
       "created_at": "2026-09-14T04:44:30.538Z",
       "updated_at": "2026-09-14T04:44:30.538Z"
+    },
+    {
+      "id": "org_17893951719572edkk",
+      "user_id": "usr_1789395171957iz8l0",
+      "name": "test_account_verify",
+      "college_name": "",
+      "logo": "",
+      "motto": "",
+      "academic_year": "",
+      "mission": "",
+      "created_at": "2026-09-14T14:12:51.957Z",
+      "updated_at": "2026-09-14T14:12:51.957Z"
     }
   ],
   "organizers": [],

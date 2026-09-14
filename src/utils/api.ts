@@ -49,15 +49,18 @@ export async function safeApiFetch<T = any>(
         errorMessage = parsedData.message;
       } else if (parsedData?.error && typeof parsedData.error === 'string') {
         errorMessage = parsedData.error;
-      } else if (res.status === 400 || res.status === 401 || res.status === 403) {
-        // Credential or validation error
+      } else if (res.status === 400) {
+        errorMessage = 'Invalid input parameters. Please check your details.';
+      } else if (res.status === 401) {
         errorMessage = 'Incorrect username or password.';
+      } else if (res.status === 403) {
+        errorMessage = 'Access denied. You do not have permission.';
       } else if (res.status === 404) {
-        // Endpoint or resource not found
-        errorMessage = 'Resource or account not found.';
+        errorMessage = 'API endpoint or account resource not found.';
+      } else if (res.status === 409) {
+        errorMessage = 'Username already exists. Please choose another username.';
       } else if (res.status >= 500) {
-        // Internal server or database error
-        errorMessage = 'Unable to process request. Please try again.';
+        errorMessage = 'Server error encountered. Please check server logs or try again.';
       }
 
       return {
