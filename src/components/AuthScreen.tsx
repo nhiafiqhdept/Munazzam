@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, User, Eye, EyeOff, HelpCircle } from 'lucide-react';
+import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, Mail, Eye, EyeOff, HelpCircle } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import { getFirebaseErrorMessage } from '../utils/firebaseErrors';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
-import { safeApiFetch } from '../utils/api';
-import { authenticateLogin, authenticateRegister } from '../utils/authService';
 import { AuthUser } from '../types';
 
 interface AuthScreenProps {
@@ -11,13 +13,13 @@ interface AuthScreenProps {
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState<{
-    username?: string;
+    email?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
@@ -29,9 +31,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   const lastLogo = localStorage.getItem('last_org_logo') || '';
-  const lastName = localStorage.getItem('last_org_name') || 'Organization Portal';
+  const lastName = localStorage.getItem('last_org_name') || 'Munazzam Organization Portal';
 
   const clearErrors = () => {
     setFieldErrors({});
@@ -48,13 +51,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     clearErrors();
 
-    const cleanUsername = username.trim();
+    const cleanEmail = email.trim();
     const errors: typeof fieldErrors = {};
 
-    if (!cleanUsername) {
-      errors.username = 'Username is required.';
-    } else if (isRegister && cleanUsername.length < 3) {
-      errors.username = 'Username must be at least 3 characters long.';
+    if (!cleanEmail) {
+      errors.email = 'Email address is required.';
+    } else if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      errors.email = 'Please enter a valid email address.';
     }
 
     if (!password) {
@@ -75,32 +78,89 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      const result = isRegister
-        ? await authenticateRegister(cleanUsername, password)
-        : await authenticateLogin(cleanUsername, password);
+      if (isRegister) {
+        // 1. Register with Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        const firebaseUser = userCredential.user;
 
-      if (result.ok && result.token && result.user) {
-        setSuccessMessage(
-          isRegister
-            ? 'Account created successfully! Loading dashboard...'
-            : 'Authenticated successfully! Loading dashboard...'
-        );
+        // 2. Provision Firestore Account Document indexed by Firebase UID
+        const accountRef = doc(db, 'accounts', firebaseUser.uid);
+        const now = new Date().toISOString();
+        await setDoc(accountRef, {
+          accountId: firebaseUser.uid,
+          email: firebaseUser.email,
+          createdAt: now,
+          updatedAt: now,
+          status: 'active',
+          profile: {
+            name: 'My Organization',
+            college_name: 'Main Campus',
+            tagline: 'Excellence in Action',
+            logo: '',
+            email: firebaseUser.email,
+          },
+          settings: {
+            theme: 'light',
+          },
+        });
+
+        setSuccessMessage('Account created successfully! Redirecting to dashboard...');
+
+        const token = await firebaseUser.getIdToken();
+        const authUser: AuthUser = {
+          id: firebaseUser.uid,
+          username: cleanEmail.split('@')[0],
+          email: firebaseUser.email || cleanEmail,
+          role: 'admin',
+        };
 
         setTimeout(() => {
-          onLoginSuccess(result.token!, result.user!);
-        }, 300);
-        return;
-      }
-
-      // Display specific failure reason
-      if (result.error) {
-        setGeneralError(result.error);
+          onLoginSuccess(token, authUser);
+        }, 500);
       } else {
-        setGeneralError('Incorrect username or password.');
+        // 1. Sign In with Firebase Auth
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        const firebaseUser = userCredential.user;
+
+        // 2. Verify or Auto-Create Firestore Account Document
+        const accountRef = doc(db, 'accounts', firebaseUser.uid);
+        const docSnap = await getDoc(accountRef);
+        if (!docSnap.exists()) {
+          const now = new Date().toISOString();
+          await setDoc(accountRef, {
+            accountId: firebaseUser.uid,
+            email: firebaseUser.email,
+            createdAt: now,
+            updatedAt: now,
+            status: 'active',
+            profile: {
+              name: 'My Organization',
+              college_name: 'Main Campus',
+              tagline: 'Excellence in Action',
+              logo: '',
+              email: firebaseUser.email,
+            },
+          });
+        }
+
+        setSuccessMessage('Authenticated successfully! Redirecting...');
+
+        const token = await firebaseUser.getIdToken();
+        const authUser: AuthUser = {
+          id: firebaseUser.uid,
+          username: cleanEmail.split('@')[0],
+          email: firebaseUser.email || cleanEmail,
+          role: 'admin',
+        };
+
+        setTimeout(() => {
+          onLoginSuccess(token, authUser);
+        }, 500);
       }
     } catch (err: any) {
-      console.error('Auth request failed:', err);
-      setGeneralError('Unable to connect to server. Please try again.');
+      console.error('Firebase Auth Exception:', err);
+      const friendlyMessage = getFirebaseErrorMessage(err);
+      setGeneralError(friendlyMessage);
     } finally {
       setLoading(false);
     }
@@ -108,18 +168,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail.trim()) return;
+    setForgotError('');
+    if (!forgotEmail.trim()) {
+      setForgotError('Please enter your email address.');
+      return;
+    }
 
     setForgotLoading(true);
     try {
-      await safeApiFetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail.trim() }),
-      });
+      await sendPasswordResetEmail(auth, forgotEmail.trim());
       setForgotSent(true);
-    } catch {
-      setForgotSent(true);
+    } catch (err: any) {
+      console.error('Password reset failed:', err);
+      setForgotError(getFirebaseErrorMessage(err));
     } finally {
       setForgotLoading(false);
     }
@@ -151,8 +212,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         {/* Subtitle */}
         <p className="text-xs sm:text-sm text-slate-500 text-center mb-8">
           {isRegister
-            ? 'Sign up to manage and document your organization'
-            : 'Sign in with your username and password'}
+            ? 'Sign up with your email to manage your organization'
+            : 'Sign in with your email and password'}
         </p>
 
         {/* General Error Banner */}
@@ -179,37 +240,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
         {/* Login/Register Form */}
         <form onSubmit={handleSubmit} className="w-full flex flex-col" noValidate>
-          {/* Username Field */}
+          {/* Email Field */}
           <div className="w-full text-left mb-4">
             <label
-              htmlFor="auth-username"
+              htmlFor="auth-email"
               className="block text-[11px] font-extrabold tracking-wider text-slate-700 uppercase mb-1.5"
             >
-              Username
+              Email Address
             </label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                id="auth-username"
-                type="text"
-                autoComplete="username"
-                value={username}
+                id="auth-email"
+                type="email"
+                autoComplete="email"
+                value={email}
                 disabled={loading}
                 onChange={(e) => {
-                  setUsername(e.target.value);
-                  if (fieldErrors.username) {
-                    setFieldErrors((prev) => ({ ...prev, username: undefined }));
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
                   }
                   if (generalError) setGeneralError('');
                 }}
-                placeholder="Enter username"
+                placeholder="name@organization.org"
                 className={`w-full pl-10 pr-4 py-3 bg-white border ${
-                  fieldErrors.username ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
+                  fieldErrors.email ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
                 } rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400 disabled:bg-slate-50`}
               />
             </div>
-            {fieldErrors.username && (
-              <p className="mt-1.5 text-xs text-rose-600 font-medium text-left">{fieldErrors.username}</p>
+            {fieldErrors.email && (
+              <p className="mt-1.5 text-xs text-rose-600 font-medium text-left">{fieldErrors.email}</p>
             )}
           </div>
 
@@ -228,7 +289,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   onClick={() => {
                     setIsForgotOpen(true);
                     setForgotSent(false);
-                    setForgotEmail('');
+                    setForgotEmail(email);
+                    setForgotError('');
                   }}
                   className="text-xs text-purple-700 hover:text-purple-800 font-bold transition-colors"
                 >
@@ -381,6 +443,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   setIsForgotOpen(false);
                   setForgotSent(false);
                   setForgotEmail('');
+                  setForgotError('');
                 }}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
@@ -391,15 +454,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             {forgotSent ? (
               <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2">
                 <CheckCircle className="w-8 h-8 text-emerald-600 mx-auto" />
-                <h4 className="font-bold text-emerald-900 text-sm">Instructions Dispatched</h4>
+                <h4 className="font-bold text-emerald-900 text-sm">Password reset email sent</h4>
                 <p className="text-xs text-emerald-700 leading-normal">
-                  If an account exists for {forgotEmail}, password reset instructions have been recorded. You can also contact your organization head to update access.
+                  If an account exists for {forgotEmail}, password reset instructions have been sent. Please check your inbox.
                 </p>
                 <button
                   onClick={() => {
                     setIsForgotOpen(false);
                     setForgotSent(false);
                     setForgotEmail('');
+                    setForgotError('');
                   }}
                   className="mt-2 px-4 py-2 bg-purple-700 text-white text-xs font-bold rounded-xl"
                 >
@@ -409,19 +473,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             ) : (
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your registered username or email address and we will provide password reset instructions.
+                  Enter your registered email address and we will send a password reset link.
                 </p>
+
+                {forgotError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Username or Email
+                    Email Address
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={forgotEmail}
                     disabled={forgotLoading}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="Enter your username or email"
+                    placeholder="name@organization.org"
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                   />
                 </div>
@@ -438,7 +510,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     disabled={forgotLoading}
                     className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    {forgotLoading ? 'Sending...' : 'Send Instructions'}
+                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
                   </button>
                 </div>
               </form>

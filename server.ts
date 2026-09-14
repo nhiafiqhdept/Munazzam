@@ -739,10 +739,10 @@ app.all('/api/*', (req: Request, res: Response) => {
   });
 });
 
-// Express global error handler for all requests
+// Express global error handler for API requests
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[API SERVER EXCEPTION]', err);
-  if (req.path.startsWith('/api') || !res.headersSent) {
+  if (req.path.startsWith('/api') && !res.headersSent) {
     const diagnosticMessage = err?.message || 'An unexpected error occurred on the server.';
     return res.status(500).json({
       success: false,

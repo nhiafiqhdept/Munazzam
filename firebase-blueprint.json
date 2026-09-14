@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Account": {
+      "title": "Account",
+      "description": "Root account model indexed by Firebase User ID",
+      "type": "object",
+      "properties": {
+        "accountId": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "organizationName": { "type": "string" },
+        "collegeName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "logo": { "type": "string" }
+      },
+      "required": ["accountId", "email", "createdAt"]
+    },
+    "Organizer": {
+      "title": "Organizer",
+      "description": "Office bearer or organizer record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "position": { "type": "string" },
+        "display_order": { "type": "number" },
+        "photo": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "academic_year": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "accountId", "name", "position"]
+    },
+    "Program": {
+      "title": "Program",
+      "description": "Program or event record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string" },
+        "place": { "type": "string" },
+        "audience": { "type": "string" },
+        "description": { "type": "string" },
+        "poster": { "type": "string" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "accountId", "name", "date"]
+    }
+  },
+  "firestore": {
+    "/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "User account documents indexed by Firebase Auth UID"
+    },
+    "/organizers/{organizerId}": {
+      "schema": "Organizer",
+      "description": "Organizers belonging to account"
+    },
+    "/programs/{programId}": {
+      "schema": "Program",
+      "description": "Programs belonging to account"
+    }
+  }
+}

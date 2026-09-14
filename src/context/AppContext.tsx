@@ -1,7 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { safeApiFetch, ApiResponse } from '../utils/api';
-import { syncLegacyLocalDataToServer } from '../utils/migration';
-import { localDB } from '../utils/localDB';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  getDocFromServer,
+} from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import {
   AuthUser,
   Organization,
@@ -18,13 +30,47 @@ import {
   AuditLog,
 } from '../types';
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Operation Failed:', JSON.stringify(errInfo));
+}
+
 interface AppContextType {
   token: string | null;
   user: AuthUser | null;
   authLoading: boolean;
   isAuthenticated: boolean;
   loginUser: (token: string, user: AuthUser) => void;
-  logoutUser: () => void;
+  logoutUser: () => Promise<void>;
 
   organizations: Organization[];
   currentOrg: Organization | undefined;
@@ -108,15 +154,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('org_token'));
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('org_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
@@ -135,19 +174,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(true); // default admin true for easy management after login
+  const [isAdmin, setIsAdmin] = useState<boolean>(true);
   const [adminPin, setAdminPin] = useState<string>('1234');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
-  const logoutUser = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    setOrganizations([]);
-    setCurrentOrgId('');
-    localStorage.removeItem('org_token');
-    localStorage.removeItem('org_user');
-    localStorage.removeItem('current_org_id');
+  // Connection test per skill requirements
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error('Firestore connection offline check:', error.message);
+        }
+      }
+    }
+    testConnection();
+  }, []);
+
+  // Central Firebase Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const authUser: AuthUser = {
+            id: firebaseUser.uid,
+            username: firebaseUser.email ? firebaseUser.email.split('@')[0] : 'admin',
+            email: firebaseUser.email || '',
+            role: 'admin',
+          };
+
+          setToken(idToken);
+          setUser(authUser);
+          setIsAuthenticated(true);
+
+          // Verify/create account document in Firestore
+          const accountRef = doc(db, 'accounts', firebaseUser.uid);
+          const docSnap = await getDoc(accountRef);
+          if (!docSnap.exists()) {
+            const now = new Date().toISOString();
+            await setDoc(accountRef, {
+              accountId: firebaseUser.uid,
+              email: firebaseUser.email,
+              createdAt: now,
+              updatedAt: now,
+              status: 'active',
+              profile: {
+                name: 'My Organization',
+                college_name: 'Main Campus',
+                tagline: 'Excellence in Action',
+                logo: '',
+                email: firebaseUser.email,
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Error handling Firebase auth state:', err);
+        } finally {
+          setAuthLoading(false);
+        }
+      } else {
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        setOrganizations([]);
+        setCurrentOrgId('');
+        setOrganizers([]);
+        setPrograms([]);
+        setAccounts([]);
+        setIncomes([]);
+        setExpenses([]);
+        setTransfers([]);
+        setLoans([]);
+        setLoanRepayments([]);
+        setAuditLogs([]);
+        setAuthLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loginUser = useCallback((newToken: string, newUser: AuthUser) => {
@@ -155,905 +261,681 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(newUser);
     setIsAuthenticated(true);
     setAuthLoading(false);
-    localStorage.setItem('org_token', newToken);
-    localStorage.setItem('org_user', JSON.stringify(newUser));
   }, []);
 
-  // Authoritative session verification on app startup
+  const logoutUser = useCallback(async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Firebase SignOut failed:', err);
+    }
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    setOrganizations([]);
+    setCurrentOrgId('');
+    setOrganizers([]);
+    setPrograms([]);
+    setAccounts([]);
+    setIncomes([]);
+    setExpenses([]);
+    setTransfers([]);
+    setLoans([]);
+    setLoanRepayments([]);
+    setAuditLogs([]);
+  }, []);
+
+  // Real-time Firestore Sync for Authenticated User
   useEffect(() => {
-    let isMounted = true;
+    if (!user?.id || !isAuthenticated) return;
 
-    const verifySession = async () => {
-      const savedToken = localStorage.getItem('org_token');
-      const savedUserStr = localStorage.getItem('org_user');
+    const uid = user.id;
 
-      if (!savedToken) {
-        if (isMounted) {
-          setToken(null);
-          setUser(null);
-          setIsAuthenticated(false);
-          setAuthLoading(false);
-        }
-        return;
+    // 1. Account Profile
+    const unsubOrg = onSnapshot(doc(db, 'accounts', uid), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const profile = data.profile || {};
+        const orgObj: Organization = {
+          id: uid,
+          name: profile.name || 'My Organization',
+          college_name: profile.college_name || 'Main Campus',
+          logo: profile.logo || '',
+          tagline: profile.tagline || '',
+          established_year: profile.established_year || '',
+          description: profile.description || '',
+          email: profile.email || data.email || user.email || '',
+          website: profile.website || '',
+          created_at: data.createdAt || new Date().toISOString(),
+          updated_at: data.updatedAt || new Date().toISOString(),
+        };
+        setOrganizations([orgObj]);
+        setCurrentOrgId(uid);
+
+        if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
+        if (profile.name) localStorage.setItem('last_org_name', profile.name);
       }
+    }, (err) => handleFirestoreError(err, OperationType.GET, `accounts/${uid}`));
 
-      // If this is a local session token, validate against saved user profile directly
-      if (savedToken.startsWith('local_') || savedToken.startsWith('local_auth_')) {
-        if (savedUserStr) {
-          try {
-            const parsed = JSON.parse(savedUserStr);
-            if (isMounted) {
-              setToken(savedToken);
-              setUser(parsed);
-              setIsAuthenticated(true);
-            }
-          } catch {
-            if (isMounted) logoutUser();
-          }
-        } else {
-          if (isMounted) logoutUser();
-        }
-        if (isMounted) setAuthLoading(false);
-        return;
-      }
-
-      try {
-        const res = await safeApiFetch<{ user: AuthUser }>('/api/auth/me', {
-          headers: { Authorization: `Bearer ${savedToken}` },
+    // 2. Organizers
+    const qOrganizers = query(collection(db, 'organizers'), where('accountId', '==', uid));
+    const unsubOrganizers = onSnapshot(qOrganizers, (snapshot) => {
+      const list: Organizer[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          name: d.name || '',
+          photo: d.photo || '',
+          position: d.position || '',
+          display_order: d.display_order ?? 0,
+          email: d.email || '',
+          phone: d.phone || '',
+          bio: d.bio || '',
+          academic_year: d.academic_year || '',
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
         });
+      });
+      setOrganizers(list.sort((a, b) => a.display_order - b.display_order));
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'organizers'));
 
-        if (res.ok && res.data?.user) {
-          if (isMounted) {
-            setToken(savedToken);
-            setUser(res.data.user);
-            setIsAuthenticated(true);
-            localStorage.setItem('org_user', JSON.stringify(res.data.user));
-          }
-        } else if (res.status === 401) {
-          // Token is expired on the server
-          if (savedUserStr) {
-            try {
-              const parsed = JSON.parse(savedUserStr);
-              if (isMounted) {
-                setToken(savedToken);
-                setUser(parsed);
-                setIsAuthenticated(true);
-              }
-            } catch {
-              if (isMounted) logoutUser();
-            }
-          } else {
-            if (isMounted) logoutUser();
-          }
-        } else {
-          // In case server is offline, returns 404 (static Vercel hosting) or 500
-          if (savedUserStr) {
-            try {
-              const parsed = JSON.parse(savedUserStr);
-              if (isMounted) {
-                setToken(savedToken);
-                setUser(parsed);
-                setIsAuthenticated(true);
-              }
-            } catch {
-              if (isMounted) logoutUser();
-            }
-          } else {
-            if (isMounted) logoutUser();
-          }
-        }
-      } catch {
-        if (savedUserStr) {
-          try {
-            const parsed = JSON.parse(savedUserStr);
-            if (isMounted) {
-              setToken(savedToken);
-              setUser(parsed);
-              setIsAuthenticated(true);
-            }
-          } catch {
-            if (isMounted) logoutUser();
-          }
-        }
-      } finally {
-        if (isMounted) {
-          setAuthLoading(false);
-        }
-      }
-    };
+    // 3. Programs
+    const qPrograms = query(collection(db, 'programs'), where('accountId', '==', uid));
+    const unsubPrograms = onSnapshot(qPrograms, (snapshot) => {
+      const list: Program[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          name: d.name || '',
+          category: d.category || '',
+          date: d.date || '',
+          time: d.time || '',
+          place: d.place || '',
+          audience: d.audience || '',
+          description: d.description || '',
+          poster: d.poster || '',
+          media: d.media || [],
+          status: d.status || 'upcoming',
+          attendance_count: d.attendance_count || 0,
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
+        });
+      });
+      setPrograms(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'programs'));
 
-    verifySession();
+    // 4. Accounts
+    const qAccounts = query(collection(db, 'financial_accounts'), where('accountId', '==', uid));
+    const unsubAccounts = onSnapshot(qAccounts, (snapshot) => {
+      const list: FinancialAccount[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          name: d.name || '',
+          type: d.type || 'cash',
+          opening_balance: Number(d.opening_balance || 0),
+          description: d.description || '',
+          is_active: d.is_active !== false,
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
+        });
+      });
+      setAccounts(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'financial_accounts'));
+
+    // 5. Incomes
+    const qIncomes = query(collection(db, 'incomes'), where('accountId', '==', uid));
+    const unsubIncomes = onSnapshot(qIncomes, (snapshot) => {
+      const list: Income[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          account_id: d.account_id || '',
+          category: d.category || '',
+          program_id: d.program_id || '',
+          date: d.date || '',
+          amount: Number(d.amount || 0),
+          source: d.source || '',
+          description: d.description || '',
+          receipt: d.receipt || '',
+          reference_number: d.reference_number || '',
+          created_by: d.created_by || '',
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
+        });
+      });
+      setIncomes(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'incomes'));
+
+    // 6. Expenses
+    const qExpenses = query(collection(db, 'expenses'), where('accountId', '==', uid));
+    const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
+      const list: Expense[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          account_id: d.account_id || '',
+          category: d.category || '',
+          program_id: d.program_id || '',
+          date: d.date || '',
+          amount: Number(d.amount || 0),
+          paid_to: d.paid_to || '',
+          description: d.description || '',
+          receipt: d.receipt || '',
+          reference_number: d.reference_number || '',
+          created_by: d.created_by || '',
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
+        });
+      });
+      setExpenses(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'expenses'));
+
+    // 7. Transfers
+    const qTransfers = query(collection(db, 'transfers'), where('accountId', '==', uid));
+    const unsubTransfers = onSnapshot(qTransfers, (snapshot) => {
+      const list: AccountTransfer[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          from_account_id: d.from_account_id || '',
+          to_account_id: d.to_account_id || '',
+          amount: Number(d.amount || 0),
+          date: d.date || '',
+          description: d.description || '',
+          reference_number: d.reference_number || '',
+          created_by: d.created_by || '',
+          created_at: d.created_at || '',
+        });
+      });
+      setTransfers(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'transfers'));
+
+    // 8. Loans
+    const qLoans = query(collection(db, 'loans'), where('accountId', '==', uid));
+    const unsubLoans = onSnapshot(qLoans, (snapshot) => {
+      const list: Loan[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          type: d.type || 'BORROWED',
+          person_or_organization: d.person_or_organization || '',
+          original_amount: Number(d.original_amount || 0),
+          outstanding_amount: Number(d.outstanding_amount || 0),
+          date: d.date || '',
+          due_date: d.due_date || '',
+          purpose: d.purpose || '',
+          account_id: d.account_id || '',
+          description: d.description || '',
+          proof: d.proof || '',
+          status: d.status || 'OUTSTANDING',
+          created_by: d.created_by || '',
+          created_at: d.created_at || '',
+          updated_at: d.updated_at || '',
+        });
+      });
+      setLoans(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'loans'));
+
+    // 9. Repayments
+    const qRepayments = query(collection(db, 'repayments'), where('accountId', '==', uid));
+    const unsubRepayments = onSnapshot(qRepayments, (snapshot) => {
+      const list: LoanRepayment[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          loan_id: d.loan_id || '',
+          organization_id: uid,
+          account_id: d.account_id || '',
+          date: d.date || '',
+          amount: Number(d.amount || 0),
+          type: d.type || 'REPAY',
+          description: d.description || '',
+          proof: d.proof || '',
+          created_by: d.created_by || '',
+          created_at: d.created_at || '',
+        });
+      });
+      setLoanRepayments(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'repayments'));
 
     return () => {
-      isMounted = false;
+      unsubOrg();
+      unsubOrganizers();
+      unsubPrograms();
+      unsubAccounts();
+      unsubIncomes();
+      unsubExpenses();
+      unsubTransfers();
+      unsubLoans();
+      unsubRepayments();
     };
-  }, [logoutUser]);
+  }, [user?.id, isAuthenticated]);
 
-  // Auto-migrate legacy localStorage data on initial load
-  useEffect(() => {
-    syncLegacyLocalDataToServer().catch((err) => {
-      console.warn('Migration check notice:', err);
-    });
-  }, []);
+  const currentOrg = organizations.find((o) => o.id === currentOrgId) || organizations[0];
 
-  // Fetch organizations from shared cloud database (with local fallback)
-  const fetchOrganizations = useCallback(async () => {
-    const activeToken = localStorage.getItem('org_token') || token;
-    if (!activeToken) return;
-
-    try {
-      const res = await safeApiFetch<Organization[]>('/api/organizations', {
-        headers: { Authorization: `Bearer ${activeToken}` },
-      });
-
-      if (res.ok && Array.isArray(res.data)) {
-        const orgs = res.data;
-        setOrganizations(orgs);
-        if (orgs.length > 0) {
-          const savedOrgId = localStorage.getItem('current_org_id');
-          if (savedOrgId && orgs.some((o) => o.id === savedOrgId)) {
-            setCurrentOrgId(savedOrgId);
-          } else {
-            setCurrentOrgId(orgs[0].id);
-          }
-        } else {
-          setCurrentOrgId('');
-        }
-        return;
-      }
-
-      if (res.status === 401 || res.status === 403) {
-        logoutUser();
-        return;
-      }
-    } catch {}
-
-    // Fallback to localDB for static hosting or offline
-    let localOrgs = localDB.getOrganizations();
-    if (localOrgs.length === 0) {
-      const defaultOrg = localDB.addOrganization({
-        name: 'My Organization',
-        college_name: 'Main Campus',
-        tagline: 'Excellence in Action',
-        logo: '',
-      });
-      localOrgs = [defaultOrg];
-    }
-    setOrganizations(localOrgs);
-    if (localOrgs.length > 0) {
-      const savedOrgId = localStorage.getItem('current_org_id');
-      if (savedOrgId && localOrgs.some((o) => o.id === savedOrgId)) {
-        setCurrentOrgId(savedOrgId);
-      } else {
-        setCurrentOrgId(localOrgs[0].id);
-      }
-    } else {
-      setCurrentOrgId('');
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchOrganizations();
-  }, [fetchOrganizations]);
-
-  // Save current org id
-  useEffect(() => {
-    if (currentOrgId) {
-      localStorage.setItem('current_org_id', currentOrgId);
-    }
-  }, [currentOrgId]);
-
-  // Fetch entity data for currentOrgId from shared cloud database (with local fallback)
-  const fetchEntityData = useCallback(async () => {
-    const activeToken = localStorage.getItem('org_token') || token;
-    if (!activeToken || !currentOrgId) {
-      setOrganizers([]);
-      setPrograms([]);
-      setAccounts([]);
-      setIncomes([]);
-      setExpenses([]);
-      setTransfers([]);
-      setLoans([]);
-      setLoanRepayments([]);
-      setAuditLogs([]);
-      return;
-    }
-
-    const headers = { Authorization: `Bearer ${activeToken}` };
-
-    try {
-      const [
-        orgsRes,
-        progsRes,
-        accsRes,
-        incsRes,
-        expsRes,
-        loansRes,
-        repsRes,
-        transRes,
-        logsRes,
-      ] = await Promise.all([
-        safeApiFetch<Organizer[]>(`/api/organizers?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<Program[]>(`/api/programs?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<FinancialAccount[]>(`/api/accounts?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<Income[]>(`/api/incomes?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<Expense[]>(`/api/expenses?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<Loan[]>(`/api/loans?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<LoanRepayment[]>(`/api/repayments?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<AccountTransfer[]>(`/api/transfers?organization_id=${currentOrgId}`, { headers }),
-        safeApiFetch<AuditLog[]>(`/api/audit_logs?organization_id=${currentOrgId}`, { headers }),
-      ]);
-
-      let serverConnected = false;
-      if (orgsRes.ok && Array.isArray(orgsRes.data)) { setOrganizers(orgsRes.data); serverConnected = true; }
-      if (progsRes.ok && Array.isArray(progsRes.data)) setPrograms(progsRes.data);
-      if (accsRes.ok && Array.isArray(accsRes.data)) setAccounts(accsRes.data);
-      if (incsRes.ok && Array.isArray(incsRes.data)) setIncomes(incsRes.data);
-      if (expsRes.ok && Array.isArray(expsRes.data)) setExpenses(expsRes.data);
-      if (loansRes.ok && Array.isArray(loansRes.data)) setLoans(loansRes.data);
-      if (repsRes.ok && Array.isArray(repsRes.data)) setLoanRepayments(repsRes.data);
-      if (transRes.ok && Array.isArray(transRes.data)) setTransfers(transRes.data);
-      if (logsRes.ok && Array.isArray(logsRes.data)) setAuditLogs(logsRes.data);
-
-      if (serverConnected) return;
-    } catch {}
-
-    // Static hosting or offline fallback
-    setOrganizers(localDB.getItems('local_organizers', currentOrgId));
-    setPrograms(localDB.getItems('local_programs', currentOrgId));
-    setAccounts(localDB.getItems('local_accounts', currentOrgId));
-    setIncomes(localDB.getItems('local_incomes', currentOrgId));
-    setExpenses(localDB.getItems('local_expenses', currentOrgId));
-    setLoans(localDB.getItems('local_loans', currentOrgId));
-    setLoanRepayments(localDB.getItems('local_repayments', currentOrgId));
-    setTransfers(localDB.getItems('local_transfers', currentOrgId));
-    setAuditLogs(localDB.getItems('local_audit_logs', currentOrgId));
-  }, [token, currentOrgId]);
-
-  useEffect(() => {
-    fetchEntityData();
-  }, [fetchEntityData]);
-
-  // Periodic auto-sync & Window Focus synchronization so changes on other devices reflect immediately
-  useEffect(() => {
-    if (!token || !currentOrgId) return;
-
-    const syncInterval = setInterval(() => {
-      fetchEntityData();
-    }, 10000); // Poll every 10 seconds
-
-    const handleFocus = () => {
-      fetchOrganizations();
-      fetchEntityData();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        handleFocus();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      clearInterval(syncInterval);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [token, currentOrgId, fetchOrganizations, fetchEntityData]);
-
-  const currentOrg = organizations.find((o) => o.id === currentOrgId);
-
-  // Save last org logo and name to localStorage for unauthenticated pages
-  useEffect(() => {
-    if (currentOrg) {
-      if (currentOrg.logo) {
-        localStorage.setItem('last_org_logo', currentOrg.logo);
-      } else {
-        localStorage.removeItem('last_org_logo');
-      }
-      if (currentOrg.name) {
-        localStorage.setItem('last_org_name', currentOrg.name);
-      }
-    }
-  }, [currentOrg]);
-
-  const getAuthHeaders = () => {
-    const activeToken = localStorage.getItem('org_token') || token;
-    return {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${activeToken}`,
-    };
-  };
-
-  // Organization Actions
+  // Organization Mutations
   const addOrganization = async (orgData: Omit<Organization, 'id' | 'created_at' | 'updated_at'>): Promise<Organization> => {
-    try {
-      const res = await safeApiFetch<Organization>('/api/organizations', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(orgData),
-      });
-      if (res.ok && res.data) {
-        const newOrg = res.data;
-        setOrganizations((prev) => [...prev, newOrg]);
-        setCurrentOrgId(newOrg.id);
-        try { localDB.addOrganization(orgData); } catch {}
-        return newOrg;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to save organization.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newOrg = localDB.addOrganization(orgData);
-    setOrganizations((prev) => [...prev, newOrg]);
-    setCurrentOrgId(newOrg.id);
-    return newOrg;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const accountRef = doc(db, 'accounts', user.id);
+    await updateDoc(accountRef, {
+      updatedAt: now,
+      profile: {
+        name: orgData.name,
+        college_name: orgData.college_name,
+        tagline: orgData.tagline || '',
+        logo: orgData.logo || '',
+        established_year: orgData.established_year || '',
+        description: orgData.description || '',
+        email: orgData.email || user.email || '',
+        website: orgData.website || '',
+      },
+    });
+    return {
+      id: user.id,
+      ...orgData,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateOrganization = async (orgData: Partial<Organization> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Organization>(`/api/organizations/${orgData.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(orgData),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-        try { localDB.updateOrganization(orgData); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update organization.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateOrganization(orgData);
-    setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-  };
-
-  const deleteOrganization = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/organizations/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteOrganization(id);
-    setOrganizations((prev) => {
-      const filtered = prev.filter((o) => o.id !== id);
-      if (currentOrgId === id) {
-        setCurrentOrgId(filtered[0]?.id || '');
-      }
-      return filtered;
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const accountRef = doc(db, 'accounts', user.id);
+    await updateDoc(accountRef, {
+      updatedAt: now,
+      profile: {
+        name: orgData.name ?? currentOrg?.name,
+        college_name: orgData.college_name ?? currentOrg?.college_name,
+        tagline: orgData.tagline ?? currentOrg?.tagline,
+        logo: orgData.logo ?? currentOrg?.logo,
+        established_year: orgData.established_year ?? currentOrg?.established_year,
+        description: orgData.description ?? currentOrg?.description,
+        email: orgData.email ?? currentOrg?.email,
+        website: orgData.website ?? currentOrg?.website,
+      },
     });
   };
 
-  // Organizer Actions
-  const addOrganizer = async (org: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
-    try {
-      const res = await safeApiFetch<Organizer>('/api/organizers', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...org, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newOrg = res.data;
-        setOrganizers((prev) => [...prev, newOrg]);
-        try { localDB.addItem<Organizer>('local_organizers', org, currentOrgId, 'orgr'); } catch {}
-        return newOrg;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to add organizer.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newOrg = localDB.addItem<Organizer>('local_organizers', org, currentOrgId, 'orgr');
-    setOrganizers((prev) => [...prev, newOrg]);
-    return newOrg;
+  const deleteOrganization = async () => {
+    // No-op for main account org
   };
 
-  const updateOrganizer = async (org: Partial<Organizer> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Organizer>(`/api/organizers/${org.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(org),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-        try { localDB.updateItem<Organizer>('local_organizers', org); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update organizer.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<Organizer>('local_organizers', org);
-    setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  // Organizer Mutations
+  const addOrganizer = async (organizer: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'organizers'), {
+      accountId: user.id,
+      name: organizer.name,
+      position: organizer.position,
+      display_order: organizer.display_order ?? organizers.length + 1,
+      photo: organizer.photo || '',
+      email: organizer.email || '',
+      phone: organizer.phone || '',
+      bio: organizer.bio || '',
+      academic_year: organizer.academic_year || '',
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...organizer,
+      created_at: now,
+      updated_at: now,
+    };
+  };
+
+  const updateOrganizer = async (organizer: Partial<Organizer> & { id: string }) => {
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'organizers', organizer.id);
+    const { id, organization_id, ...updates } = organizer;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteOrganizer = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/organizers/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_organizers', id);
-    setOrganizers((prev) => prev.filter((o) => o.id !== id));
+    await deleteDoc(doc(db, 'organizers', id));
   };
 
   const reorderOrganizers = (reordered: Organizer[]) => {
     setOrganizers(reordered);
-    localDB.reorderItems('local_organizers', reordered);
+    reordered.forEach(async (item, idx) => {
+      await updateDoc(doc(db, 'organizers', item.id), { display_order: idx + 1 });
+    });
   };
 
-  // Program Actions
+  // Program Mutations
   const addProgram = async (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Program> => {
-    try {
-      const res = await safeApiFetch<Program>('/api/programs', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...prog, organization_id: currentOrgId, media: prog.media || [] }),
-      });
-      if (res.ok && res.data) {
-        const newProg = res.data;
-        setPrograms((prev) => [...prev, newProg]);
-        try { localDB.addItem<Program>('local_programs', { ...prog, media: prog.media || [] }, currentOrgId, 'prg'); } catch {}
-        return newProg;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to create program.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newProg = localDB.addItem<Program>('local_programs', { ...prog, media: prog.media || [] }, currentOrgId, 'prg');
-    setPrograms((prev) => [...prev, newProg]);
-    return newProg;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'programs'), {
+      accountId: user.id,
+      name: prog.name,
+      category: prog.category || 'General',
+      date: prog.date,
+      time: prog.time || '',
+      place: prog.place || '',
+      audience: prog.audience || 'Students',
+      description: prog.description || '',
+      poster: prog.poster || '',
+      media: prog.media || [],
+      status: prog.status || 'upcoming',
+      attendance_count: prog.attendance_count || 0,
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...prog,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateProgram = async (prog: Partial<Program> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Program>(`/api/programs/${prog.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(prog),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        try { localDB.updateItem<Program>('local_programs', prog); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update program.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<Program>('local_programs', prog);
-    setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'programs', prog.id);
+    const { id, organization_id, ...updates } = prog;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteProgram = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/programs/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_programs', id);
-    setPrograms((prev) => prev.filter((p) => p.id !== id));
+    await deleteDoc(doc(db, 'programs', id));
   };
 
   const addProgramMedia = async (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => {
-    const prog = programs.find((p) => p.id === programId);
-    if (!prog) return;
+    const targetProg = programs.find((p) => p.id === programId);
+    if (!targetProg) return;
+
     const newMedia: ProgramMedia = {
-      ...mediaItem,
-      id: 'med_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      id: 'med_' + Date.now(),
       program_id: programId,
+      ...mediaItem,
       created_at: new Date().toISOString(),
     };
-    const updatedMedia = [...(prog.media || []), newMedia];
+
+    const updatedMedia = [...(targetProg.media || []), newMedia];
     await updateProgram({ id: programId, media: updatedMedia });
   };
 
   const deleteProgramMedia = async (programId: string, mediaId: string) => {
-    const prog = programs.find((p) => p.id === programId);
-    if (!prog) return;
-    const updatedMedia = (prog.media || []).filter((m) => m.id !== mediaId);
+    const targetProg = programs.find((p) => p.id === programId);
+    if (!targetProg) return;
+
+    const updatedMedia = (targetProg.media || []).filter((m) => m.id !== mediaId);
     await updateProgram({ id: programId, media: updatedMedia });
   };
 
-  // Treasury Accounts
+  // Financial Account Mutations
   const addAccount = async (acc: Omit<FinancialAccount, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<FinancialAccount> => {
-    try {
-      const res = await safeApiFetch<FinancialAccount>('/api/accounts', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...acc, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newAcc = res.data;
-        setAccounts((prev) => [newAcc, ...prev]);
-        try { localDB.addItem<FinancialAccount>('local_accounts', acc, currentOrgId, 'acc'); } catch {}
-        return newAcc;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to add financial account.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newAcc = localDB.addItem<FinancialAccount>('local_accounts', acc, currentOrgId, 'acc');
-    setAccounts((prev) => [newAcc, ...prev]);
-    return newAcc;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'financial_accounts'), {
+      accountId: user.id,
+      name: acc.name,
+      type: acc.type || 'cash',
+      opening_balance: Number(acc.opening_balance || 0),
+      description: acc.description || '',
+      is_active: acc.is_active !== false,
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...acc,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateAccount = async (acc: Partial<FinancialAccount> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<FinancialAccount>(`/api/accounts/${acc.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(acc),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-        try { localDB.updateItem<FinancialAccount>('local_accounts', acc); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update account.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<FinancialAccount>('local_accounts', acc);
-    setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'financial_accounts', acc.id);
+    const { id, organization_id, ...updates } = acc;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteAccount = async (id: string): Promise<boolean> => {
-    const hasTx =
-      incomes.some((i) => i.account_id === id) ||
-      expenses.some((e) => e.account_id === id) ||
-      transfers.some((t) => t.from_account_id === id || t.to_account_id === id) ||
-      loans.some((l) => l.account_id === id) ||
-      loanRepayments.some((r) => r.account_id === id);
-
-    if (hasTx) {
-      alert('This account cannot be deleted because it contains financial transactions.');
-      return false;
-    }
-
-    try {
-      await safeApiFetch(`/api/accounts/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_accounts', id);
-    setAccounts((prev) => prev.filter((a) => a.id !== id));
+    await deleteDoc(doc(db, 'financial_accounts', id));
     return true;
   };
 
-  // Income Actions
+  // Income Mutations
   const addIncome = async (inc: Omit<Income, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Income> => {
-    try {
-      const res = await safeApiFetch<Income>('/api/incomes', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...inc, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newInc = res.data;
-        setIncomes((prev) => [newInc, ...prev]);
-        try { localDB.addItem<Income>('local_incomes', inc, currentOrgId, 'inc'); } catch {}
-        return newInc;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to record income.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newInc = localDB.addItem<Income>('local_incomes', inc, currentOrgId, 'inc');
-    setIncomes((prev) => [newInc, ...prev]);
-    return newInc;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'incomes'), {
+      accountId: user.id,
+      account_id: inc.account_id,
+      category: inc.category,
+      program_id: inc.program_id || '',
+      date: inc.date,
+      amount: Number(inc.amount),
+      source: inc.source,
+      description: inc.description || '',
+      receipt: inc.receipt || '',
+      reference_number: inc.reference_number || '',
+      created_by: user.email || 'admin',
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...inc,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateIncome = async (inc: Partial<Income> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Income>(`/api/incomes/${inc.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(inc),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-        try { localDB.updateItem<Income>('local_incomes', inc); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update income record.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<Income>('local_incomes', inc);
-    setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'incomes', inc.id);
+    const { id, organization_id, ...updates } = inc;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteIncome = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/incomes/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_incomes', id);
-    setIncomes((prev) => prev.filter((i) => i.id !== id));
+    await deleteDoc(doc(db, 'incomes', id));
   };
 
-  // Expense Actions
+  // Expense Mutations
   const addExpense = async (exp: Omit<Expense, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Expense> => {
-    try {
-      const res = await safeApiFetch<Expense>('/api/expenses', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...exp, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newExp = res.data;
-        setExpenses((prev) => [newExp, ...prev]);
-        try { localDB.addItem<Expense>('local_expenses', exp, currentOrgId, 'exp'); } catch {}
-        return newExp;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to record expense.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newExp = localDB.addItem<Expense>('local_expenses', exp, currentOrgId, 'exp');
-    setExpenses((prev) => [newExp, ...prev]);
-    return newExp;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'expenses'), {
+      accountId: user.id,
+      account_id: exp.account_id,
+      category: exp.category,
+      program_id: exp.program_id || '',
+      date: exp.date,
+      amount: Number(exp.amount),
+      paid_to: exp.paid_to,
+      description: exp.description || '',
+      receipt: exp.receipt || '',
+      reference_number: exp.reference_number || '',
+      created_by: user.email || 'admin',
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...exp,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateExpense = async (exp: Partial<Expense> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Expense>(`/api/expenses/${exp.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(exp),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-        try { localDB.updateItem<Expense>('local_expenses', exp); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update expense record.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<Expense>('local_expenses', exp);
-    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'expenses', exp.id);
+    const { id, organization_id, ...updates } = exp;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteExpense = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/expenses/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_expenses', id);
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    await deleteDoc(doc(db, 'expenses', id));
   };
 
-  // Transfer Actions
+  // Transfer Mutations
   const addTransfer = async (tr: Omit<AccountTransfer, 'id' | 'organization_id' | 'created_at'>): Promise<AccountTransfer> => {
-    try {
-      const res = await safeApiFetch<AccountTransfer>('/api/transfers', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...tr, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newTr = res.data;
-        setTransfers((prev) => [newTr, ...prev]);
-        try { localDB.addItem<AccountTransfer>('local_transfers', tr, currentOrgId, 'tr'); } catch {}
-        return newTr;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to process transfer.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newTr = localDB.addItem<AccountTransfer>('local_transfers', tr, currentOrgId, 'tr');
-    setTransfers((prev) => [newTr, ...prev]);
-    return newTr;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'transfers'), {
+      accountId: user.id,
+      from_account_id: tr.from_account_id,
+      to_account_id: tr.to_account_id,
+      amount: Number(tr.amount),
+      date: tr.date,
+      description: tr.description || '',
+      reference_number: tr.reference_number || '',
+      created_by: user.email || 'admin',
+      created_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...tr,
+      created_at: now,
+    };
   };
 
   const deleteTransfer = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/transfers/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_transfers', id);
-    setTransfers((prev) => prev.filter((t) => t.id !== id));
+    await deleteDoc(doc(db, 'transfers', id));
   };
 
-  // Loan Actions
+  // Loan Mutations
   const addLoan = async (loan: Omit<Loan, 'id' | 'organization_id' | 'outstanding_amount' | 'status' | 'created_at' | 'updated_at'>): Promise<Loan> => {
-    try {
-      const res = await safeApiFetch<Loan>('/api/loans', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          ...loan,
-          organization_id: currentOrgId,
-          outstanding_amount: loan.original_amount,
-          status: 'OUTSTANDING',
-        }),
-      });
-      if (res.ok && res.data) {
-        const newLoan = res.data;
-        setLoans((prev) => [...prev, newLoan]);
-        try {
-          localDB.addItem<Loan>(
-            'local_loans',
-            { ...loan, outstanding_amount: loan.original_amount, status: 'OUTSTANDING' },
-            currentOrgId,
-            'loan'
-          );
-        } catch {}
-        return newLoan;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to save loan record.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const newLoan = localDB.addItem<Loan>(
-      'local_loans',
-      { ...loan, outstanding_amount: loan.original_amount, status: 'OUTSTANDING' },
-      currentOrgId,
-      'loan'
-    );
-    setLoans((prev) => [...prev, newLoan]);
-    return newLoan;
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'loans'), {
+      accountId: user.id,
+      type: loan.type,
+      person_or_organization: loan.person_or_organization,
+      original_amount: Number(loan.original_amount),
+      outstanding_amount: Number(loan.original_amount),
+      date: loan.date,
+      due_date: loan.due_date || '',
+      purpose: loan.purpose,
+      account_id: loan.account_id,
+      description: loan.description || '',
+      proof: loan.proof || '',
+      status: 'OUTSTANDING',
+      created_by: user.email || 'admin',
+      created_at: now,
+      updated_at: now,
+    });
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      outstanding_amount: Number(loan.original_amount),
+      status: 'OUTSTANDING',
+      ...loan,
+      created_at: now,
+      updated_at: now,
+    };
   };
 
   const updateLoan = async (loan: Partial<Loan> & { id: string }) => {
-    try {
-      const res = await safeApiFetch<Loan>(`/api/loans/${loan.id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(loan),
-      });
-      if (res.ok && res.data) {
-        const updated = res.data;
-        setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-        try { localDB.updateItem<Loan>('local_loans', loan); } catch {}
-        return;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to update loan.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-    const updated = localDB.updateItem<Loan>('local_loans', loan);
-    setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    if (!user?.id) return;
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'loans', loan.id);
+    const { id, organization_id, ...updates } = loan;
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: now,
+    });
   };
 
   const deleteLoan = async (id: string) => {
-    try {
-      await safeApiFetch(`/api/loans/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_loans', id);
-    setLoans((prev) => prev.filter((l) => l.id !== id));
+    await deleteDoc(doc(db, 'loans', id));
   };
 
-  // Loan Repayment Actions
+  // Loan Repayment Mutations
   const addLoanRepayment = async (rep: Omit<LoanRepayment, 'id' | 'organization_id' | 'created_at'>): Promise<LoanRepayment> => {
-    try {
-      const res = await safeApiFetch<LoanRepayment>('/api/repayments', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ ...rep, organization_id: currentOrgId }),
-      });
-      if (res.ok && res.data) {
-        const newRep = res.data;
-        setLoanRepayments((prev) => [...prev, newRep]);
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'repayments'), {
+      accountId: user.id,
+      loan_id: rep.loan_id,
+      account_id: rep.account_id,
+      date: rep.date,
+      amount: Number(rep.amount),
+      type: rep.type,
+      description: rep.description || '',
+      proof: rep.proof || '',
+      created_by: user.email || 'admin',
+      created_at: now,
+    });
 
-        const loan = loans.find((l) => l.id === rep.loan_id);
-        if (loan) {
-          const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
-          let newStatus = loan.status;
-          if (newOutstanding === 0) {
-            newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
-          } else {
-            newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
-          }
-          await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
-        }
-        try { localDB.addItem<LoanRepayment>('local_repayments', rep, currentOrgId, 'rep'); } catch {}
-        return newRep;
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(res.error || 'Failed to save repayment.');
-      }
-    } catch (err: any) {
-      if (err.message && err.message !== 'Unable to connect to server') throw err;
-    }
-
-    const newRep = localDB.addItem<LoanRepayment>('local_repayments', rep, currentOrgId, 'rep');
-    setLoanRepayments((prev) => [...prev, newRep]);
-
-    const loan = loans.find((l) => l.id === rep.loan_id);
-    if (loan) {
-      const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
-      let newStatus = loan.status;
+    // Recalculate loan outstanding amount
+    const targetLoan = loans.find((l) => l.id === rep.loan_id);
+    if (targetLoan) {
+      const newOutstanding = Math.max(0, targetLoan.outstanding_amount - Number(rep.amount));
+      let newStatus = targetLoan.status;
       if (newOutstanding === 0) {
-        newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
+        newStatus = rep.type === 'REPAY' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
       } else {
-        newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
+        newStatus = rep.type === 'REPAY' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
       }
-      await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
+      await updateLoan({
+        id: rep.loan_id,
+        outstanding_amount: newOutstanding,
+        status: newStatus,
+      });
     }
-    return newRep;
+
+    return {
+      id: docRef.id,
+      organization_id: user.id,
+      ...rep,
+      created_at: now,
+    };
   };
 
-  const deleteLoanRepayment = async (repId: string) => {
-    const rep = loanRepayments.find((r) => r.id === repId);
-    if (!rep) return;
-
-    const loan = loans.find((l) => l.id === rep.loan_id);
-    if (loan) {
-      const restoredOutstanding = Math.min(loan.original_amount, loan.outstanding_amount + rep.amount);
-      let newStatus = loan.status;
-      if (loan.type === 'BORROWED') {
-        if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
-        else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_PAID';
-      } else {
-        if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
-        else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_RECOVERED';
-      }
-      await updateLoan({ id: loan.id, outstanding_amount: restoredOutstanding, status: newStatus });
-    }
-
-    try {
-      await safeApiFetch(`/api/repayments/${repId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    } catch {}
-    localDB.deleteItem('local_repayments', repId);
-    setLoanRepayments((prev) => prev.filter((r) => r.id !== repId));
+  const deleteLoanRepayment = async (id: string) => {
+    await deleteDoc(doc(db, 'repayments', id));
   };
 
   const viewProgramDetails = (id: string) => {
@@ -1062,15 +944,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToDemoData = () => {
-    // No-op or clear demo
+    // Demo reset not applicable in Firebase production mode
   };
 
   const exportDataJson = () => {
-    return JSON.stringify({ organizations, organizers, programs, accounts, incomes, expenses, loans, loanRepayments, transfers }, null, 2);
+    return JSON.stringify(
+      {
+        organization: currentOrg,
+        organizers,
+        programs,
+        accounts,
+        incomes,
+        expenses,
+        transfers,
+        loans,
+        loanRepayments,
+      },
+      null,
+      2
+    );
   };
 
   const importDataJson = () => {
-    return true;
+    return false;
   };
 
   return (
