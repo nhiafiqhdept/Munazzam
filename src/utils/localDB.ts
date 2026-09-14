@@ -16,16 +16,20 @@ const genId = (prefix: string) => `${prefix}_${Math.random().toString(36).substr
 
 export const localRegister = async (email: string, password: string) => {
   const usersStr = localStorage.getItem('local_users') || '[]';
-  const users = JSON.parse(usersStr);
+  let users: any[] = [];
+  try {
+    users = JSON.parse(usersStr);
+  } catch {}
 
-  if (users.some((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
-    throw new Error('Username already exists in local database.');
+  const normalized = email.trim().toLowerCase();
+  if (users.some((u: any) => u.email.toLowerCase() === normalized)) {
+    throw new Error('This username is already registered. Please sign in.');
   }
 
   const newUser = {
     id: genId('usr'),
-    email: email,
-    password: password, // simple storage for demo/local fallback
+    email: email.trim(),
+    password: password,
   };
 
   users.push(newUser);
@@ -39,14 +43,27 @@ export const localRegister = async (email: string, password: string) => {
 
 export const localLogin = async (email: string, password: string) => {
   const usersStr = localStorage.getItem('local_users') || '[]';
-  const users = JSON.parse(usersStr);
+  let users: any[] = [];
+  try {
+    users = JSON.parse(usersStr);
+  } catch {}
 
-  const found = users.find(
-    (u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-  );
+  const normalized = email.trim().toLowerCase();
+
+  // If no accounts exist yet locally, automatically provision this user
+  if (users.length === 0) {
+    return await localRegister(email, password);
+  }
+
+  const found = users.find((u: any) => u.email.toLowerCase() === normalized);
 
   if (!found) {
-    throw new Error('Invalid username or password in local database.');
+    // Auto-create for new accounts on standalone deployments
+    return await localRegister(email, password);
+  }
+
+  if (found.password !== password) {
+    throw new Error('Invalid username or password');
   }
 
   const token = `local_token_${found.id}`;
@@ -113,7 +130,7 @@ export const localDB = {
 
   addItem: <T extends { id: string; organization_id: string; created_at?: string; updated_at?: string }>(
     key: string,
-    item: Omit<T, 'id' | 'created_at' | 'updated_at'>,
+    item: Record<string, any>,
     orgId: string,
     prefix: string
   ): T => {

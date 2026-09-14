@@ -14,6 +14,10 @@ export interface ApiResponse<T = any> {
   error: string | null;
 }
 
+export function isServerUnavailable(res: ApiResponse<any>): boolean {
+  return res.status === 0 || res.status === 404 || res.status === 502 || res.status === 503 || res.status === 504;
+}
+
 export async function safeApiFetch<T = any>(
   input: string,
   options?: RequestInit

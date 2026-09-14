@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { safeApiFetch } from '../utils/api';
+import { safeApiFetch, ApiResponse } from '../utils/api';
 import { syncLegacyLocalDataToServer } from '../utils/migration';
+import { localDB } from '../utils/localDB';
 import {
   Organization,
   Organizer,
@@ -162,30 +163,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('org_user');
   };
 
-  // Fetch organizations from shared cloud database
+  // Fetch organizations from shared cloud database (with local fallback)
   const fetchOrganizations = useCallback(async () => {
     const activeToken = localStorage.getItem('org_token') || token;
     if (!activeToken) return;
 
-    const res = await safeApiFetch<Organization[]>('/api/organizations', {
-      headers: { Authorization: `Bearer ${activeToken}` },
-    });
+    try {
+      const res = await safeApiFetch<Organization[]>('/api/organizations', {
+        headers: { Authorization: `Bearer ${activeToken}` },
+      });
 
-    if (!res.ok) {
+      if (res.ok && Array.isArray(res.data)) {
+        const orgs = res.data;
+        setOrganizations(orgs);
+        if (orgs.length > 0) {
+          const savedOrgId = localStorage.getItem('current_org_id');
+          if (savedOrgId && orgs.some((o) => o.id === savedOrgId)) {
+            setCurrentOrgId(savedOrgId);
+          } else {
+            setCurrentOrgId(orgs[0].id);
+          }
+        } else {
+          setCurrentOrgId('');
+        }
+        return;
+      }
+
       if (res.status === 401 || res.status === 403) {
         logoutUser();
+        return;
       }
-      return;
-    }
+    } catch {}
 
-    const orgs = Array.isArray(res.data) ? res.data : [];
-    setOrganizations(orgs);
-    if (orgs.length > 0) {
+    // Fallback to localDB for static hosting or offline
+    let localOrgs = localDB.getOrganizations();
+    if (localOrgs.length === 0) {
+      const defaultOrg = localDB.addOrganization({
+        name: 'My Organization',
+        college_name: 'Main Campus',
+        tagline: 'Excellence in Action',
+        logo: '',
+      });
+      localOrgs = [defaultOrg];
+    }
+    setOrganizations(localOrgs);
+    if (localOrgs.length > 0) {
       const savedOrgId = localStorage.getItem('current_org_id');
-      if (savedOrgId && orgs.some((o) => o.id === savedOrgId)) {
+      if (savedOrgId && localOrgs.some((o) => o.id === savedOrgId)) {
         setCurrentOrgId(savedOrgId);
       } else {
-        setCurrentOrgId(orgs[0].id);
+        setCurrentOrgId(localOrgs[0].id);
       }
     } else {
       setCurrentOrgId('');
@@ -203,7 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentOrgId]);
 
-  // Fetch entity data for currentOrgId from shared cloud database
+  // Fetch entity data for currentOrgId from shared cloud database (with local fallback)
   const fetchEntityData = useCallback(async () => {
     const activeToken = localStorage.getItem('org_token') || token;
     if (!activeToken || !currentOrgId) {
@@ -221,37 +248,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const headers = { Authorization: `Bearer ${activeToken}` };
 
-    const [
-      orgsRes,
-      progsRes,
-      accsRes,
-      incsRes,
-      expsRes,
-      loansRes,
-      repsRes,
-      transRes,
-      logsRes,
-    ] = await Promise.all([
-      safeApiFetch<Organizer[]>(`/api/organizers?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<Program[]>(`/api/programs?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<FinancialAccount[]>(`/api/accounts?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<Income[]>(`/api/incomes?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<Expense[]>(`/api/expenses?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<Loan[]>(`/api/loans?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<LoanRepayment[]>(`/api/repayments?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<AccountTransfer[]>(`/api/transfers?organization_id=${currentOrgId}`, { headers }),
-      safeApiFetch<AuditLog[]>(`/api/audit_logs?organization_id=${currentOrgId}`, { headers }),
-    ]);
+    try {
+      const [
+        orgsRes,
+        progsRes,
+        accsRes,
+        incsRes,
+        expsRes,
+        loansRes,
+        repsRes,
+        transRes,
+        logsRes,
+      ] = await Promise.all([
+        safeApiFetch<Organizer[]>(`/api/organizers?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<Program[]>(`/api/programs?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<FinancialAccount[]>(`/api/accounts?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<Income[]>(`/api/incomes?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<Expense[]>(`/api/expenses?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<Loan[]>(`/api/loans?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<LoanRepayment[]>(`/api/repayments?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<AccountTransfer[]>(`/api/transfers?organization_id=${currentOrgId}`, { headers }),
+        safeApiFetch<AuditLog[]>(`/api/audit_logs?organization_id=${currentOrgId}`, { headers }),
+      ]);
 
-    if (orgsRes.ok && Array.isArray(orgsRes.data)) setOrganizers(orgsRes.data);
-    if (progsRes.ok && Array.isArray(progsRes.data)) setPrograms(progsRes.data);
-    if (accsRes.ok && Array.isArray(accsRes.data)) setAccounts(accsRes.data);
-    if (incsRes.ok && Array.isArray(incsRes.data)) setIncomes(incsRes.data);
-    if (expsRes.ok && Array.isArray(expsRes.data)) setExpenses(expsRes.data);
-    if (loansRes.ok && Array.isArray(loansRes.data)) setLoans(loansRes.data);
-    if (repsRes.ok && Array.isArray(repsRes.data)) setLoanRepayments(repsRes.data);
-    if (transRes.ok && Array.isArray(transRes.data)) setTransfers(transRes.data);
-    if (logsRes.ok && Array.isArray(logsRes.data)) setAuditLogs(logsRes.data);
+      let serverConnected = false;
+      if (orgsRes.ok && Array.isArray(orgsRes.data)) { setOrganizers(orgsRes.data); serverConnected = true; }
+      if (progsRes.ok && Array.isArray(progsRes.data)) setPrograms(progsRes.data);
+      if (accsRes.ok && Array.isArray(accsRes.data)) setAccounts(accsRes.data);
+      if (incsRes.ok && Array.isArray(incsRes.data)) setIncomes(incsRes.data);
+      if (expsRes.ok && Array.isArray(expsRes.data)) setExpenses(expsRes.data);
+      if (loansRes.ok && Array.isArray(loansRes.data)) setLoans(loansRes.data);
+      if (repsRes.ok && Array.isArray(repsRes.data)) setLoanRepayments(repsRes.data);
+      if (transRes.ok && Array.isArray(transRes.data)) setTransfers(transRes.data);
+      if (logsRes.ok && Array.isArray(logsRes.data)) setAuditLogs(logsRes.data);
+
+      if (serverConnected) return;
+    } catch {}
+
+    // Static hosting or offline fallback
+    setOrganizers(localDB.getItems('local_organizers', currentOrgId));
+    setPrograms(localDB.getItems('local_programs', currentOrgId));
+    setAccounts(localDB.getItems('local_accounts', currentOrgId));
+    setIncomes(localDB.getItems('local_incomes', currentOrgId));
+    setExpenses(localDB.getItems('local_expenses', currentOrgId));
+    setLoans(localDB.getItems('local_loans', currentOrgId));
+    setLoanRepayments(localDB.getItems('local_repayments', currentOrgId));
+    setTransfers(localDB.getItems('local_transfers', currentOrgId));
+    setAuditLogs(localDB.getItems('local_audit_logs', currentOrgId));
   }, [token, currentOrgId]);
 
   useEffect(() => {
@@ -312,37 +355,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Organization Actions
   const addOrganization = async (orgData: Omit<Organization, 'id' | 'created_at' | 'updated_at'>): Promise<Organization> => {
-    const res = await safeApiFetch<Organization>('/api/organizations', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(orgData),
-    });
-    if (res.ok && res.data) {
-      const newOrg = res.data;
-      setOrganizations((prev) => [...prev, newOrg]);
-      setCurrentOrgId(newOrg.id);
-      return newOrg;
+    try {
+      const res = await safeApiFetch<Organization>('/api/organizations', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(orgData),
+      });
+      if (res.ok && res.data) {
+        const newOrg = res.data;
+        setOrganizations((prev) => [...prev, newOrg]);
+        setCurrentOrgId(newOrg.id);
+        try { localDB.addOrganization(orgData); } catch {}
+        return newOrg;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to save organization.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to save organization.');
+    const newOrg = localDB.addOrganization(orgData);
+    setOrganizations((prev) => [...prev, newOrg]);
+    setCurrentOrgId(newOrg.id);
+    return newOrg;
   };
 
   const updateOrganization = async (orgData: Partial<Organization> & { id: string }) => {
-    const res = await safeApiFetch<Organization>(`/api/organizations/${orgData.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(orgData),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    try {
+      const res = await safeApiFetch<Organization>(`/api/organizations/${orgData.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(orgData),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+        try { localDB.updateOrganization(orgData); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update organization.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateOrganization(orgData);
+    setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
   };
 
   const deleteOrganization = async (id: string) => {
-    await safeApiFetch(`/api/organizations/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    try {
+      await safeApiFetch(`/api/organizations/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteOrganization(id);
     setOrganizations((prev) => {
       const filtered = prev.filter((o) => o.id !== id);
       if (currentOrgId === id) {
@@ -354,75 +422,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Organizer Actions
   const addOrganizer = async (org: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
-    const res = await safeApiFetch<Organizer>('/api/organizers', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...org, organization_id: currentOrgId }),
-    });
-    if (res.ok && res.data) {
-      const newOrg = res.data;
-      setOrganizers((prev) => [...prev, newOrg]);
-      return newOrg;
+    try {
+      const res = await safeApiFetch<Organizer>('/api/organizers', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...org, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newOrg = res.data;
+        setOrganizers((prev) => [...prev, newOrg]);
+        try { localDB.addItem<Organizer>('local_organizers', org, currentOrgId, 'orgr'); } catch {}
+        return newOrg;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to add organizer.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to add organizer.');
+    const newOrg = localDB.addItem<Organizer>('local_organizers', org, currentOrgId, 'orgr');
+    setOrganizers((prev) => [...prev, newOrg]);
+    return newOrg;
   };
 
   const updateOrganizer = async (org: Partial<Organizer> & { id: string }) => {
-    const res = await safeApiFetch<Organizer>(`/api/organizers/${org.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(org),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    try {
+      const res = await safeApiFetch<Organizer>(`/api/organizers/${org.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(org),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+        try { localDB.updateItem<Organizer>('local_organizers', org); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update organizer.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<Organizer>('local_organizers', org);
+    setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
   };
 
   const deleteOrganizer = async (id: string) => {
-    await safeApiFetch(`/api/organizers/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    try {
+      await safeApiFetch(`/api/organizers/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_organizers', id);
     setOrganizers((prev) => prev.filter((o) => o.id !== id));
   };
 
   const reorderOrganizers = (reordered: Organizer[]) => {
     setOrganizers(reordered);
+    localDB.reorderItems('local_organizers', reordered);
   };
 
   // Program Actions
   const addProgram = async (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Program> => {
-    const res = await safeApiFetch<Program>('/api/programs', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...prog, organization_id: currentOrgId, media: prog.media || [] }),
-    });
-    if (res.ok && res.data) {
-      const newProg = res.data;
-      setPrograms((prev) => [...prev, newProg]);
-      return newProg;
+    try {
+      const res = await safeApiFetch<Program>('/api/programs', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...prog, organization_id: currentOrgId, media: prog.media || [] }),
+      });
+      if (res.ok && res.data) {
+        const newProg = res.data;
+        setPrograms((prev) => [...prev, newProg]);
+        try { localDB.addItem<Program>('local_programs', { ...prog, media: prog.media || [] }, currentOrgId, 'prg'); } catch {}
+        return newProg;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to create program.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to create program.');
+    const newProg = localDB.addItem<Program>('local_programs', { ...prog, media: prog.media || [] }, currentOrgId, 'prg');
+    setPrograms((prev) => [...prev, newProg]);
+    return newProg;
   };
 
   const updateProgram = async (prog: Partial<Program> & { id: string }) => {
-    const res = await safeApiFetch<Program>(`/api/programs/${prog.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(prog),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    try {
+      const res = await safeApiFetch<Program>(`/api/programs/${prog.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(prog),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        try { localDB.updateItem<Program>('local_programs', prog); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update program.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<Program>('local_programs', prog);
+    setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   };
 
   const deleteProgram = async (id: string) => {
-    await safeApiFetch(`/api/programs/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
+    try {
+      await safeApiFetch(`/api/programs/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_programs', id);
     setPrograms((prev) => prev.filter((p) => p.id !== id));
   };
 
@@ -448,29 +565,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Treasury Accounts
   const addAccount = async (acc: Omit<FinancialAccount, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<FinancialAccount> => {
-    const res = await safeApiFetch<FinancialAccount>('/api/accounts', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...acc, organization_id: currentOrgId }),
-    });
-    if (res.ok && res.data) {
-      const newAcc = res.data;
-      setAccounts((prev) => [newAcc, ...prev]);
-      return newAcc;
+    try {
+      const res = await safeApiFetch<FinancialAccount>('/api/accounts', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...acc, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newAcc = res.data;
+        setAccounts((prev) => [newAcc, ...prev]);
+        try { localDB.addItem<FinancialAccount>('local_accounts', acc, currentOrgId, 'acc'); } catch {}
+        return newAcc;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to add financial account.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to add financial account.');
+    const newAcc = localDB.addItem<FinancialAccount>('local_accounts', acc, currentOrgId, 'acc');
+    setAccounts((prev) => [newAcc, ...prev]);
+    return newAcc;
   };
 
   const updateAccount = async (acc: Partial<FinancialAccount> & { id: string }) => {
-    const res = await safeApiFetch<FinancialAccount>(`/api/accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(acc),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    try {
+      const res = await safeApiFetch<FinancialAccount>(`/api/accounts/${acc.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(acc),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+        try { localDB.updateItem<FinancialAccount>('local_accounts', acc); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update account.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<FinancialAccount>('local_accounts', acc);
+    setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
   const deleteAccount = async (id: string): Promise<boolean> => {
@@ -486,176 +624,283 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const res = await safeApiFetch(`/api/accounts/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete account.');
-    }
+    try {
+      await safeApiFetch(`/api/accounts/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_accounts', id);
     setAccounts((prev) => prev.filter((a) => a.id !== id));
     return true;
   };
 
   // Income Actions
   const addIncome = async (inc: Omit<Income, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Income> => {
-    const res = await safeApiFetch<Income>('/api/incomes', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...inc, organization_id: currentOrgId }),
-    });
-    if (res.ok && res.data) {
-      const newInc = res.data;
-      setIncomes((prev) => [newInc, ...prev]);
-      return newInc;
+    try {
+      const res = await safeApiFetch<Income>('/api/incomes', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...inc, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newInc = res.data;
+        setIncomes((prev) => [newInc, ...prev]);
+        try { localDB.addItem<Income>('local_incomes', inc, currentOrgId, 'inc'); } catch {}
+        return newInc;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to record income.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to record income.');
+    const newInc = localDB.addItem<Income>('local_incomes', inc, currentOrgId, 'inc');
+    setIncomes((prev) => [newInc, ...prev]);
+    return newInc;
   };
 
   const updateIncome = async (inc: Partial<Income> & { id: string }) => {
-    const res = await safeApiFetch<Income>(`/api/incomes/${inc.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(inc),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    try {
+      const res = await safeApiFetch<Income>(`/api/incomes/${inc.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(inc),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+        try { localDB.updateItem<Income>('local_incomes', inc); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update income record.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<Income>('local_incomes', inc);
+    setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
   };
 
   const deleteIncome = async (id: string) => {
-    const res = await safeApiFetch(`/api/incomes/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete income record.');
-    }
+    try {
+      await safeApiFetch(`/api/incomes/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_incomes', id);
     setIncomes((prev) => prev.filter((i) => i.id !== id));
   };
 
   // Expense Actions
   const addExpense = async (exp: Omit<Expense, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Expense> => {
-    const res = await safeApiFetch<Expense>('/api/expenses', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...exp, organization_id: currentOrgId }),
-    });
-    if (res.ok && res.data) {
-      const newExp = res.data;
-      setExpenses((prev) => [newExp, ...prev]);
-      return newExp;
+    try {
+      const res = await safeApiFetch<Expense>('/api/expenses', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...exp, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newExp = res.data;
+        setExpenses((prev) => [newExp, ...prev]);
+        try { localDB.addItem<Expense>('local_expenses', exp, currentOrgId, 'exp'); } catch {}
+        return newExp;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to record expense.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to record expense.');
+    const newExp = localDB.addItem<Expense>('local_expenses', exp, currentOrgId, 'exp');
+    setExpenses((prev) => [newExp, ...prev]);
+    return newExp;
   };
 
   const updateExpense = async (exp: Partial<Expense> & { id: string }) => {
-    const res = await safeApiFetch<Expense>(`/api/expenses/${exp.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(exp),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    try {
+      const res = await safeApiFetch<Expense>(`/api/expenses/${exp.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(exp),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+        try { localDB.updateItem<Expense>('local_expenses', exp); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update expense record.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<Expense>('local_expenses', exp);
+    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
   };
 
   const deleteExpense = async (id: string) => {
-    const res = await safeApiFetch(`/api/expenses/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete expense record.');
-    }
+    try {
+      await safeApiFetch(`/api/expenses/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_expenses', id);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
   // Transfer Actions
   const addTransfer = async (tr: Omit<AccountTransfer, 'id' | 'organization_id' | 'created_at'>): Promise<AccountTransfer> => {
-    const res = await safeApiFetch<AccountTransfer>('/api/transfers', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...tr, organization_id: currentOrgId }),
-    });
-    if (res.ok && res.data) {
-      const newTr = res.data;
-      setTransfers((prev) => [newTr, ...prev]);
-      return newTr;
+    try {
+      const res = await safeApiFetch<AccountTransfer>('/api/transfers', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...tr, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newTr = res.data;
+        setTransfers((prev) => [newTr, ...prev]);
+        try { localDB.addItem<AccountTransfer>('local_transfers', tr, currentOrgId, 'tr'); } catch {}
+        return newTr;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to process transfer.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to process transfer.');
+    const newTr = localDB.addItem<AccountTransfer>('local_transfers', tr, currentOrgId, 'tr');
+    setTransfers((prev) => [newTr, ...prev]);
+    return newTr;
   };
 
   const deleteTransfer = async (id: string) => {
-    const res = await safeApiFetch(`/api/transfers/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete transfer.');
-    }
+    try {
+      await safeApiFetch(`/api/transfers/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_transfers', id);
     setTransfers((prev) => prev.filter((t) => t.id !== id));
   };
 
   // Loan Actions
   const addLoan = async (loan: Omit<Loan, 'id' | 'organization_id' | 'outstanding_amount' | 'status' | 'created_at' | 'updated_at'>): Promise<Loan> => {
-    const res = await safeApiFetch<Loan>('/api/loans', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        ...loan,
-        organization_id: currentOrgId,
-        outstanding_amount: loan.original_amount,
-        status: 'OUTSTANDING',
-      }),
-    });
-    if (res.ok && res.data) {
-      const newLoan = res.data;
-      setLoans((prev) => [...prev, newLoan]);
-      return newLoan;
+    try {
+      const res = await safeApiFetch<Loan>('/api/loans', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          ...loan,
+          organization_id: currentOrgId,
+          outstanding_amount: loan.original_amount,
+          status: 'OUTSTANDING',
+        }),
+      });
+      if (res.ok && res.data) {
+        const newLoan = res.data;
+        setLoans((prev) => [...prev, newLoan]);
+        try {
+          localDB.addItem<Loan>(
+            'local_loans',
+            { ...loan, outstanding_amount: loan.original_amount, status: 'OUTSTANDING' },
+            currentOrgId,
+            'loan'
+          );
+        } catch {}
+        return newLoan;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to save loan record.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    throw new Error(res.error || 'Failed to save loan record.');
+    const newLoan = localDB.addItem<Loan>(
+      'local_loans',
+      { ...loan, outstanding_amount: loan.original_amount, status: 'OUTSTANDING' },
+      currentOrgId,
+      'loan'
+    );
+    setLoans((prev) => [...prev, newLoan]);
+    return newLoan;
   };
 
   const updateLoan = async (loan: Partial<Loan> & { id: string }) => {
-    const res = await safeApiFetch<Loan>(`/api/loans/${loan.id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(loan),
-    });
-    if (res.ok && res.data) {
-      const updated = res.data;
-      setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    try {
+      const res = await safeApiFetch<Loan>(`/api/loans/${loan.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(loan),
+      });
+      if (res.ok && res.data) {
+        const updated = res.data;
+        setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+        try { localDB.updateItem<Loan>('local_loans', loan); } catch {}
+        return;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to update loan.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
+    const updated = localDB.updateItem<Loan>('local_loans', loan);
+    setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
   const deleteLoan = async (id: string) => {
-    const res = await safeApiFetch(`/api/loans/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete loan.');
-    }
+    try {
+      await safeApiFetch(`/api/loans/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_loans', id);
     setLoans((prev) => prev.filter((l) => l.id !== id));
   };
 
   // Loan Repayment Actions
   const addLoanRepayment = async (rep: Omit<LoanRepayment, 'id' | 'organization_id' | 'created_at'>): Promise<LoanRepayment> => {
-    const res = await safeApiFetch<LoanRepayment>('/api/repayments', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ ...rep, organization_id: currentOrgId }),
-    });
-    if (!res.ok || !res.data) {
-      throw new Error(res.error || 'Failed to save repayment.');
+    try {
+      const res = await safeApiFetch<LoanRepayment>('/api/repayments', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...rep, organization_id: currentOrgId }),
+      });
+      if (res.ok && res.data) {
+        const newRep = res.data;
+        setLoanRepayments((prev) => [...prev, newRep]);
+
+        const loan = loans.find((l) => l.id === rep.loan_id);
+        if (loan) {
+          const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
+          let newStatus = loan.status;
+          if (newOutstanding === 0) {
+            newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
+          } else {
+            newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
+          }
+          await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
+        }
+        try { localDB.addItem<LoanRepayment>('local_repayments', rep, currentOrgId, 'rep'); } catch {}
+        return newRep;
+      }
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(res.error || 'Failed to save repayment.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message !== 'Unable to connect to server') throw err;
     }
-    const newRep = res.data;
+
+    const newRep = localDB.addItem<LoanRepayment>('local_repayments', rep, currentOrgId, 'rep');
     setLoanRepayments((prev) => [...prev, newRep]);
 
-    // Update loan outstanding amount
     const loan = loans.find((l) => l.id === rep.loan_id);
     if (loan) {
       const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
@@ -688,13 +933,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await updateLoan({ id: loan.id, outstanding_amount: restoredOutstanding, status: newStatus });
     }
 
-    const res = await safeApiFetch(`/api/repayments/${repId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error(res.error || 'Failed to delete repayment.');
-    }
+    try {
+      await safeApiFetch(`/api/repayments/${repId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localDB.deleteItem('local_repayments', repId);
     setLoanRepayments((prev) => prev.filter((r) => r.id !== repId));
   };
 

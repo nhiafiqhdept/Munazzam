@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle, LogIn, UserPlus } from 'lucide-react';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
-import { safeApiFetch } from '../utils/api';
+import { safeApiFetch, isServerUnavailable } from '../utils/api';
+import { localLogin, localRegister } from '../utils/localDB';
 
 interface AuthScreenProps {
   onLoginSuccess: (token: string, user: { id: string; email: string }) => void;
@@ -21,6 +22,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
   const lastLogo = localStorage.getItem('last_org_logo') || '';
   const lastName = localStorage.getItem('last_org_name') || 'Organization Portal';
+
+  const completeLogin = (token: string, user: { id: string; email: string }) => {
+    localStorage.setItem('org_token', token);
+    localStorage.setItem('org_user', JSON.stringify(user));
+
+    if (isRegister) {
+      setSuccessMessage('Account created successfully! Logging you in...');
+      setTimeout(() => {
+        onLoginSuccess(token, user);
+      }, 500);
+    } else {
+      setSuccessMessage('Logged in successfully!');
+      setTimeout(() => {
+        onLoginSuccess(token, user);
+      }, 300);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,36 +62,54 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
 
     setLoading(true);
+    const cleanEmail = email.trim();
+
     try {
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
       const result = await safeApiFetch<{ token: string; user: { id: string; email: string } }>(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
-      if (!result.ok || !result.data) {
+      // 1. Successful server authentication
+      if (result.ok && result.data) {
+        completeLogin(result.data.token, result.data.user);
+        return;
+      }
+
+      // 2. Definitive server validation/credential errors (wrong password or duplicate account)
+      if (result.status === 400 || result.status === 401 || result.status === 403) {
         setError(result.error || 'Invalid username or password');
         return;
       }
 
-      const { token, user } = result.data;
-      localStorage.setItem('org_token', token);
-      localStorage.setItem('org_user', JSON.stringify(user));
-
-      if (isRegister) {
-        setSuccessMessage('Account created successfully! Logging you in...');
-        setTimeout(() => {
-          onLoginSuccess(token, user);
-        }, 600);
-      } else {
-        setSuccessMessage('Logged in successfully!');
-        setTimeout(() => {
-          onLoginSuccess(token, user);
-        }, 300);
+      // 3. Server unavailable / 404 (e.g., Vercel static hosting) -> transparent local fallback
+      if (isServerUnavailable(result)) {
+        try {
+          const localRes = isRegister
+            ? await localRegister(cleanEmail, password)
+            : await localLogin(cleanEmail, password);
+          completeLogin(localRes.token, localRes.user);
+          return;
+        } catch (localErr: any) {
+          setError(localErr.message || 'Invalid username or password');
+          return;
+        }
       }
-    } catch (err: any) {
-      setError('Unable to connect to server');
+
+      // Other server error
+      setError(result.error || 'Unable to sign in. Please try again.');
+    } catch {
+      // Offline / network exception fallback
+      try {
+        const localRes = isRegister
+          ? await localRegister(cleanEmail, password)
+          : await localLogin(cleanEmail, password);
+        completeLogin(localRes.token, localRes.user);
+      } catch (localErr: any) {
+        setError(localErr.message || 'Invalid username or password');
+      }
     } finally {
       setLoading(false);
     }
