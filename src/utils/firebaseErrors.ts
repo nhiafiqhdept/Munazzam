@@ -5,6 +5,8 @@ export function getFirebaseErrorMessage(error: any): string {
   const message = error.message || String(error);
 
   switch (code) {
+    case 'auth/operation-not-allowed':
+      return 'Email/Password sign-in is not enabled in your Firebase Console. Please sign in with Google or enable Email/Password under Authentication > Sign-in method in Firebase Console.';
     case 'auth/email-already-in-use':
       return 'An account with this email already exists. Please log in or use a different email.';
     case 'auth/invalid-credential':
@@ -22,6 +24,9 @@ export function getFirebaseErrorMessage(error: any): string {
     case 'permission-denied':
       return "You don't have permission to access this account.";
     default:
+      if (message.includes('operation-not-allowed')) {
+        return 'Email/Password sign-in is not enabled in your Firebase Console. Please sign in with Google or enable Email/Password under Authentication > Sign-in method in Firebase Console.';
+      }
       if (message.includes('email-already-in-use')) {
         return 'An account with this email already exists.';
       }

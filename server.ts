@@ -730,29 +730,6 @@ setupEntityEndpoints(app, 'repayments');
 setupEntityEndpoints(app, 'transfers');
 setupEntityEndpoints(app, 'audit_logs');
 
-// Ensure all unhandled /api/* endpoints return structured JSON
-app.all('/api/*', (req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: 'API_ENDPOINT_NOT_FOUND',
-    message: `API endpoint ${req.method} ${req.path} was not found.`,
-  });
-});
-
-// Express global error handler for API requests
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('[API SERVER EXCEPTION]', err);
-  if (req.path.startsWith('/api') && !res.headersSent) {
-    const diagnosticMessage = err?.message || 'An unexpected error occurred on the server.';
-    return res.status(500).json({
-      success: false,
-      error: 'SERVER_EXCEPTION',
-      message: diagnosticMessage,
-    });
-  }
-  next(err);
-});
-
 // ==================== VITE / STATIC SERVING ====================
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -768,6 +745,29 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Ensure unhandled /api/* endpoints return structured JSON 404
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({
+      success: false,
+      error: 'API_ENDPOINT_NOT_FOUND',
+      message: `API endpoint ${req.method} ${req.path} was not found.`,
+    });
+  });
+
+  // Express global error handler for API requests
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error('[API SERVER EXCEPTION]', err);
+    if (req.path.startsWith('/api') && !res.headersSent) {
+      const diagnosticMessage = err?.message || 'An unexpected error occurred on the server.';
+      return res.status(500).json({
+        success: false,
+        error: 'SERVER_EXCEPTION',
+        message: diagnosticMessage,
+      });
+    }
+    next(err);
+  });
 
   if (process.env.VERCEL !== '1') {
     app.listen(PORT, '0.0.0.0', () => {
