@@ -56,33 +56,54 @@ interface DBData {
   audit_logs: any[];
 }
 
+let memoryCache: DBData | null = null;
+
+function ensureCollections(data: any): DBData {
+  const collections: (keyof DBData)[] = [
+    'users',
+    'organizations',
+    'organizers',
+    'programs',
+    'accounts',
+    'incomes',
+    'expenses',
+    'loans',
+    'repayments',
+    'transfers',
+    'audit_logs',
+  ];
+  for (const c of collections) {
+    if (!Array.isArray(data[c])) {
+      data[c] = [];
+    }
+  }
+  return data as DBData;
+}
+
 function readDB(): DBData {
+  if (memoryCache) {
+    return memoryCache;
+  }
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      memoryCache = ensureCollections(parsed);
+      return memoryCache;
     }
   } catch (err) {
     console.error('Error reading DB file:', err);
   }
-  return {
-    users: [],
-    organizations: [],
-    organizers: [],
-    programs: [],
-    accounts: [],
-    incomes: [],
-    expenses: [],
-    loans: [],
-    repayments: [],
-    transfers: [],
-    audit_logs: [],
-  };
+  memoryCache = ensureCollections({});
+  return memoryCache;
 }
 
 function writeDB(data: DBData) {
+  memoryCache = ensureCollections(data);
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const tmpFile = `${DB_FILE}.${Date.now()}.${Math.random().toString(36).substr(2, 5)}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(memoryCache, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, DB_FILE);
   } catch (err) {
     console.error('Error writing DB file:', err);
   }
@@ -335,16 +356,42 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req: Request,
 });
 
 // ==================== APPLICATION DATA ENDPOINTS ====================
-// Helper to verify organization exists and is valid
+// Helper to verify organization exists and belongs to the authenticated user
 function verifyOrgOwnership(db: DBData, orgId: string, userId?: string): boolean {
   const org = db.organizations.find((o) => o.id === orgId);
-  return !!org;
+  if (!org) return false;
+  // If org already has a designated user_id, ensure it matches
+  if (org.user_id && userId && org.user_id !== userId) {
+    return false;
+  }
+  return true;
 }
 
 // 1. Organizations (Shared Cloud Database for Organization Portal)
 app.get('/api/organizations', authenticateToken, (req: AuthRequest, res: Response) => {
   const db = readDB();
-  res.json(db.organizations);
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized.' });
+  }
+
+  // Retrieve organizations associated with this account ID
+  let userOrgs = db.organizations.filter((o) => o.user_id === userId);
+
+  // If this account has no organizations yet, check if there is an unassigned legacy organization
+  // that can be claimed by this account so prior data is not orphaned
+  if (userOrgs.length === 0) {
+    const unassignedOrgs = db.organizations.filter(
+      (o) => !o.user_id || !db.users.some((u) => u.id === o.user_id)
+    );
+    if (unassignedOrgs.length > 0) {
+      unassignedOrgs[0].user_id = userId;
+      writeDB(db);
+      userOrgs = [unassignedOrgs[0]];
+    }
+  }
+
+  res.json(userOrgs);
 });
 
 app.post('/api/organizations', authenticateToken, (req: AuthRequest, res: Response) => {
@@ -505,6 +552,20 @@ setupEntityEndpoints(app, 'loans');
 setupEntityEndpoints(app, 'repayments');
 setupEntityEndpoints(app, 'transfers');
 setupEntityEndpoints(app, 'audit_logs');
+
+// Ensure all unhandled /api/* endpoints return JSON (never HTML or Vite SPA index.html)
+app.all('/api/*', (req: Request, res: Response) => {
+  res.status(404).json({ error: 'Unable to connect to server' });
+});
+
+// Express global error handler for all requests
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[API ERROR]', err);
+  if (req.path.startsWith('/api') || !res.headersSent) {
+    return res.status(500).json({ error: 'Unable to load account. Please try again.' });
+  }
+  next(err);
+});
 
 // ==================== VITE / STATIC SERVING ====================
 async function startServer() {

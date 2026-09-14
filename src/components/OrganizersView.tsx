@@ -34,17 +34,29 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
 
   // Filter organizers
   const filteredOrganizers = organizers.filter((orgzr) => {
-    const matchesSearch =
-      orgzr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      orgzr.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (orgzr.bio && orgzr.bio.toLowerCase().includes(searchQuery.toLowerCase()));
+    const name = orgzr.name || '';
+    const pos = orgzr.position || '';
+    const bio = orgzr.bio || '';
 
-    const matchesPos = selectedPosFilter === 'all' || orgzr.position === selectedPosFilter;
+    const matchesSearch =
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pos.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bio.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesPos =
+      selectedPosFilter === 'all' ||
+      pos.trim().toLowerCase() === selectedPosFilter.trim().toLowerCase();
 
     return matchesSearch && matchesPos;
   });
 
-  const uniquePositions = Array.from(new Set(organizers.map((o) => o.position)));
+  const uniquePositions = Array.from(
+    new Set(
+      organizers
+        .map((o) => (o.position ? o.position.trim() : ''))
+        .filter((pos): pos is string => Boolean(pos && pos.length > 0))
+    )
+  ).sort();
 
   const handleMoveUp = (index: number) => {
     if (index <= 0) return;
@@ -117,13 +129,14 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
 
         {uniquePositions.length > 0 && (
           <select
+            id="filter-organizer-position-select"
             value={selectedPosFilter}
             onChange={(e) => setSelectedPosFilter(e.target.value)}
             className="w-full sm:w-auto px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           >
-            <option value="all">All Positions ({organizers.length})</option>
+            <option key="all" value="all">All Positions ({organizers.length})</option>
             {uniquePositions.map((pos) => (
-              <option key={pos} value={pos}>
+              <option key={`pos-opt-${pos}`} value={pos}>
                 {pos}
               </option>
             ))}

@@ -1,3 +1,5 @@
+import { safeApiFetch } from './api';
+
 export interface LocalMigrationData {
   users?: any[];
   organizations?: any[];
@@ -77,7 +79,7 @@ export async function syncLegacyLocalDataToServer(): Promise<{ migrated: boolean
     const data = getLocalDataToMigrate();
     if (!data) return { migrated: false, success: true };
 
-    const res = await fetch('/api/migration/sync-local', {
+    const res = await safeApiFetch('/api/migration/sync-local', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

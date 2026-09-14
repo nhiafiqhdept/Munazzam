@@ -143,7 +143,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
                 onChange={(e) => setAccountId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
-                {!accountId && <option value="">-- Select Account --</option>}
+                {!accountId && <option key="default_acc" value="">-- Select Account --</option>}
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
                     {acc.name}
@@ -194,7 +194,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
                 onChange={(e) => setProgramId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
-                <option value="">— None —</option>
+                <option key="none_prog" value="">— None —</option>
                 {programs.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

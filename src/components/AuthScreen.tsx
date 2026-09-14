@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle, LogIn, UserPlus } from 'lucide-react';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
+import { safeApiFetch } from '../utils/api';
 
 interface AuthScreenProps {
   onLoginSuccess: (token: string, user: { id: string; email: string }) => void;
@@ -44,39 +45,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     setLoading(true);
     try {
-      // Auto-migrate any legacy local storage data to the server if present
-      const { syncLegacyLocalDataToServer } = await import('../utils/migration');
-      await syncLegacyLocalDataToServer();
-
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const res = await fetch(endpoint, {
+      const result = await safeApiFetch<{ token: string; user: { id: string; email: string } }>(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed. Please check your credentials.');
+      if (!result.ok || !result.data) {
+        setError(result.error || 'Invalid username or password');
+        return;
       }
 
-      localStorage.setItem('org_token', data.token);
-      localStorage.setItem('org_user', JSON.stringify(data.user));
+      const { token, user } = result.data;
+      localStorage.setItem('org_token', token);
+      localStorage.setItem('org_user', JSON.stringify(user));
 
       if (isRegister) {
-        setSuccessMessage('Account created successfully in cloud database! Logging you in...');
+        setSuccessMessage('Account created successfully! Logging you in...');
         setTimeout(() => {
-          onLoginSuccess(data.token, data.user);
-        }, 800);
+          onLoginSuccess(token, user);
+        }, 600);
       } else {
         setSuccessMessage('Logged in successfully!');
         setTimeout(() => {
-          onLoginSuccess(data.token, data.user);
+          onLoginSuccess(token, user);
         }, 300);
       }
     } catch (err: any) {
-      setError(err.message || 'Unable to connect to the server. Please check your network and try again.');
+      setError('Unable to connect to server');
     } finally {
       setLoading(false);
     }
@@ -86,10 +83,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     if (!forgotEmail) return;
     try {
-      await fetch('/api/auth/forgot-password', {
+      await safeApiFetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail }),
+        body: JSON.stringify({ email: forgotEmail.trim() }),
       });
       setForgotSent(true);
     } catch {

@@ -75,7 +75,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onView
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
           >
-            <option value="ALL">All Categories</option>
+            <option key="ALL_CAT" value="ALL">All Categories</option>
             {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -88,7 +88,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onView
             onChange={(e) => setSelectedAccount(e.target.value)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
           >
-            <option value="ALL">All Accounts</option>
+            <option key="ALL_ACC" value="ALL">All Accounts</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
                 {acc.name}
