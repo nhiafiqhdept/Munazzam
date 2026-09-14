@@ -20,6 +20,20 @@
       "password_hash": "$2b$10$mI2HEbWwxW6d4fpwROSIWe3CYOxNIOfLTuEMOa6XLRhhjyinxcgNS",
       "created_at": "2026-09-14T10:25:36.110Z",
       "updated_at": "2026-09-14T10:25:36.110Z"
+    },
+    {
+      "id": "usr_17893820547676m31a",
+      "email": "test_user_reg",
+      "password_hash": "$2b$10$2sOx0UTuG0v6ZunOrJvkFOAn3EfilLcAi9NyY0XlIRhdkkIdBuZjy",
+      "created_at": "2026-09-14T10:34:14.767Z",
+      "updated_at": "2026-09-14T10:34:14.767Z"
+    },
+    {
+      "id": "usr_17893821702438r0w2",
+      "email": "test_log_user",
+      "password_hash": "$2b$10$UGrTEKwpO7Rxfn.K2h9KN.INHXg4IjSsBD0JlSGlLU6vfsV1.QgCW",
+      "created_at": "2026-09-14T10:36:10.243Z",
+      "updated_at": "2026-09-14T10:36:10.244Z"
     }
   ],
   "organizations": [

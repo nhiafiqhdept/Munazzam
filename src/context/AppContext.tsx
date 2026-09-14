@@ -147,9 +147,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('org_user');
   };
 
+  const runAction = async <T extends unknown>(
+    localFn: (db: any) => T | Promise<T>,
+    apiFn: () => Promise<T>
+  ): Promise<T> => {
+    if (token && token.startsWith('local_')) {
+      const { localDB: db } = await import('../utils/localDB');
+      return await localFn(db);
+    }
+    return await apiFn();
+  };
+
   // Fetch organizations on token change
   useEffect(() => {
     if (!token) return;
+
+    if (token.startsWith('local_')) {
+      import('../utils/localDB').then(({ localDB: db }) => {
+        const data = db.getOrganizations();
+        setOrganizations(data);
+        if (data.length > 0) {
+          const savedOrgId = localStorage.getItem('current_org_id');
+          if (savedOrgId && data.some((o) => o.id === savedOrgId)) {
+            setCurrentOrgId(savedOrgId);
+          } else {
+            setCurrentOrgId(data[0].id);
+          }
+        } else {
+          setCurrentOrgId('');
+        }
+      });
+      return;
+    }
 
     fetch('/api/organizations', {
       headers: { Authorization: `Bearer ${token}` },
@@ -201,6 +230,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    if (token.startsWith('local_')) {
+      import('../utils/localDB').then(({ localDB: db }) => {
+        setOrganizers(db.getItems('local_organizers', currentOrgId));
+        setPrograms(db.getItems('local_programs', currentOrgId));
+        setAccounts(db.getItems('local_accounts', currentOrgId));
+        setIncomes(db.getItems('local_incomes', currentOrgId));
+        setExpenses(db.getItems('local_expenses', currentOrgId));
+        setLoans(db.getItems('local_loans', currentOrgId));
+        setLoanRepayments(db.getItems('local_repayments', currentOrgId));
+        setTransfers(db.getItems('local_transfers', currentOrgId));
+        setAuditLogs(db.getItems('local_audit_logs', currentOrgId));
+      });
+      return;
+    }
+
     const headers = { Authorization: `Bearer ${token}` };
 
     Promise.all([
@@ -246,121 +290,208 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Organization Actions
   const addOrganization = async (orgData: Omit<Organization, 'id' | 'created_at' | 'updated_at'>): Promise<Organization> => {
-    const res = await fetch('/api/organizations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newOrg = db.addOrganization(orgData);
+        setOrganizations((prev) => [...prev, newOrg]);
+        setCurrentOrgId(newOrg.id);
+        return newOrg;
       },
-      body: JSON.stringify(orgData),
-    });
-    const newOrg = await res.json();
-    setOrganizations((prev) => [...prev, newOrg]);
-    setCurrentOrgId(newOrg.id);
-    return newOrg;
+      async () => {
+        const res = await fetch('/api/organizations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(orgData),
+        });
+        const newOrg = await res.json();
+        setOrganizations((prev) => [...prev, newOrg]);
+        setCurrentOrgId(newOrg.id);
+        return newOrg;
+      }
+    );
   };
 
   const updateOrganization = async (orgData: Partial<Organization> & { id: string }) => {
-    const res = await fetch(`/api/organizations/${orgData.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateOrganization(orgData);
+        setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       },
-      body: JSON.stringify(orgData),
-    });
-    const updated = await res.json();
-    setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      async () => {
+        const res = await fetch(`/api/organizations/${orgData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(orgData),
+        });
+        const updated = await res.json();
+        setOrganizations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      }
+    );
   };
 
   const deleteOrganization = async (id: string) => {
-    await fetch(`/api/organizations/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setOrganizations((prev) => {
-      const filtered = prev.filter((o) => o.id !== id);
-      if (currentOrgId === id) {
-        setCurrentOrgId(filtered[0]?.id || '');
+    return runAction(
+      (db) => {
+        db.deleteOrganization(id);
+        setOrganizations((prev) => {
+          const filtered = prev.filter((o) => o.id !== id);
+          if (currentOrgId === id) {
+            setCurrentOrgId(filtered[0]?.id || '');
+          }
+          return filtered;
+        });
+      },
+      async () => {
+        await fetch(`/api/organizations/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setOrganizations((prev) => {
+          const filtered = prev.filter((o) => o.id !== id);
+          if (currentOrgId === id) {
+            setCurrentOrgId(filtered[0]?.id || '');
+          }
+          return filtered;
+        });
       }
-      return filtered;
-    });
+    );
   };
 
   // Organizer Actions
   const addOrganizer = async (org: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
-    const res = await fetch('/api/organizers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newOrg = db.addItem('local_organizers', org, currentOrgId, 'orgr');
+        setOrganizers((prev) => [...prev, newOrg]);
+        return newOrg;
       },
-      body: JSON.stringify({ ...org, organization_id: currentOrgId }),
-    });
-    const newOrg = await res.json();
-    setOrganizers((prev) => [...prev, newOrg]);
-    return newOrg;
+      async () => {
+        const res = await fetch('/api/organizers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...org, organization_id: currentOrgId }),
+        });
+        const newOrg = await res.json();
+        setOrganizers((prev) => [...prev, newOrg]);
+        return newOrg;
+      }
+    );
   };
 
   const updateOrganizer = async (org: Partial<Organizer> & { id: string }) => {
-    const res = await fetch(`/api/organizers/${org.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_organizers', org);
+        setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       },
-      body: JSON.stringify(org),
-    });
-    const updated = await res.json();
-    setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      async () => {
+        const res = await fetch(`/api/organizers/${org.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(org),
+        });
+        const updated = await res.json();
+        setOrganizers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      }
+    );
   };
 
   const deleteOrganizer = async (id: string) => {
-    await fetch(`/api/organizers/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setOrganizers((prev) => prev.filter((o) => o.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_organizers', id);
+        setOrganizers((prev) => prev.filter((o) => o.id !== id));
+      },
+      async () => {
+        await fetch(`/api/organizers/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setOrganizers((prev) => prev.filter((o) => o.id !== id));
+      }
+    );
   };
 
   const reorderOrganizers = (reordered: Organizer[]) => {
     setOrganizers(reordered);
+    if (token && token.startsWith('local_')) {
+      import('../utils/localDB').then(({ localDB: db }) => {
+        db.reorderItems('local_organizers', reordered);
+      });
+    }
   };
 
   // Program Actions
   const addProgram = async (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Program> => {
-    const res = await fetch('/api/programs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newProg = db.addItem('local_programs', { ...prog, media: prog.media || [] }, currentOrgId, 'prog');
+        setPrograms((prev) => [...prev, newProg]);
+        return newProg;
       },
-      body: JSON.stringify({ ...prog, organization_id: currentOrgId, media: prog.media || [] }),
-    });
-    const newProg = await res.json();
-    setPrograms((prev) => [...prev, newProg]);
-    return newProg;
+      async () => {
+        const res = await fetch('/api/programs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...prog, organization_id: currentOrgId, media: prog.media || [] }),
+        });
+        const newProg = await res.json();
+        setPrograms((prev) => [...prev, newProg]);
+        return newProg;
+      }
+    );
   };
 
   const updateProgram = async (prog: Partial<Program> & { id: string }) => {
-    const res = await fetch(`/api/programs/${prog.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_programs', prog);
+        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       },
-      body: JSON.stringify(prog),
-    });
-    const updated = await res.json();
-    setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      async () => {
+        const res = await fetch(`/api/programs/${prog.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(prog),
+        });
+        const updated = await res.json();
+        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      }
+    );
   };
 
   const deleteProgram = async (id: string) => {
-    await fetch(`/api/programs/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setPrograms((prev) => prev.filter((p) => p.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_programs', id);
+        setPrograms((prev) => prev.filter((p) => p.id !== id));
+      },
+      async () => {
+        await fetch(`/api/programs/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPrograms((prev) => prev.filter((p) => p.id !== id));
+      }
+    );
   };
 
   const addProgramMedia = async (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => {
@@ -385,38 +516,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Treasury Accounts
   const addAccount = async (acc: Omit<FinancialAccount, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<FinancialAccount> => {
-    const res = await fetch('/api/accounts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newAcc = db.addItem('local_accounts', acc, currentOrgId, 'acc');
+        setAccounts((prev) => [newAcc, ...prev]);
+        return newAcc;
       },
-      body: JSON.stringify({ ...acc, organization_id: currentOrgId }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to add financial account.');
-    }
-    const newAcc = await res.json();
-    setAccounts((prev) => [newAcc, ...prev]);
-    return newAcc;
+      async () => {
+        const res = await fetch('/api/accounts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...acc, organization_id: currentOrgId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to add financial account.');
+        }
+        const newAcc = await res.json();
+        setAccounts((prev) => [newAcc, ...prev]);
+        return newAcc;
+      }
+    );
   };
 
   const updateAccount = async (acc: Partial<FinancialAccount> & { id: string }) => {
-    const res = await fetch(`/api/accounts/${acc.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_accounts', acc);
+        setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
       },
-      body: JSON.stringify(acc),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to update account.');
-    }
-    const updated = await res.json();
-    setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      async () => {
+        const res = await fetch(`/api/accounts/${acc.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(acc),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update account.');
+        }
+        const updated = await res.json();
+        setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      }
+    );
   };
 
   const deleteAccount = async (id: string): Promise<boolean> => {
@@ -432,258 +580,418 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const res = await fetch(`/api/accounts/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete account.');
-    }
-    setAccounts((prev) => prev.filter((a) => a.id !== id));
-    return true;
+    return runAction(
+      (db) => {
+        db.deleteItem('local_accounts', id);
+        setAccounts((prev) => prev.filter((a) => a.id !== id));
+        return true;
+      },
+      async () => {
+        const res = await fetch(`/api/accounts/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete account.');
+        }
+        setAccounts((prev) => prev.filter((a) => a.id !== id));
+        return true;
+      }
+    );
   };
 
   // Income Actions
   const addIncome = async (inc: Omit<Income, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Income> => {
-    const res = await fetch('/api/incomes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newInc = db.addItem('local_incomes', inc, currentOrgId, 'inc');
+        setIncomes((prev) => [newInc, ...prev]);
+        return newInc;
       },
-      body: JSON.stringify({ ...inc, organization_id: currentOrgId }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to record income.');
-    }
-    const newInc = await res.json();
-    setIncomes((prev) => [newInc, ...prev]);
-    return newInc;
+      async () => {
+        const res = await fetch('/api/incomes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...inc, organization_id: currentOrgId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to record income.');
+        }
+        const newInc = await res.json();
+        setIncomes((prev) => [newInc, ...prev]);
+        return newInc;
+      }
+    );
   };
 
   const updateIncome = async (inc: Partial<Income> & { id: string }) => {
-    const res = await fetch(`/api/incomes/${inc.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_incomes', inc);
+        setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       },
-      body: JSON.stringify(inc),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to update income record.');
-    }
-    const updated = await res.json();
-    setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      async () => {
+        const res = await fetch(`/api/incomes/${inc.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(inc),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update income record.');
+        }
+        const updated = await res.json();
+        setIncomes((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      }
+    );
   };
 
   const deleteIncome = async (id: string) => {
-    const res = await fetch(`/api/incomes/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete income record.');
-    }
-    setIncomes((prev) => prev.filter((i) => i.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_incomes', id);
+        setIncomes((prev) => prev.filter((i) => i.id !== id));
+      },
+      async () => {
+        const res = await fetch(`/api/incomes/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete income record.');
+        }
+        setIncomes((prev) => prev.filter((i) => i.id !== id));
+      }
+    );
   };
 
   // Expense Actions
   const addExpense = async (exp: Omit<Expense, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Expense> => {
-    const res = await fetch('/api/expenses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newExp = db.addItem('local_expenses', exp, currentOrgId, 'exp');
+        setExpenses((prev) => [newExp, ...prev]);
+        return newExp;
       },
-      body: JSON.stringify({ ...exp, organization_id: currentOrgId }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to record expense.');
-    }
-    const newExp = await res.json();
-    setExpenses((prev) => [newExp, ...prev]);
-    return newExp;
+      async () => {
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...exp, organization_id: currentOrgId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to record expense.');
+        }
+        const newExp = await res.json();
+        setExpenses((prev) => [newExp, ...prev]);
+        return newExp;
+      }
+    );
   };
 
   const updateExpense = async (exp: Partial<Expense> & { id: string }) => {
-    const res = await fetch(`/api/expenses/${exp.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_expenses', exp);
+        setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
       },
-      body: JSON.stringify(exp),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to update expense record.');
-    }
-    const updated = await res.json();
-    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      async () => {
+        const res = await fetch(`/api/expenses/${exp.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(exp),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update expense record.');
+        }
+        const updated = await res.json();
+        setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      }
+    );
   };
 
   const deleteExpense = async (id: string) => {
-    const res = await fetch(`/api/expenses/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete expense record.');
-    }
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_expenses', id);
+        setExpenses((prev) => prev.filter((e) => e.id !== id));
+      },
+      async () => {
+        const res = await fetch(`/api/expenses/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete expense record.');
+        }
+        setExpenses((prev) => prev.filter((e) => e.id !== id));
+      }
+    );
   };
 
   // Transfer Actions
   const addTransfer = async (tr: Omit<AccountTransfer, 'id' | 'organization_id' | 'created_at'>): Promise<AccountTransfer> => {
-    const res = await fetch('/api/transfers', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newTr = db.addItem('local_transfers', tr, currentOrgId, 'trsf');
+        setTransfers((prev) => [newTr, ...prev]);
+        return newTr;
       },
-      body: JSON.stringify({ ...tr, organization_id: currentOrgId }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to process transfer.');
-    }
-    const newTr = await res.json();
-    setTransfers((prev) => [newTr, ...prev]);
-    return newTr;
+      async () => {
+        const res = await fetch('/api/transfers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...tr, organization_id: currentOrgId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to process transfer.');
+        }
+        const newTr = await res.json();
+        setTransfers((prev) => [newTr, ...prev]);
+        return newTr;
+      }
+    );
   };
 
   const deleteTransfer = async (id: string) => {
-    const res = await fetch(`/api/transfers/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete transfer.');
-    }
-    setTransfers((prev) => prev.filter((t) => t.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_transfers', id);
+        setTransfers((prev) => prev.filter((t) => t.id !== id));
+      },
+      async () => {
+        const res = await fetch(`/api/transfers/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete transfer.');
+        }
+        setTransfers((prev) => prev.filter((t) => t.id !== id));
+      }
+    );
   };
 
   // Loan Actions
   const addLoan = async (loan: Omit<Loan, 'id' | 'organization_id' | 'outstanding_amount' | 'status' | 'created_at' | 'updated_at'>): Promise<Loan> => {
-    const res = await fetch('/api/loans', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const newLoan = db.addItem(
+          'local_loans',
+          {
+            ...loan,
+            outstanding_amount: loan.original_amount,
+            status: 'OUTSTANDING',
+          },
+          currentOrgId,
+          'loan'
+        );
+        setLoans((prev) => [...prev, newLoan]);
+        return newLoan;
       },
-      body: JSON.stringify({
-        ...loan,
-        organization_id: currentOrgId,
-        outstanding_amount: loan.original_amount,
-        status: 'OUTSTANDING',
-      }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to save loan record.');
-    }
-    const newLoan = await res.json();
-    setLoans((prev) => [...prev, newLoan]);
-    return newLoan;
+      async () => {
+        const res = await fetch('/api/loans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...loan,
+            organization_id: currentOrgId,
+            outstanding_amount: loan.original_amount,
+            status: 'OUTSTANDING',
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to save loan record.');
+        }
+        const newLoan = await res.json();
+        setLoans((prev) => [...prev, newLoan]);
+        return newLoan;
+      }
+    );
   };
 
   const updateLoan = async (loan: Partial<Loan> & { id: string }) => {
-    const res = await fetch(`/api/loans/${loan.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    return runAction(
+      (db) => {
+        const updated = db.updateItem('local_loans', loan);
+        setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       },
-      body: JSON.stringify(loan),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to update loan.');
-    }
-    const updated = await res.json();
-    setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      async () => {
+        const res = await fetch(`/api/loans/${loan.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(loan),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update loan.');
+        }
+        const updated = await res.json();
+        setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      }
+    );
   };
 
   const deleteLoan = async (id: string) => {
-    const res = await fetch(`/api/loans/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete loan.');
-    }
-    setLoans((prev) => prev.filter((l) => l.id !== id));
+    return runAction(
+      (db) => {
+        db.deleteItem('local_loans', id);
+        setLoans((prev) => prev.filter((l) => l.id !== id));
+      },
+      async () => {
+        const res = await fetch(`/api/loans/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete loan.');
+        }
+        setLoans((prev) => prev.filter((l) => l.id !== id));
+      }
+    );
   };
 
   // Loan Repayment Actions
   const addLoanRepayment = async (rep: Omit<LoanRepayment, 'id' | 'organization_id' | 'created_at'>): Promise<LoanRepayment> => {
-    const res = await fetch('/api/repayments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ ...rep, organization_id: currentOrgId }),
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to save repayment.');
-    }
-    const newRep = await res.json();
-    setLoanRepayments((prev) => [...prev, newRep]);
+    const handleLocalRep = async (db: any) => {
+      const newRep = db.addItem('local_repayments', rep, currentOrgId, 'rep');
+      setLoanRepayments((prev) => [...prev, newRep]);
 
-    // Update loan outstanding amount
-    const loan = loans.find((l) => l.id === rep.loan_id);
-    if (loan) {
-      const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
-      let newStatus = loan.status;
-      if (newOutstanding === 0) {
-        newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
-      } else {
-        newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
+      // Update loan outstanding amount
+      const loan = loans.find((l) => l.id === rep.loan_id);
+      if (loan) {
+        const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
+        let newStatus = loan.status;
+        if (newOutstanding === 0) {
+          newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
+        } else {
+          newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
+        }
+        await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
       }
-      await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
-    }
+      return newRep;
+    };
 
-    return newRep;
+    return runAction(
+      (db) => handleLocalRep(db),
+      async () => {
+        const res = await fetch('/api/repayments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ...rep, organization_id: currentOrgId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to save repayment.');
+        }
+        const newRep = await res.json();
+        setLoanRepayments((prev) => [...prev, newRep]);
+
+        // Update loan outstanding amount
+        const loan = loans.find((l) => l.id === rep.loan_id);
+        if (loan) {
+          const newOutstanding = Math.max(0, loan.outstanding_amount - rep.amount);
+          let newStatus = loan.status;
+          if (newOutstanding === 0) {
+            newStatus = loan.type === 'BORROWED' ? 'FULLY_PAID' : 'FULLY_RECOVERED';
+          } else {
+            newStatus = loan.type === 'BORROWED' ? 'PARTIALLY_PAID' : 'PARTIALLY_RECOVERED';
+          }
+          await updateLoan({ id: loan.id, outstanding_amount: newOutstanding, status: newStatus });
+        }
+        return newRep;
+      }
+    );
   };
 
   const deleteLoanRepayment = async (repId: string) => {
-    const rep = loanRepayments.find((r) => r.id === repId);
-    if (!rep) return;
+    const handleLocalDelete = async (db: any) => {
+      const rep = loanRepayments.find((r) => r.id === repId);
+      if (!rep) return;
 
-    const loan = loans.find((l) => l.id === rep.loan_id);
-    if (loan) {
-      const restoredOutstanding = Math.min(loan.original_amount, loan.outstanding_amount + rep.amount);
-      let newStatus = loan.status;
-      if (loan.type === 'BORROWED') {
-        if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
-        else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_PAID';
-      } else {
-        if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
-        else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_RECOVERED';
+      const loan = loans.find((l) => l.id === rep.loan_id);
+      if (loan) {
+        const restoredOutstanding = Math.min(loan.original_amount, loan.outstanding_amount + rep.amount);
+        let newStatus = loan.status;
+        if (loan.type === 'BORROWED') {
+          if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
+          else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_PAID';
+        } else {
+          if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
+          else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_RECOVERED';
+        }
+        await updateLoan({ id: loan.id, outstanding_amount: restoredOutstanding, status: newStatus });
       }
-      await updateLoan({ id: loan.id, outstanding_amount: restoredOutstanding, status: newStatus });
-    }
 
-    const res = await fetch(`/api/repayments/${repId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to delete repayment.');
-    }
-    setLoanRepayments((prev) => prev.filter((r) => r.id !== repId));
+      db.deleteItem('local_repayments', repId);
+      setLoanRepayments((prev) => prev.filter((r) => r.id !== repId));
+    };
+
+    return runAction(
+      (db) => handleLocalDelete(db),
+      async () => {
+        const rep = loanRepayments.find((r) => r.id === repId);
+        if (!rep) return;
+
+        const loan = loans.find((l) => l.id === rep.loan_id);
+        if (loan) {
+          const restoredOutstanding = Math.min(loan.original_amount, loan.outstanding_amount + rep.amount);
+          let newStatus = loan.status;
+          if (loan.type === 'BORROWED') {
+            if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
+            else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_PAID';
+          } else {
+            if (restoredOutstanding === loan.original_amount) newStatus = 'OUTSTANDING';
+            else if (restoredOutstanding > 0) newStatus = 'PARTIALLY_RECOVERED';
+          }
+          await updateLoan({ id: loan.id, outstanding_amount: restoredOutstanding, status: newStatus });
+        }
+
+        const res = await fetch(`/api/repayments/${repId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to delete repayment.');
+        }
+        setLoanRepayments((prev) => prev.filter((r) => r.id !== repId));
+      }
+    );
   };
 
   const viewProgramDetails = (id: string) => {
