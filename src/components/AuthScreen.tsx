@@ -51,18 +51,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        throw new Error(`Invalid server response (not JSON). Status: ${res.status}`);
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'Authentication failed.');
       }
 
-      localStorage.setItem('org_token', data.token);
-      localStorage.setItem('org_user', JSON.stringify(data.user));
-
-      setSuccessMessage(isRegister ? 'Account created successfully! Logging in...' : 'Logged in successfully!');
-      setTimeout(() => {
-        onLoginSuccess(data.token, data.user);
-      }, 400);
+      if (isRegister) {
+        setSuccessMessage('Account created successfully! Please log in below.');
+        setIsRegister(false);
+        setPassword('');
+        setConfirmPassword('');
+      } else {
+        localStorage.setItem('org_token', data.token);
+        localStorage.setItem('org_user', JSON.stringify(data.user));
+        setSuccessMessage('Logged in successfully!');
+        setTimeout(() => {
+          onLoginSuccess(data.token, data.user);
+        }, 400);
+      }
     } catch (err: any) {
       setError(err.message || 'Unable to connect to the server. Please try again.');
     } finally {

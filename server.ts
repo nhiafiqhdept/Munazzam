@@ -114,7 +114,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     const db = readDB();
     const existingUser = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists.' });
+      return res.status(400).json({ error: 'This username is already registered. Please sign in.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -383,7 +383,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
