@@ -151,11 +151,18 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 
     const normalized = rawIdentifier.toLowerCase();
     const db = readDB();
-    const existingUser = db.users.find(
-      (u) =>
-        (u.email && u.email.trim().toLowerCase() === normalized) ||
-        (u.username && u.username.trim().toLowerCase() === normalized)
-    );
+    const existingUser = db.users.find((u) => {
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uUsername = (u.username || '').trim().toLowerCase();
+      const uEmailPrefix = uEmail.includes('@') ? uEmail.split('@')[0] : '';
+      const uId = (u.id || '').trim().toLowerCase();
+      return (
+        (uEmail && uEmail === normalized) ||
+        (uUsername && uUsername === normalized) ||
+        (uEmailPrefix && uEmailPrefix === normalized) ||
+        (uId && uId === normalized)
+      );
+    });
 
     if (existingUser) {
       return res.status(400).json({ error: 'This username already exists. Please choose another or log in.' });
@@ -167,7 +174,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     const newUser = {
       id: 'usr_' + Date.now() + Math.random().toString(36).substr(2, 5),
       username: rawIdentifier,
-      email: rawIdentifier,
+      email: rawIdentifier.includes('@') ? rawIdentifier : `${rawIdentifier}@munazzam.local`,
       password_hash,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -210,31 +217,41 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 
     const normalized = rawIdentifier.toLowerCase();
     const db = readDB();
-    const user = db.users.find(
-      (u) =>
-        (u.email && u.email.trim().toLowerCase() === normalized) ||
-        (u.username && u.username.trim().toLowerCase() === normalized)
-    );
+    const user = db.users.find((u) => {
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uUsername = (u.username || '').trim().toLowerCase();
+      const uEmailPrefix = uEmail.includes('@') ? uEmail.split('@')[0] : '';
+      const uId = (u.id || '').trim().toLowerCase();
+      return (
+        (uEmail && uEmail === normalized) ||
+        (uUsername && uUsername === normalized) ||
+        (uEmailPrefix && uEmailPrefix === normalized) ||
+        (uId && uId === normalized)
+      );
+    });
 
     if (!user) {
-      return res.status(401).json({ error: 'Wrong username or password.' });
+      return res.status(401).json({ error: 'Incorrect username or password.' });
     }
 
     let validPassword = false;
-    if (user.password_hash && (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$'))) {
-      validPassword = await bcrypt.compare(password, user.password_hash);
-    } else {
+    const storedHash = user.password_hash || user.password;
+
+    if (storedHash && (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$'))) {
+      validPassword = await bcrypt.compare(password, storedHash);
+    } else if (storedHash) {
       // Plaintext legacy fallback with auto-upgrade to bcrypt
-      validPassword = password === user.password_hash;
+      validPassword = password === storedHash;
       if (validPassword) {
         const salt = await bcrypt.genSalt(10);
         user.password_hash = await bcrypt.hash(password, salt);
+        if (user.password) delete user.password;
         writeDB(db);
       }
     }
 
     if (!validPassword) {
-      return res.status(401).json({ error: 'Wrong username or password.' });
+      return res.status(401).json({ error: 'Incorrect username or password.' });
     }
 
     const displayIdentifier = user.username || user.email;
@@ -641,9 +658,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (process.env.VERCEL !== '1') {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
-startServer();
+if (process.env.VERCEL !== '1') {
+  startServer();
+}
+
+export default app;
+export { app };

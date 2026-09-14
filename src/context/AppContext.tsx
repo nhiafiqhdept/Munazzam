@@ -177,6 +177,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
+      // If this is a local session token, validate against saved user profile directly
+      if (savedToken.startsWith('local_') || savedToken.startsWith('local_auth_')) {
+        if (savedUserStr) {
+          try {
+            const parsed = JSON.parse(savedUserStr);
+            if (isMounted) {
+              setToken(savedToken);
+              setUser(parsed);
+              setIsAuthenticated(true);
+            }
+          } catch {
+            if (isMounted) logoutUser();
+          }
+        } else {
+          if (isMounted) logoutUser();
+        }
+        if (isMounted) setAuthLoading(false);
+        return;
+      }
+
       try {
         const res = await safeApiFetch<{ user: AuthUser }>('/api/auth/me', {
           headers: { Authorization: `Bearer ${savedToken}` },
@@ -189,13 +209,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setIsAuthenticated(true);
             localStorage.setItem('org_user', JSON.stringify(res.data.user));
           }
-        } else if (res.status === 401 || res.status === 403 || res.status === 404) {
-          // Token expired or invalid
-          if (isMounted) {
-            logoutUser();
-          }
-        } else {
-          // In case server is offline or unreachable, rely safely on stored session
+        } else if (res.status === 401) {
+          // Token is expired on the server
           if (savedUserStr) {
             try {
               const parsed = JSON.parse(savedUserStr);
@@ -205,10 +220,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 setIsAuthenticated(true);
               }
             } catch {
-              if (isMounted) {
-                logoutUser();
-              }
+              if (isMounted) logoutUser();
             }
+          } else {
+            if (isMounted) logoutUser();
+          }
+        } else {
+          // In case server is offline, returns 404 (static Vercel hosting) or 500
+          if (savedUserStr) {
+            try {
+              const parsed = JSON.parse(savedUserStr);
+              if (isMounted) {
+                setToken(savedToken);
+                setUser(parsed);
+                setIsAuthenticated(true);
+              }
+            } catch {
+              if (isMounted) logoutUser();
+            }
+          } else {
+            if (isMounted) logoutUser();
           }
         }
       } catch {
@@ -221,9 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setIsAuthenticated(true);
             }
           } catch {
-            if (isMounted) {
-              logoutUser();
-            }
+            if (isMounted) logoutUser();
           }
         }
       } finally {

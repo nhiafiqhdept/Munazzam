@@ -47,13 +47,13 @@ export async function safeApiFetch<T = any>(
 
       if (res.status === 400 || res.status === 401 || res.status === 403) {
         // Credential or validation error
-        errorMessage = parsedData?.error || 'Invalid username or password';
+        errorMessage = parsedData?.error || 'Incorrect username or password.';
       } else if (res.status === 404) {
-        // Endpoint not found or route missing
-        errorMessage = 'Unable to connect to server';
+        // Endpoint or resource not found
+        errorMessage = parsedData?.error || 'Resource or account not found.';
       } else if (res.status >= 500) {
         // Internal server or database error
-        errorMessage = parsedData?.error || 'Unable to load account. Please try again.';
+        errorMessage = parsedData?.error || 'Unable to process request. Please try again.';
       } else if (parsedData?.error) {
         errorMessage = parsedData.error;
       }
@@ -73,13 +73,12 @@ export async function safeApiFetch<T = any>(
       error: null,
     };
   } catch (err: any) {
-    console.error(`[safeApiFetch] Network error for ${input}:`, err);
-    // Network failure (offline, timeout, refused connection)
+    console.warn(`[safeApiFetch] Network status check for ${input}:`, err);
     return {
       ok: false,
       status: 0,
       data: null,
-      error: 'Unable to connect to server',
+      error: 'Unable to connect to server. Please check your connection.',
     };
   }
 }

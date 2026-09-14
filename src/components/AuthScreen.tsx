@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, User, Eye, EyeOff, HelpCircle } from 'lucide-react';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
 import { safeApiFetch } from '../utils/api';
+import { authenticateLogin, authenticateRegister } from '../utils/authService';
 import { AuthUser } from '../types';
 
 interface AuthScreenProps {
@@ -74,17 +75,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const result = await safeApiFetch<{ token: string; user: AuthUser }>(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: cleanUsername,
-          password: password,
-        }),
-      });
+      const result = isRegister
+        ? await authenticateRegister(cleanUsername, password)
+        : await authenticateLogin(cleanUsername, password);
 
-      if (result.ok && result.data && result.data.token && result.data.user) {
+      if (result.ok && result.token && result.user) {
         setSuccessMessage(
           isRegister
             ? 'Account created successfully! Loading dashboard...'
@@ -92,24 +87,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         );
 
         setTimeout(() => {
-          onLoginSuccess(result.data!.token, result.data!.user);
+          onLoginSuccess(result.token!, result.user!);
         }, 300);
         return;
       }
 
-      // Handle server error responses with user-friendly messages
+      // Display specific failure reason
       if (result.error) {
         setGeneralError(result.error);
-      } else if (result.status === 401) {
-        setGeneralError('Wrong username or password. Please check your credentials.');
-      } else if (result.status === 400 && isRegister) {
-        setGeneralError('This username already exists. Please choose another username or log in.');
       } else {
-        setGeneralError('Unable to sign in. Please verify your connection and try again.');
+        setGeneralError('Incorrect username or password.');
       }
     } catch (err: any) {
       console.error('Auth request failed:', err);
-      setGeneralError('Network connection issue. Please ensure your server is running and try again.');
+      setGeneralError('Unable to connect to server. Please try again.');
     } finally {
       setLoading(false);
     }
