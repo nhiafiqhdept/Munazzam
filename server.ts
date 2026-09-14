@@ -132,21 +132,22 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 
 // ==================== AUTH ROUTES ====================
 app.post('/api/auth/register', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     const rawIdentifier = (req.body.username || req.body.email || '').trim();
     const password = req.body.password;
 
     if (!rawIdentifier) {
-      return res.status(400).json({ error: 'Username is required.' });
+      return res.status(400).json({ success: false, error: 'USERNAME_REQUIRED', message: 'Username is required.' });
     }
     if (!password) {
-      return res.status(400).json({ error: 'Password is required.' });
+      return res.status(400).json({ success: false, error: 'PASSWORD_REQUIRED', message: 'Password is required.' });
     }
     if (rawIdentifier.length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+      return res.status(400).json({ success: false, error: 'USERNAME_TOO_SHORT', message: 'Username must be at least 3 characters long.' });
     }
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+      return res.status(400).json({ success: false, error: 'PASSWORD_TOO_SHORT', message: 'Password must be at least 6 characters long.' });
     }
 
     const normalized = rawIdentifier.toLowerCase();
@@ -165,7 +166,11 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'This username already exists. Please choose another or log in.' });
+      return res.status(400).json({
+        success: false,
+        error: 'USERNAME_EXISTS',
+        message: 'This username already exists. Please choose another username or log in.',
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -181,38 +186,58 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     };
 
     db.users.push(newUser);
+
+    // Auto-create cloud organization for this account
+    const newOrgId = 'org_' + Date.now() + Math.random().toString(36).substr(2, 5);
+    const newOrg = {
+      id: newOrgId,
+      user_id: newUser.id,
+      name: rawIdentifier.includes('@') ? rawIdentifier.split('@')[0] : rawIdentifier,
+      college_name: '',
+      logo: '',
+      motto: '',
+      academic_year: '',
+      mission: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    db.organizations.push(newOrg);
     writeDB(db);
 
     const token = jwt.sign(
-      { id: newUser.id, username: newUser.username, email: newUser.email },
+      { id: newUser.id, username: newUser.username, email: newUser.email, organization_id: newOrg.id },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
 
     res.status(201).json({
+      success: true,
       token,
       user: {
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
+        organization_id: newOrg.id,
       },
     });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ error: 'Something went wrong while creating your account. Please try again.' });
+    res.status(500).json({ success: false, error: 'SERVER_ERROR', message: 'Unable to create account. Please try again.' });
   }
 });
 
 app.post('/api/auth/login', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     const rawIdentifier = (req.body.username || req.body.email || '').trim();
     const password = req.body.password;
 
-    if (!rawIdentifier) {
-      return res.status(400).json({ error: 'Username is required.' });
-    }
-    if (!password) {
-      return res.status(400).json({ error: 'Password is required.' });
+    if (!rawIdentifier || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid username or password.',
+      });
     }
 
     const normalized = rawIdentifier.toLowerCase();
@@ -231,7 +256,11 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Incorrect username or password.' });
+      return res.status(401).json({
+        success: false,
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid username or password.',
+      });
     }
 
     let validPassword = false;
@@ -251,48 +280,77 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     }
 
     if (!validPassword) {
-      return res.status(401).json({ error: 'Incorrect username or password.' });
+      return res.status(401).json({
+        success: false,
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid username or password.',
+      });
+    }
+
+    // Retrieve or provision user's organization in cloud database
+    let userOrg = db.organizations.find((o) => o.user_id === user.id);
+    if (!userOrg) {
+      userOrg = {
+        id: 'org_' + Date.now() + Math.random().toString(36).substr(2, 5),
+        user_id: user.id,
+        name: user.username || user.email || 'My Organization',
+        college_name: '',
+        logo: '',
+        motto: '',
+        academic_year: '',
+        mission: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      db.organizations.push(userOrg);
+      writeDB(db);
     }
 
     const displayIdentifier = user.username || user.email;
     const token = jwt.sign(
-      { id: user.id, username: displayIdentifier, email: displayIdentifier },
+      { id: user.id, username: displayIdentifier, email: displayIdentifier, organization_id: userOrg.id },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
 
     res.json({
+      success: true,
       token,
       user: {
         id: user.id,
         username: displayIdentifier,
         email: displayIdentifier,
+        organization_id: userOrg.id,
       },
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'An unexpected error occurred during login. Please try again.' });
+    res.status(500).json({ success: false, error: 'SERVER_ERROR', message: 'An unexpected error occurred during login. Please try again.' });
   }
 });
 
 app.get('/api/auth/me', authenticateToken, (req: AuthRequest, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     const db = readDB();
     const user = db.users.find((u) => u.id === req.user?.id);
     if (!user) {
-      return res.status(404).json({ error: 'Account not found. Please log in again.' });
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: 'Account not found. Please log in again.' });
     }
+    const userOrg = db.organizations.find((o) => o.user_id === user.id);
     const displayIdentifier = user.username || user.email;
     res.json({
+      success: true,
       user: {
         id: user.id,
         username: displayIdentifier,
         email: displayIdentifier,
+        organization_id: userOrg ? userOrg.id : null,
       },
     });
   } catch (err) {
     console.error('Auth check error:', err);
-    res.status(500).json({ error: 'Unable to verify session.' });
+    res.status(500).json({ success: false, error: 'SERVER_ERROR', message: 'Unable to verify session.' });
   }
 });
 

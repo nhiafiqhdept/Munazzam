@@ -169,19 +169,14 @@ export async function authenticateLogin(identifier: string, password: string): P
     return { ok: false, error: 'Password is required.' };
   }
 
-  const localUser = findMatchingLocalUser(cleanIdentifier);
-
   try {
-    // Attempt remote server login
-    const serverRes = await safeApiFetch<{ token: string; user: AuthUser }>('/api/auth/login', {
+    const serverRes = await safeApiFetch<{ token: string; user: AuthUser; message?: string }>('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: cleanIdentifier, password }),
     });
 
     if (serverRes.ok && serverRes.data?.token && serverRes.data?.user) {
-      // Server authenticated successfully
-      await persistLocalUser(serverRes.data.user, password);
       return {
         ok: true,
         token: serverRes.data.token,
@@ -189,48 +184,16 @@ export async function authenticateLogin(identifier: string, password: string): P
       };
     }
 
-    // If server explicitly returned 401 (Wrong credentials):
-    if (serverRes.status === 401) {
-      // Check if local account exists and matches (in case registered offline)
-      if (localUser && verifyUserPassword(localUser, password)) {
-        const localToken = `local_auth_${localUser.id}_${Date.now()}`;
-        const authedUser: AuthUser = {
-          id: localUser.id,
-          username: localUser.username,
-          email: localUser.email,
-        };
-        return { ok: true, token: localToken, user: authedUser };
-      }
-      return { ok: false, error: 'Incorrect username or password.' };
+    if (serverRes.status === 400 || serverRes.status === 401) {
+      return { ok: false, error: serverRes.error || 'Invalid username or password.' };
     }
 
-    // If server returned 400 (Bad request / validation):
-    if (serverRes.status === 400) {
-      return { ok: false, error: serverRes.error || 'Incorrect username or password.' };
-    }
-
-    // If server is 404 (Route not found / static Vercel build), 502/503/504, or network 0:
-    if (localUser) {
-      if (verifyUserPassword(localUser, password)) {
-        const localToken = `local_auth_${localUser.id}_${Date.now()}`;
-        const authedUser: AuthUser = {
-          id: localUser.id,
-          username: localUser.username,
-          email: localUser.email,
-        };
-        return { ok: true, token: localToken, user: authedUser };
-      } else {
-        return { ok: false, error: 'Incorrect username or password.' };
-      }
-    }
-
-    // User was not found locally either
     if (serverRes.status === 404) {
-      return { ok: false, error: 'Account not found. Please check your username or create an account.' };
+      return { ok: false, error: 'Account not found. Please check your username or register a new account.' };
     }
 
     if (serverRes.status === 0) {
-      return { ok: false, error: 'Unable to connect to server. Please check your internet connection.' };
+      return { ok: false, error: 'Unable to connect to server. Please check your network connection.' };
     }
 
     return {
@@ -238,22 +201,6 @@ export async function authenticateLogin(identifier: string, password: string): P
       error: serverRes.error || 'Unable to sign in. Please check your credentials.',
     };
   } catch (err: any) {
-    console.warn('[authenticateLogin] Network error, falling back to local verification:', err);
-
-    if (localUser) {
-      if (verifyUserPassword(localUser, password)) {
-        const localToken = `local_auth_${localUser.id}_${Date.now()}`;
-        const authedUser: AuthUser = {
-          id: localUser.id,
-          username: localUser.username,
-          email: localUser.email,
-        };
-        return { ok: true, token: localToken, user: authedUser };
-      } else {
-        return { ok: false, error: 'Incorrect username or password.' };
-      }
-    }
-
     return {
       ok: false,
       error: 'Unable to connect to server. Please verify your connection and try again.',
@@ -263,8 +210,7 @@ export async function authenticateLogin(identifier: string, password: string): P
 
 /**
  * Unified Register Function
- * Creates account on server and mirrors it to local storage.
- * If server is offline/static, creates account securely in local storage.
+ * Creates account on the persistent cloud database.
  */
 export async function authenticateRegister(identifier: string, password: string): Promise<AuthResult> {
   const cleanIdentifier = identifier.trim();
@@ -281,17 +227,14 @@ export async function authenticateRegister(identifier: string, password: string)
     return { ok: false, error: 'Password must be at least 6 characters long.' };
   }
 
-  const existingLocal = findMatchingLocalUser(cleanIdentifier);
-
   try {
-    const serverRes = await safeApiFetch<{ token: string; user: AuthUser }>('/api/auth/register', {
+    const serverRes = await safeApiFetch<{ token: string; user: AuthUser; message?: string }>('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: cleanIdentifier, password }),
     });
 
     if (serverRes.ok && serverRes.data?.token && serverRes.data?.user) {
-      await persistLocalUser(serverRes.data.user, password);
       return {
         ok: true,
         token: serverRes.data.token,
@@ -299,51 +242,18 @@ export async function authenticateRegister(identifier: string, password: string)
       };
     }
 
-    if (serverRes.status === 400 && serverRes.error?.includes('already exists')) {
-      return { ok: false, error: 'This username already exists. Please choose another username or log in.' };
+    if (serverRes.status === 400 || serverRes.status === 409) {
+      return { ok: false, error: serverRes.error || 'This username already exists. Please choose another username or log in.' };
     }
-
-    // If server is 404 (static Vercel hosting) or network 0, create locally
-    if (existingLocal) {
-      return { ok: false, error: 'This username already exists. Please choose another username or log in.' };
-    }
-
-    const newUid = 'usr_' + Date.now() + Math.random().toString(36).substring(2, 7);
-    const newLocalUser: AuthUser = {
-      id: newUid,
-      username: cleanIdentifier,
-      email: cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier}@munazzam.local`,
-    };
-
-    await persistLocalUser(newLocalUser, password);
-    const localToken = `local_auth_${newUid}_${Date.now()}`;
 
     return {
-      ok: true,
-      token: localToken,
-      user: newLocalUser,
+      ok: false,
+      error: serverRes.error || 'Unable to create account. Please try again.',
     };
   } catch (err: any) {
-    console.warn('[authenticateRegister] Server unreachable, creating local account:', err);
-
-    if (existingLocal) {
-      return { ok: false, error: 'This username already exists. Please choose another username or log in.' };
-    }
-
-    const newUid = 'usr_' + Date.now() + Math.random().toString(36).substring(2, 7);
-    const newLocalUser: AuthUser = {
-      id: newUid,
-      username: cleanIdentifier,
-      email: cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier}@munazzam.local`,
-    };
-
-    await persistLocalUser(newLocalUser, password);
-    const localToken = `local_auth_${newUid}_${Date.now()}`;
-
     return {
-      ok: true,
-      token: localToken,
-      user: newLocalUser,
+      ok: false,
+      error: 'Unable to connect to server. Please verify your connection and try again.',
     };
   }
 }

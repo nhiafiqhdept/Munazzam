@@ -45,17 +45,19 @@ export async function safeApiFetch<T = any>(
     if (!res.ok) {
       let errorMessage = 'Unable to connect to server';
 
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
+      if (parsedData?.message) {
+        errorMessage = parsedData.message;
+      } else if (parsedData?.error && typeof parsedData.error === 'string') {
+        errorMessage = parsedData.error;
+      } else if (res.status === 400 || res.status === 401 || res.status === 403) {
         // Credential or validation error
-        errorMessage = parsedData?.error || 'Incorrect username or password.';
+        errorMessage = 'Incorrect username or password.';
       } else if (res.status === 404) {
         // Endpoint or resource not found
-        errorMessage = parsedData?.error || 'Resource or account not found.';
+        errorMessage = 'Resource or account not found.';
       } else if (res.status >= 500) {
         // Internal server or database error
-        errorMessage = parsedData?.error || 'Unable to process request. Please try again.';
-      } else if (parsedData?.error) {
-        errorMessage = parsedData.error;
+        errorMessage = 'Unable to process request. Please try again.';
       }
 
       return {
