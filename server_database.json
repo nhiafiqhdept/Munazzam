@@ -6,6 +6,13 @@
       "password_hash": "$2b$10$/2P98W37Hx3ARPPEQ9J3butE7x01eqMrIau3lweuZ5OWILpYHqemy",
       "created_at": "2026-09-14T05:03:24.424Z",
       "updated_at": "2026-09-14T05:03:24.424Z"
+    },
+    {
+      "id": "usr_17893811140961jdhs",
+      "email": "test_admin_user",
+      "password_hash": "$2b$10$F05EmomvA6CZ7PZZLYry4.r7Yc0grqaiQOP/qKWl5OM73MDuGiXLq",
+      "created_at": "2026-09-14T10:18:34.096Z",
+      "updated_at": "2026-09-14T10:18:34.096Z"
     }
   ],
   "organizations": [

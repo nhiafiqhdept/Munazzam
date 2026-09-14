@@ -64,10 +64,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       }
 
       if (isRegister) {
-        setSuccessMessage('Account created successfully! Please log in below.');
-        setIsRegister(false);
-        setPassword('');
-        setConfirmPassword('');
+        localStorage.setItem('org_token', data.token);
+        localStorage.setItem('org_user', JSON.stringify(data.user));
+        setSuccessMessage('Account created successfully! Automatically logging you in...');
+        setTimeout(() => {
+          onLoginSuccess(data.token, data.user);
+        }, 1000);
       } else {
         localStorage.setItem('org_token', data.token);
         localStorage.setItem('org_user', JSON.stringify(data.user));
