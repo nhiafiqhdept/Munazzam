@@ -230,6 +230,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const currentOrg = organizations.find((o) => o.id === currentOrgId);
 
+  // Save last org logo and name to localStorage for unauthenticated pages
+  useEffect(() => {
+    if (currentOrg) {
+      if (currentOrg.logo) {
+        localStorage.setItem('last_org_logo', currentOrg.logo);
+      } else {
+        localStorage.removeItem('last_org_logo');
+      }
+      if (currentOrg.name) {
+        localStorage.setItem('last_org_name', currentOrg.name);
+      }
+    }
+  }, [currentOrg]);
+
   // Organization Actions
   const addOrganization = async (orgData: Omit<Organization, 'id' | 'created_at' | 'updated_at'>): Promise<Organization> => {
     const res = await fetch('/api/organizations', {
