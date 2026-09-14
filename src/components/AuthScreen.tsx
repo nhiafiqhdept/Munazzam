@@ -6,6 +6,17 @@ import { auth, db } from '../lib/firebase';
 import { getFirebaseErrorMessage } from '../utils/firebaseErrors';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
 import { AuthUser } from '../types';
+import firebaseConfig from '../../firebase-applet-config.json';
+
+function logAuthDiagnostic(context: string, err: any) {
+  console.error(`[Firebase Auth Diagnostic - ${context}]`, {
+    code: err?.code || 'UNKNOWN_CODE',
+    message: err?.message || String(err),
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+    projectId: firebaseConfig?.projectId || 'unknown',
+    authDomain: firebaseConfig?.authDomain || 'unknown',
+  });
+}
 
 interface AuthScreenProps {
   onLoginSuccess: (token: string, user: AuthUser) => void;
@@ -83,7 +94,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         onLoginSuccess(token, authUser);
       }, 500);
     } catch (err: any) {
-      console.error('Google Auth Exception:', err);
+      logAuthDiagnostic('Google Sign-In', err);
       setGeneralError(getFirebaseErrorMessage(err));
     } finally {
       setLoading(false);
@@ -206,7 +217,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         }, 500);
       }
     } catch (err: any) {
-      console.error('Firebase Auth Exception:', err);
+      logAuthDiagnostic('Email/Password Auth', err);
       const friendlyMessage = getFirebaseErrorMessage(err);
       setGeneralError(friendlyMessage);
     } finally {
@@ -227,7 +238,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       await sendPasswordResetEmail(auth, forgotEmail.trim());
       setForgotSent(true);
     } catch (err: any) {
-      console.error('Password reset failed:', err);
+      logAuthDiagnostic('Password Reset', err);
       setForgotError(getFirebaseErrorMessage(err));
     } finally {
       setForgotLoading(false);

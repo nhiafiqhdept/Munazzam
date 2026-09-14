@@ -6,7 +6,7 @@ export function getFirebaseErrorMessage(error: any): string {
 
   switch (code) {
     case 'auth/unauthorized-domain':
-      return 'This website domain (e.g. vercel.app) is not authorized in Firebase. Please add your domain to Firebase Console > Authentication > Settings > Authorized domains.';
+      return 'This website is not authorized in Firebase Authentication. Please add munazzam-xi.vercel.app to Firebase Authentication → Settings → Authorized domains.';
     case 'auth/operation-not-allowed':
       return 'Email/Password sign-in is not enabled in your Firebase Console. Please sign in with Google or enable Email/Password under Authentication > Sign-in method in Firebase Console.';
     case 'auth/email-already-in-use':
@@ -27,7 +27,7 @@ export function getFirebaseErrorMessage(error: any): string {
       return "You don't have permission to access this account.";
     default:
       if (message.includes('unauthorized-domain')) {
-        return 'This website domain (e.g. vercel.app) is not authorized in Firebase. Please add your domain to Firebase Console > Authentication > Settings > Authorized domains.';
+        return 'This website is not authorized in Firebase Authentication. Please add munazzam-xi.vercel.app to Firebase Authentication → Settings → Authorized domains.';
       }
       if (message.includes('operation-not-allowed')) {
         return 'Email/Password sign-in is not enabled in your Firebase Console. Please sign in with Google or enable Email/Password under Authentication > Sign-in method in Firebase Console.';
