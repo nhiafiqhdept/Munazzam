@@ -1,5 +1,13 @@
 export type UserRole = 'admin' | 'public';
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  email?: string;
+  role?: UserRole;
+  created_at?: string;
+}
+
 export interface Organization {
   id: string;
   name: string;

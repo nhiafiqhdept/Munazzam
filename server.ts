@@ -133,16 +133,32 @@ const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) 
 // ==================== AUTH ROUTES ====================
 app.post('/api/auth/register', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Username/email and password are required.' });
+    const rawIdentifier = (req.body.username || req.body.email || '').trim();
+    const password = req.body.password;
+
+    if (!rawIdentifier) {
+      return res.status(400).json({ error: 'Username is required.' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required.' });
+    }
+    if (rawIdentifier.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    const trimmedEmail = email.trim();
+    const normalized = rawIdentifier.toLowerCase();
     const db = readDB();
-    const existingUser = db.users.find((u) => u.email.toLowerCase() === trimmedEmail.toLowerCase());
+    const existingUser = db.users.find(
+      (u) =>
+        (u.email && u.email.trim().toLowerCase() === normalized) ||
+        (u.username && u.username.trim().toLowerCase() === normalized)
+    );
+
     if (existingUser) {
-      return res.status(400).json({ error: 'This username is already registered. Please sign in.' });
+      return res.status(400).json({ error: 'This username already exists. Please choose another or log in.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -150,7 +166,8 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 
     const newUser = {
       id: 'usr_' + Date.now() + Math.random().toString(36).substr(2, 5),
-      email: trimmedEmail,
+      username: rawIdentifier,
+      email: rawIdentifier,
       password_hash,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -159,36 +176,55 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
     db.users.push(newUser);
     writeDB(db);
 
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({
+    const token = jwt.sign(
+      { id: newUser.id, username: newUser.username, email: newUser.email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.status(201).json({
       token,
-      user: { id: newUser.id, email: newUser.email },
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+      },
     });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ error: 'Internal server error during registration.' });
+    res.status(500).json({ error: 'Something went wrong while creating your account. Please try again.' });
   }
 });
 
 app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Username/email and password are required.' });
+    const rawIdentifier = (req.body.username || req.body.email || '').trim();
+    const password = req.body.password;
+
+    if (!rawIdentifier) {
+      return res.status(400).json({ error: 'Username is required.' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required.' });
     }
 
-    const trimmedEmail = email.trim();
+    const normalized = rawIdentifier.toLowerCase();
     const db = readDB();
-    const user = db.users.find((u) => u.email.toLowerCase() === trimmedEmail.toLowerCase());
+    const user = db.users.find(
+      (u) =>
+        (u.email && u.email.trim().toLowerCase() === normalized) ||
+        (u.username && u.username.trim().toLowerCase() === normalized)
+    );
+
     if (!user) {
-      return res.status(400).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Wrong username or password.' });
     }
 
     let validPassword = false;
     if (user.password_hash && (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$'))) {
       validPassword = await bcrypt.compare(password, user.password_hash);
     } else {
-      // Plaintext legacy fallback with auto-upgrade
+      // Plaintext legacy fallback with auto-upgrade to bcrypt
       validPassword = password === user.password_hash;
       if (validPassword) {
         const salt = await bcrypt.genSalt(10);
@@ -198,27 +234,49 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     }
 
     if (!validPassword) {
-      return res.status(400).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Wrong username or password.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    const displayIdentifier = user.username || user.email;
+    const token = jwt.sign(
+      { id: user.id, username: displayIdentifier, email: displayIdentifier },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
     res.json({
       token,
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        username: displayIdentifier,
+        email: displayIdentifier,
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error during login.' });
+    res.status(500).json({ error: 'An unexpected error occurred during login. Please try again.' });
   }
 });
 
 app.get('/api/auth/me', authenticateToken, (req: AuthRequest, res: Response) => {
-  const db = readDB();
-  const user = db.users.find((u) => u.id === req.user?.id);
-  if (!user) {
-    return res.status(404).json({ error: 'User not found.' });
+  try {
+    const db = readDB();
+    const user = db.users.find((u) => u.id === req.user?.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found. Please log in again.' });
+    }
+    const displayIdentifier = user.username || user.email;
+    res.json({
+      user: {
+        id: user.id,
+        username: displayIdentifier,
+        email: displayIdentifier,
+      },
+    });
+  } catch (err) {
+    console.error('Auth check error:', err);
+    res.status(500).json({ error: 'Unable to verify session.' });
   }
-  res.json({ user: { id: user.id, email: user.email } });
 });
 
 // ==================== LOCAL DATA MIGRATION ENDPOINT ====================

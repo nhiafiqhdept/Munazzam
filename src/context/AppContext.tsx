@@ -3,6 +3,7 @@ import { safeApiFetch, ApiResponse } from '../utils/api';
 import { syncLegacyLocalDataToServer } from '../utils/migration';
 import { localDB } from '../utils/localDB';
 import {
+  AuthUser,
   Organization,
   Organizer,
   Program,
@@ -19,8 +20,10 @@ import {
 
 interface AppContextType {
   token: string | null;
-  user: { id: string; email: string } | null;
-  loginUser: (token: string, user: { id: string; email: string }) => void;
+  user: AuthUser | null;
+  authLoading: boolean;
+  isAuthenticated: boolean;
+  loginUser: (token: string, user: AuthUser) => void;
   logoutUser: () => void;
 
   organizations: Organization[];
@@ -105,14 +108,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => {
-    const saved = localStorage.getItem('org_token');
-    if (saved && saved.startsWith('local_')) {
-      return null;
-    }
-    return saved;
-  });
-  const [user, setUser] = useState<{ id: string; email: string } | null>(() => {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('org_token'));
+  const [user, setUser] = useState<AuthUser | null>(() => {
     try {
       const saved = localStorage.getItem('org_user');
       return saved ? JSON.parse(saved) : null;
@@ -120,6 +117,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return null;
     }
   });
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrgId, setCurrentOrgId] = useState<string>('');
@@ -140,28 +139,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adminPin, setAdminPin] = useState<string>('1234');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
+  const logoutUser = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    setOrganizations([]);
+    setCurrentOrgId('');
+    localStorage.removeItem('org_token');
+    localStorage.removeItem('org_user');
+    localStorage.removeItem('current_org_id');
+  }, []);
+
+  const loginUser = useCallback((newToken: string, newUser: AuthUser) => {
+    setToken(newToken);
+    setUser(newUser);
+    setIsAuthenticated(true);
+    setAuthLoading(false);
+    localStorage.setItem('org_token', newToken);
+    localStorage.setItem('org_user', JSON.stringify(newUser));
+  }, []);
+
+  // Authoritative session verification on app startup
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifySession = async () => {
+      const savedToken = localStorage.getItem('org_token');
+      const savedUserStr = localStorage.getItem('org_user');
+
+      if (!savedToken) {
+        if (isMounted) {
+          setToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
+          setAuthLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await safeApiFetch<{ user: AuthUser }>('/api/auth/me', {
+          headers: { Authorization: `Bearer ${savedToken}` },
+        });
+
+        if (res.ok && res.data?.user) {
+          if (isMounted) {
+            setToken(savedToken);
+            setUser(res.data.user);
+            setIsAuthenticated(true);
+            localStorage.setItem('org_user', JSON.stringify(res.data.user));
+          }
+        } else if (res.status === 401 || res.status === 403 || res.status === 404) {
+          // Token expired or invalid
+          if (isMounted) {
+            logoutUser();
+          }
+        } else {
+          // In case server is offline or unreachable, rely safely on stored session
+          if (savedUserStr) {
+            try {
+              const parsed = JSON.parse(savedUserStr);
+              if (isMounted) {
+                setToken(savedToken);
+                setUser(parsed);
+                setIsAuthenticated(true);
+              }
+            } catch {
+              if (isMounted) {
+                logoutUser();
+              }
+            }
+          }
+        }
+      } catch {
+        if (savedUserStr) {
+          try {
+            const parsed = JSON.parse(savedUserStr);
+            if (isMounted) {
+              setToken(savedToken);
+              setUser(parsed);
+              setIsAuthenticated(true);
+            }
+          } catch {
+            if (isMounted) {
+              logoutUser();
+            }
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    verifySession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logoutUser]);
+
   // Auto-migrate legacy localStorage data on initial load
   useEffect(() => {
     syncLegacyLocalDataToServer().catch((err) => {
       console.warn('Migration check notice:', err);
     });
   }, []);
-
-  const loginUser = (newToken: string, newUser: { id: string; email: string }) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('org_token', newToken);
-    localStorage.setItem('org_user', JSON.stringify(newUser));
-  };
-
-  const logoutUser = () => {
-    setToken(null);
-    setUser(null);
-    setOrganizations([]);
-    setCurrentOrgId('');
-    localStorage.removeItem('org_token');
-    localStorage.removeItem('org_user');
-  };
 
   // Fetch organizations from shared cloud database (with local fallback)
   const fetchOrganizations = useCallback(async () => {
@@ -965,6 +1049,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         token,
         user,
+        authLoading,
+        isAuthenticated,
         loginUser,
         logoutUser,
 

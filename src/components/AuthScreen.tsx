@@ -1,115 +1,115 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle, LogIn, UserPlus } from 'lucide-react';
+import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, User, Eye, EyeOff, HelpCircle } from 'lucide-react';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
-import { safeApiFetch, isServerUnavailable } from '../utils/api';
-import { localLogin, localRegister } from '../utils/localDB';
+import { safeApiFetch } from '../utils/api';
+import { AuthUser } from '../types';
 
 interface AuthScreenProps {
-  onLoginSuccess: (token: string, user: { id: string; email: string }) => void;
+  onLoginSuccess: (token: string, user: AuthUser) => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState<{
+    username?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+  const [generalError, setGeneralError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
   const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const lastLogo = localStorage.getItem('last_org_logo') || '';
   const lastName = localStorage.getItem('last_org_name') || 'Organization Portal';
 
-  const completeLogin = (token: string, user: { id: string; email: string }) => {
-    localStorage.setItem('org_token', token);
-    localStorage.setItem('org_user', JSON.stringify(user));
+  const clearErrors = () => {
+    setFieldErrors({});
+    setGeneralError('');
+    setSuccessMessage('');
+  };
 
-    if (isRegister) {
-      setSuccessMessage('Account created successfully! Logging you in...');
-      setTimeout(() => {
-        onLoginSuccess(token, user);
-      }, 500);
-    } else {
-      setSuccessMessage('Logged in successfully!');
-      setTimeout(() => {
-        onLoginSuccess(token, user);
-      }, 300);
-    }
+  const handleToggleMode = (registerMode: boolean) => {
+    setIsRegister(registerMode);
+    clearErrors();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccessMessage('');
+    clearErrors();
 
-    if (!email || !password) {
-      setError('Please fill in all required fields.');
+    const cleanUsername = username.trim();
+    const errors: typeof fieldErrors = {};
+
+    if (!cleanUsername) {
+      errors.username = 'Username is required.';
+    } else if (isRegister && cleanUsername.length < 3) {
+      errors.username = 'Username must be at least 3 characters long.';
+    }
+
+    if (!password) {
+      errors.password = 'Password is required.';
+    } else if (isRegister && password.length < 6) {
+      errors.password = 'Password must be at least 6 characters long.';
+    }
+
+    if (isRegister && password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
-    if (isRegister) {
-      if (password !== confirmPassword) {
-        setError('Passwords do not match.');
-        return;
-      }
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters long.');
-        return;
-      }
-    }
-
     setLoading(true);
-    const cleanEmail = email.trim();
 
     try {
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const result = await safeApiFetch<{ token: string; user: { id: string; email: string } }>(endpoint, {
+      const result = await safeApiFetch<{ token: string; user: AuthUser }>(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password }),
+        body: JSON.stringify({
+          username: cleanUsername,
+          password: password,
+        }),
       });
 
-      // 1. Successful server authentication
-      if (result.ok && result.data) {
-        completeLogin(result.data.token, result.data.user);
+      if (result.ok && result.data && result.data.token && result.data.user) {
+        setSuccessMessage(
+          isRegister
+            ? 'Account created successfully! Loading dashboard...'
+            : 'Authenticated successfully! Loading dashboard...'
+        );
+
+        setTimeout(() => {
+          onLoginSuccess(result.data!.token, result.data!.user);
+        }, 300);
         return;
       }
 
-      // 2. Definitive server validation/credential errors (wrong password or duplicate account)
-      if (result.status === 400 || result.status === 401 || result.status === 403) {
-        setError(result.error || 'Invalid username or password');
-        return;
+      // Handle server error responses with user-friendly messages
+      if (result.error) {
+        setGeneralError(result.error);
+      } else if (result.status === 401) {
+        setGeneralError('Wrong username or password. Please check your credentials.');
+      } else if (result.status === 400 && isRegister) {
+        setGeneralError('This username already exists. Please choose another username or log in.');
+      } else {
+        setGeneralError('Unable to sign in. Please verify your connection and try again.');
       }
-
-      // 3. Server unavailable / 404 (e.g., Vercel static hosting) -> transparent local fallback
-      if (isServerUnavailable(result)) {
-        try {
-          const localRes = isRegister
-            ? await localRegister(cleanEmail, password)
-            : await localLogin(cleanEmail, password);
-          completeLogin(localRes.token, localRes.user);
-          return;
-        } catch (localErr: any) {
-          setError(localErr.message || 'Invalid username or password');
-          return;
-        }
-      }
-
-      // Other server error
-      setError(result.error || 'Unable to sign in. Please try again.');
-    } catch {
-      // Offline / network exception fallback
-      try {
-        const localRes = isRegister
-          ? await localRegister(cleanEmail, password)
-          : await localLogin(cleanEmail, password);
-        completeLogin(localRes.token, localRes.user);
-      } catch (localErr: any) {
-        setError(localErr.message || 'Invalid username or password');
-      }
+    } catch (err: any) {
+      console.error('Auth request failed:', err);
+      setGeneralError('Network connection issue. Please ensure your server is running and try again.');
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail) return;
+    if (!forgotEmail.trim()) return;
+
+    setForgotLoading(true);
     try {
       await safeApiFetch('/api/auth/forgot-password', {
         method: 'POST',
@@ -127,12 +129,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       setForgotSent(true);
     } catch {
       setForgotSent(true);
+    } finally {
+      setForgotLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
-      <div className="w-full max-w-[420px] bg-white rounded-3xl border border-slate-200/60 shadow-xl px-6 py-10 sm:p-10 flex flex-col items-center">
+      <div
+        id="auth-card"
+        className="w-full max-w-[420px] bg-white rounded-3xl border border-slate-200/60 shadow-xl px-6 py-10 sm:p-10 flex flex-col items-center"
+      >
         {/* Logo Container */}
         <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200/80 p-2 flex items-center justify-center overflow-hidden mb-6 shadow-xs shrink-0">
           <img
@@ -152,89 +159,170 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
         {/* Subtitle */}
         <p className="text-xs sm:text-sm text-slate-500 text-center mb-8">
-          {isRegister ? 'Sign up to manage your organization' : 'Sign in with your username and password'}
+          {isRegister
+            ? 'Sign up to manage and document your organization'
+            : 'Sign in with your username and password'}
         </p>
 
-        {/* Alert Messages */}
-        {error && (
-          <div className="w-full mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-2 text-xs text-rose-800 text-left">
+        {/* General Error Banner */}
+        {generalError && (
+          <div
+            id="auth-error-banner"
+            className="w-full mb-5 p-3.5 bg-rose-50 border border-rose-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 text-left animate-in fade-in"
+          >
             <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-            <span className="font-medium leading-relaxed">{error}</span>
+            <span className="font-medium leading-relaxed">{generalError}</span>
           </div>
         )}
 
+        {/* Success Banner */}
         {successMessage && (
-          <div className="w-full mb-4 p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start gap-2 text-xs text-emerald-800 text-left">
+          <div
+            id="auth-success-banner"
+            className="w-full mb-5 p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-800 text-left animate-in fade-in"
+          >
             <CheckCircle className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
             <span className="font-medium leading-relaxed">{successMessage}</span>
           </div>
         )}
 
         {/* Login/Register Form */}
-        <form onSubmit={handleSubmit} className="w-full flex flex-col">
+        <form onSubmit={handleSubmit} className="w-full flex flex-col" noValidate>
           {/* Username Field */}
-          <div className="w-full text-left mb-5">
-            <label className="block text-[11px] font-extrabold tracking-wider text-teal-800 uppercase mb-2">
-              USERNAME
+          <div className="w-full text-left mb-4">
+            <label
+              htmlFor="auth-username"
+              className="block text-[11px] font-extrabold tracking-wider text-slate-700 uppercase mb-1.5"
+            >
+              Username
             </label>
-            <input
-              type="text"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. ajvad"
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400"
-            />
+            <div className="relative">
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                id="auth-username"
+                type="text"
+                autoComplete="username"
+                value={username}
+                disabled={loading}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (fieldErrors.username) {
+                    setFieldErrors((prev) => ({ ...prev, username: undefined }));
+                  }
+                  if (generalError) setGeneralError('');
+                }}
+                placeholder="Enter username"
+                className={`w-full pl-10 pr-4 py-3 bg-white border ${
+                  fieldErrors.username ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
+                } rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400 disabled:bg-slate-50`}
+              />
+            </div>
+            {fieldErrors.username && (
+              <p className="mt-1.5 text-xs text-rose-600 font-medium text-left">{fieldErrors.username}</p>
+            )}
           </div>
 
           {/* Password Field */}
-          <div className="w-full text-left mb-5">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-[11px] font-extrabold tracking-wider text-teal-800 uppercase">
-                PASSWORD
+          <div className="w-full text-left mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <label
+                htmlFor="auth-password"
+                className="block text-[11px] font-extrabold tracking-wider text-slate-700 uppercase"
+              >
+                Password
               </label>
               {!isRegister && (
                 <button
                   type="button"
-                  onClick={() => setIsForgotOpen(true)}
+                  onClick={() => {
+                    setIsForgotOpen(true);
+                    setForgotSent(false);
+                    setForgotEmail('');
+                  }}
                   className="text-xs text-purple-700 hover:text-purple-800 font-bold transition-colors"
                 >
                   Forgot?
                 </button>
               )}
             </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400"
-            />
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                id="auth-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                value={password}
+                disabled={loading}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                  }
+                  if (generalError) setGeneralError('');
+                }}
+                placeholder="••••••••"
+                className={`w-full pl-10 pr-10 py-3 bg-white border ${
+                  fieldErrors.password ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
+                } rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400 disabled:bg-slate-50`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {fieldErrors.password && (
+              <p className="mt-1.5 text-xs text-rose-600 font-medium text-left">{fieldErrors.password}</p>
+            )}
           </div>
 
           {/* Confirm Password (Register Only) */}
           {isRegister && (
             <div className="w-full text-left mb-6">
-              <label className="block text-[11px] font-extrabold tracking-wider text-teal-800 uppercase mb-2">
-                CONFIRM PASSWORD
+              <label
+                htmlFor="auth-confirm-password"
+                className="block text-[11px] font-extrabold tracking-wider text-slate-700 uppercase mb-1.5"
+              >
+                Confirm Password
               </label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400"
-              />
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  id="auth-confirm-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  disabled={loading}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (fieldErrors.confirmPassword) {
+                      setFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                    }
+                    if (generalError) setGeneralError('');
+                  }}
+                  placeholder="••••••••"
+                  className={`w-full pl-10 pr-4 py-3 bg-white border ${
+                    fieldErrors.confirmPassword ? 'border-rose-400 ring-1 ring-rose-300' : 'border-slate-200'
+                  } rounded-2xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all placeholder:text-slate-400 disabled:bg-slate-50`}
+                />
+              </div>
+              {fieldErrors.confirmPassword && (
+                <p className="mt-1.5 text-xs text-rose-600 font-medium text-left">
+                  {fieldErrors.confirmPassword}
+                </p>
+              )}
             </div>
           )}
 
-          {/* Login/Register Button */}
+          {/* Submit Button */}
           <button
+            id="auth-submit-btn"
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-[#4c1d95] hover:bg-[#3b0764] active:scale-[0.99] text-white font-bold rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm mb-6"
+            className="w-full py-3.5 px-4 bg-[#4c1d95] hover:bg-[#3b0764] active:scale-[0.99] text-white font-bold rounded-2xl shadow-sm hover:shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm mt-2 mb-6 cursor-pointer disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
@@ -256,19 +344,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         </form>
 
         {/* Footer switcher link */}
-        <div className="text-center mt-2 w-full">
+        <div className="text-center w-full pt-2 border-t border-slate-100">
           <p className="text-sm font-semibold text-slate-600">
             {isRegister ? (
               <>
                 Already have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsRegister(false);
-                    setError('');
-                    setSuccessMessage('');
-                  }}
-                  className="text-[#4c1d95] font-bold hover:underline transition-colors"
+                  onClick={() => handleToggleMode(false)}
+                  className="text-[#4c1d95] font-bold hover:underline transition-colors ml-1"
                 >
                   Sign in
                 </button>
@@ -278,12 +362,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsRegister(true);
-                    setError('');
-                    setSuccessMessage('');
-                  }}
-                  className="text-[#4c1d95] font-bold hover:underline transition-colors"
+                  onClick={() => handleToggleMode(true)}
+                  className="text-[#4c1d95] font-bold hover:underline transition-colors ml-1"
                 >
                   Create one
                 </button>
@@ -296,9 +376,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       {/* Forgot Password Modal */}
       {isForgotOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden p-6 space-y-4 text-left">
+          <div
+            id="forgot-password-modal"
+            className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden p-6 space-y-4 text-left"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-purple-700" />
+                <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
+              </div>
               <button
                 onClick={() => {
                   setIsForgotOpen(false);
@@ -314,9 +400,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             {forgotSent ? (
               <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2">
                 <CheckCircle className="w-8 h-8 text-emerald-600 mx-auto" />
-                <h4 className="font-bold text-emerald-900 text-sm">Instructions Sent</h4>
+                <h4 className="font-bold text-emerald-900 text-sm">Instructions Dispatched</h4>
                 <p className="text-xs text-emerald-700 leading-normal">
-                  If an account exists for {forgotEmail}, password reset instructions have been sent. (Note: Ensure backend email SMTP service is configured for automated delivery).
+                  If an account exists for {forgotEmail}, password reset instructions have been recorded. You can also contact your organization head to update access.
                 </p>
                 <button
                   onClick={() => {
@@ -332,18 +418,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             ) : (
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your registered email address and we'll send you instructions to reset your password.
+                  Enter your registered username or email address and we will provide password reset instructions.
                 </p>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Email Address
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Username or Email
                   </label>
                   <input
-                    type="email"
+                    type="text"
                     required
                     value={forgotEmail}
+                    disabled={forgotLoading}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="name@example.com"
+                    placeholder="Enter your username or email"
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                   />
                 </div>
@@ -357,9 +444,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs"
+                    disabled={forgotLoading}
+                    className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    Send Reset Instructions
+                    {forgotLoading ? 'Sending...' : 'Send Instructions'}
                   </button>
                 </div>
               </form>

@@ -375,7 +375,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                       </p>
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs text-slate-700 font-medium break-all flex-1 min-w-0">
-                          {user.email}
+                          {user.username || user.email}
                         </p>
                         <button
                           onClick={() => {

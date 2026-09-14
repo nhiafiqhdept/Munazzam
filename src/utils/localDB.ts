@@ -14,64 +14,6 @@ import {
 // Simple helper to generate unique IDs
 const genId = (prefix: string) => `${prefix}_${Math.random().toString(36).substring(2, 11)}`;
 
-export const localRegister = async (email: string, password: string) => {
-  const usersStr = localStorage.getItem('local_users') || '[]';
-  let users: any[] = [];
-  try {
-    users = JSON.parse(usersStr);
-  } catch {}
-
-  const normalized = email.trim().toLowerCase();
-  if (users.some((u: any) => u.email.toLowerCase() === normalized)) {
-    throw new Error('This username is already registered. Please sign in.');
-  }
-
-  const newUser = {
-    id: genId('usr'),
-    email: email.trim(),
-    password: password,
-  };
-
-  users.push(newUser);
-  localStorage.setItem('local_users', JSON.stringify(users));
-
-  const token = `local_token_${newUser.id}`;
-  const responseUser = { id: newUser.id, email: newUser.email };
-
-  return { token, user: responseUser };
-};
-
-export const localLogin = async (email: string, password: string) => {
-  const usersStr = localStorage.getItem('local_users') || '[]';
-  let users: any[] = [];
-  try {
-    users = JSON.parse(usersStr);
-  } catch {}
-
-  const normalized = email.trim().toLowerCase();
-
-  // If no accounts exist yet locally, automatically provision this user
-  if (users.length === 0) {
-    return await localRegister(email, password);
-  }
-
-  const found = users.find((u: any) => u.email.toLowerCase() === normalized);
-
-  if (!found) {
-    // Auto-create for new accounts on standalone deployments
-    return await localRegister(email, password);
-  }
-
-  if (found.password !== password) {
-    throw new Error('Invalid username or password');
-  }
-
-  const token = `local_token_${found.id}`;
-  const responseUser = { id: found.id, email: found.email };
-
-  return { token, user: responseUser };
-};
-
 // Generic LocalStorage helper for entities
 const getList = <T>(key: string): T[] => {
   try {

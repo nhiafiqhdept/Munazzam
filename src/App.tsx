@@ -116,7 +116,7 @@ const MainLayout: React.FC = () => {
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 space-y-4 shadow-sm">
             <h2 className="text-2xl font-bold font-heading text-slate-900">Welcome to Organization Manager</h2>
             <p className="text-sm text-slate-600">
-              You haven't created any organizations yet under your account ({user?.email}). Create your first organization to get started.
+              You haven't created any organizations yet under your account ({user?.username || user?.email}). Create your first organization to get started.
             </p>
             <button
               onClick={() => setIsOnboardingOpen(true)}
@@ -130,7 +130,7 @@ const MainLayout: React.FC = () => {
                 className="text-xs text-rose-600 font-semibold hover:underline flex items-center gap-1"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Logout ({user?.email})</span>
+                <span>Logout ({user?.username || user?.email})</span>
               </button>
             </div>
           </div>
@@ -243,7 +243,7 @@ const MainLayout: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-slate-600 font-medium">Logged in as: <strong className="text-slate-900">{user?.email}</strong></span>
+            <span className="text-slate-600 font-medium">Logged in as: <strong className="text-slate-900">{user?.username || user?.email}</strong></span>
             <button
               onClick={logoutUser}
               className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs flex items-center gap-1 transition-colors"
@@ -310,7 +310,18 @@ const MainLayout: React.FC = () => {
 };
 
 const AuthenticatedApp: React.FC = () => {
-  const { token, user, loginUser } = useApp();
+  const { token, user, authLoading, loginUser } = useApp();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 border-3 border-purple-700 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-semibold text-slate-600 tracking-wide">Validating session...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!token || !user) {
     return (
