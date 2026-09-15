@@ -21,7 +21,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
   const [success, setSuccess] = useState(false);
 
   // Auto-fill master admin email if choosing Admin mode
-  const handleRoleChange = (role: 'sub_org' | 'nsu_admin' | 'viewer') => {
+  const handleRoleChange = (role: 'sub_org' | 'nsu_admin') => {
     setRoleMode(role);
     setError('');
     if (role === 'nsu_admin' && masterUser?.email) {
@@ -36,11 +36,6 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
     e.preventDefault();
     setError('');
     
-    if (roleMode === 'viewer') {
-      onJoinAsViewer();
-      return;
-    }
-
     if (!email || !password) {
       setError('Please fill in all credentials.');
       return;
@@ -81,7 +76,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
         </div>
 
         {/* Role Select Buttons */}
-        <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200/60 text-xs">
+        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200/60 text-xs">
           <button
             type="button"
             id="role-sub-org"
@@ -106,118 +101,88 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
           >
             Admin
           </button>
-          <button
-            type="button"
-            id="role-viewer"
-            onClick={() => handleRoleChange('viewer')}
-            className={`py-2 px-1 font-semibold rounded-xl text-center transition-all cursor-pointer ${
-              roleMode === 'viewer'
-                ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/40 font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Public Viewer
-          </button>
         </div>
 
         {/* Login Form */}
-        {roleMode === 'viewer' ? (
-          <div className="space-y-4 text-center py-4">
-            <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex gap-3 text-left">
-              <Info className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-sky-800 space-y-1 leading-relaxed">
-                <p className="font-semibold">Viewer Permissions:</p>
-                <p>You can view the live class leaderboard, browse approved class achievements, and read announcements. No login credentials are required.</p>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span>{error}</span>
             </div>
-            <button
-              onClick={onJoinAsViewer}
-              className="w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-md transition-all text-sm cursor-pointer"
-            >
-              Enter Public Leaderboard
-            </button>
+          )}
+
+          {success && (
+            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Login successful! Entering portal...</span>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700" htmlFor="portal-email">Email or Username</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                <Mail className="w-4 h-4" />
+              </span>
+              <input
+                type="email"
+                id="portal-email"
+                required
+                placeholder={roleMode === 'nsu_admin' ? 'admin@nsu.edu' : 'class1@nsu.edu'}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading || success}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+              />
+            </div>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                <span>{error}</span>
-              </div>
-            )}
 
-            {success && (
-              <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Login successful! Entering portal...</span>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700" htmlFor="portal-email">Email or Username</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Mail className="w-4 h-4" />
-                </span>
-                <input
-                  type="email"
-                  id="portal-email"
-                  required
-                  placeholder={roleMode === 'nsu_admin' ? 'admin@nsu.edu' : 'class1@nsu.edu'}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading || success}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                />
-              </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700" htmlFor="portal-password">Password</label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                <Lock className="w-4 h-4" />
+              </span>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="portal-password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading || success}
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700" htmlFor="portal-password">Password</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Lock className="w-4 h-4" />
-                </span>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="portal-password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading || success}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+          {roleMode === 'nsu_admin' && (
+            <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-normal flex gap-2">
+              <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p><strong>Admin Notice:</strong> Use your standard login credentials. For workspace admin testing, the master password bypass is <strong>1234</strong>.</p>
             </div>
+          )}
 
-            {roleMode === 'nsu_admin' && (
-              <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-normal flex gap-2">
-                <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p><strong>Admin Notice:</strong> Use your standard login credentials. For workspace admin testing, the master password bypass is <strong>1234</strong>.</p>
-              </div>
+          <button
+            type="submit"
+            disabled={loading || success}
+            className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'Sign In securely'
             )}
-
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                'Sign In securely'
-              )}
-            </button>
-          </form>
-        )}
+          </button>
+        </form>
       </motion.div>
     </div>
   );

@@ -8,10 +8,7 @@ export const ViewerDashboard: React.FC = () => {
   const { organizations, achievements, awards, announcements, competitions, categories, mediaAttachments } = usePortal();
   
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
-  const [viewTab, setViewTab] = useState<'leaderboard' | 'achievements' | 'awards' | 'announcements'>('leaderboard');
-
-  // Filter approved achievements
-  const approvedAchievements = achievements.filter(a => a.status === 'Approved');
+  const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>('leaderboard');
 
   // Find media attachments for an achievement
   const getMediaForAchievement = (achId: string) => {
@@ -41,7 +38,7 @@ export const ViewerDashboard: React.FC = () => {
           </span>
           <h1 className="text-3xl font-bold font-heading tracking-tight leading-none">Student Points Leaderboard</h1>
           <p className="text-emerald-100/80 text-sm leading-relaxed max-w-lg">
-            Track performance, explore outstanding achievements, and check current ranks of class sub-organizations.
+            Track performance and check current ranks of class sub-organizations.
           </p>
         </div>
       </div>
@@ -59,16 +56,6 @@ export const ViewerDashboard: React.FC = () => {
           Leaderboard & Ranks
         </button>
         <button
-          onClick={() => setViewTab('achievements')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
-            viewTab === 'achievements'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Approved Achievements
-        </button>
-        <button
           onClick={() => setViewTab('awards')}
           className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
             viewTab === 'awards'
@@ -77,16 +64,6 @@ export const ViewerDashboard: React.FC = () => {
           }`}
         >
           Conferred Awards
-        </button>
-        <button
-          onClick={() => setViewTab('announcements')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
-            viewTab === 'announcements'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Announcements
         </button>
       </div>
 
@@ -202,60 +179,6 @@ export const ViewerDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Approved Achievements List */}
-      {viewTab === 'achievements' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Approved Achievements Archive</h2>
-            <span className="text-xs text-slate-500">{approvedAchievements.length} verified activities</span>
-          </div>
-
-          {approvedAchievements.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 text-slate-500 text-sm">
-              No approved achievements found.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {approvedAchievements.map(ach => {
-                const media = getMediaForAchievement(ach.id);
-                return (
-                  <div key={ach.id} className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between hover:border-emerald-600/30 shadow-xs transition-all space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start gap-2">
-                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-[10px] rounded-lg">
-                          {getCategoryName(ach.categoryId)}
-                        </span>
-                        <div className="text-right">
-                          <span className="text-sm font-black text-emerald-700">+{ach.awardedPoints}</span>
-                          <span className="text-[9px] text-slate-500 block font-semibold leading-none">PTS</span>
-                        </div>
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-base">{ach.title}</h3>
-                      <p className="text-xs text-slate-500 font-semibold">{getOrgName(ach.organizationId)}</p>
-                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{ach.description}</p>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                      <div className="flex items-center gap-1.5 font-semibold">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{formatDate(ach.date)}</span>
-                      </div>
-                      <button
-                        onClick={() => setSelectedAchievement(ach)}
-                        className="text-emerald-700 hover:text-emerald-800 font-bold inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>View Details</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Awards Section */}
       {viewTab === 'awards' && (
         <div className="space-y-4">
@@ -282,36 +205,6 @@ export const ViewerDashboard: React.FC = () => {
                   <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-semibold">
                     Conferred on {formatDate(award.awardDate)}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Announcements */}
-      {viewTab === 'announcements' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">General Board Announcements</h2>
-          {announcements.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 text-slate-500 text-sm">
-              No announcements published.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {announcements.map(ann => (
-                <div key={ann.id} className="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                        <Megaphone className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold text-sm text-slate-800">NSU Announcement</span>
-                    </div>
-                    <span className="text-xs text-slate-400 font-semibold">{formatDate(ann.createdAt)}</span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 text-base">{ann.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{ann.content}</p>
                 </div>
               ))}
             </div>

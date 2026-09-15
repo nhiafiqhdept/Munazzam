@@ -485,7 +485,6 @@ const StudentPointsInner: React.FC = () => {
     portalErrorMessage,
     loading
   } = usePortal();
-  const [isViewer, setIsViewer] = useState(false);
   const [explicitLogout, setExplicitLogout] = useState(false);
 
   // Check query parameter/hash for registration token
@@ -613,8 +612,6 @@ const StudentPointsInner: React.FC = () => {
     if (portalUser) {
       logoutPortalUser();
       setExplicitLogout(true);
-    } else {
-      setIsViewer(false);
     }
   };
 
@@ -676,8 +673,8 @@ const StudentPointsInner: React.FC = () => {
     );
   }
 
-  // If not authenticated and not viewer, show login screen
-  if (!portalUser && !isViewer) {
+  // If not authenticated, show login screen
+  if (!portalUser) {
     if (isSuborgLink) {
       return (
         <div className="max-w-lg mx-auto my-12" id="direct-suborg-portal-access">
@@ -908,7 +905,6 @@ const StudentPointsInner: React.FC = () => {
       {/* Render proper workspace view */}
       {(portalUser?.role === 'super_admin' || portalUser?.role === 'nsu_admin') && <AdminDashboard />}
       {portalUser?.role === 'sub_org_admin' && <SubOrgDashboard />}
-      {!portalUser && isViewer && <ViewerDashboard />}
 
       {/* Portal workspace footer control */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xs">
@@ -929,7 +925,7 @@ const StudentPointsInner: React.FC = () => {
             className="py-1.5 px-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>{portalUser ? 'Log Out' : 'Exit Viewer'}</span>
+            <span>Log Out</span>
           </button>
         </div>
       </div>
