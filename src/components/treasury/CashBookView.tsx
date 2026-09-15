@@ -84,54 +84,6 @@ export const CashBookView: React.FC = () => {
         });
       });
 
-    loans
-      .filter((l) => l.type === 'BORROWED' && l.account_id === accId)
-      .forEach((l) => {
-        movements.push({
-          id: l.id,
-          date: l.date,
-          description: `Loan Borrowed from ${l.person_or_organization}`,
-          inAmt: l.original_amount,
-          outAmt: 0,
-        });
-      });
-
-    loanRepayments
-      .filter((r) => r.account_id === accId && r.type === 'REPAY')
-      .forEach((r) => {
-        movements.push({
-          id: r.id,
-          date: r.date,
-          description: `Loan Repayment`,
-          inAmt: 0,
-          outAmt: r.amount,
-        });
-      });
-
-    loans
-      .filter((l) => l.type === 'LENT' && l.account_id === accId)
-      .forEach((l) => {
-        movements.push({
-          id: l.id,
-          date: l.date,
-          description: `Money Lent to ${l.person_or_organization}`,
-          inAmt: 0,
-          outAmt: l.original_amount,
-        });
-      });
-
-    loanRepayments
-      .filter((r) => r.account_id === accId && r.type === 'RECOVER')
-      .forEach((r) => {
-        movements.push({
-          id: r.id,
-          date: r.date,
-          description: `Loan Recovery`,
-          inAmt: r.amount,
-          outAmt: 0,
-        });
-      });
-
     // Sort chronologically
     movements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

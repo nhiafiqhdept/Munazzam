@@ -26,6 +26,13 @@ service cloud.firestore {
       allow update: if request.auth != null && resource.data.accountId == request.auth.uid && request.resource.data.accountId == request.auth.uid;
     }
 
+    // Program categories collection isolated by accountId
+    match /program_categories/{categoryId} {
+      allow read, delete: if request.auth != null && resource.data.accountId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.accountId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.accountId == request.auth.uid && request.resource.data.accountId == request.auth.uid;
+    }
+
     // Financial accounts collection isolated by accountId
     match /financial_accounts/{accId} {
       allow read, delete: if request.auth != null && resource.data.accountId == request.auth.uid;

@@ -28,10 +28,6 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
     expenses.filter((e) => e.account_id === accountId).forEach((e) => (bal -= e.amount));
     transfers.filter((t) => t.to_account_id === accountId).forEach((t) => (bal += t.amount));
     transfers.filter((t) => t.from_account_id === accountId).forEach((t) => (bal -= t.amount));
-    loans.filter((l) => l.type === 'BORROWED' && l.account_id === accountId).forEach((l) => (bal += l.original_amount));
-    loanRepayments.filter((r) => r.account_id === accountId && r.type === 'REPAY').forEach((r) => (bal -= r.amount));
-    loans.filter((l) => l.type === 'LENT' && l.account_id === accountId).forEach((l) => (bal -= l.original_amount));
-    loanRepayments.filter((r) => r.account_id === accountId && r.type === 'RECOVER').forEach((r) => (bal += r.amount));
     return bal;
   };
 

@@ -43,6 +43,7 @@
         "id": { "type": "string" },
         "accountId": { "type": "string" },
         "name": { "type": "string" },
+        "categoryId": { "type": "string" },
         "category": { "type": "string" },
         "date": { "type": "string" },
         "place": { "type": "string" },
@@ -53,6 +54,19 @@
         "created_at": { "type": "string" }
       },
       "required": ["id", "accountId", "name", "date"]
+    },
+    "ProgramCategory": {
+      "title": "ProgramCategory",
+      "description": "Program category entity belonging to account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "accountId", "name"]
     }
   },
   "firestore": {
@@ -67,6 +81,10 @@
     "/programs/{programId}": {
       "schema": "Program",
       "description": "Programs belonging to account"
+    },
+    "/program_categories/{categoryId}": {
+      "schema": "ProgramCategory",
+      "description": "Program categories belonging to account"
     }
   }
 }

@@ -13,9 +13,16 @@ import {
   Link,
   CheckCircle2,
   Loader2,
+  File,
+  Trash2,
+  Play,
+  RefreshCw,
+  AlertCircle,
+  Eye,
 } from 'lucide-react';
 import { Program, ProgramMedia } from '../types';
 import { useApp } from '../context/AppContext';
+import { ProgramCategoryCombobox } from './ProgramCategoryCombobox';
 import {
   fileToDataUrl,
   uploadFile,
@@ -34,11 +41,12 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   onClose,
   programToEdit,
 }) => {
-  const { addProgram, updateProgram, addProgramMedia, deleteProgramMedia } = useApp();
+  const { addProgram, updateProgram, addProgramMedia, deleteProgramMedia, programCategories, ensureCategoryExists } = useApp();
 
   // Core required fields
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('');
   const [place, setPlace] = useState('');
@@ -60,24 +68,21 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
   const [initialProofs, setInitialProofs] = useState<{ id?: string; type: 'photo' | 'video' | 'document'; url: string; caption: string }[]>([]);
 
-  // Photos Proof State
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [photoCaption, setPhotoCaption] = useState('');
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [uploadProgressPhoto, setUploadProgressPhoto] = useState(0);
+  // Queued files state for multiple upload support
+  const [queuedFiles, setQueuedFiles] = useState<{
+    id: string;
+    file: File;
+    name: string;
+    size: number;
+    type: 'photo' | 'video' | 'document';
+    status: 'queued' | 'uploading' | 'completed' | 'failed';
+    progress: number;
+    url?: string;
+    error?: string;
+  }[]>([]);
 
-  // Video Proof State
-  const [videoUrl, setVideoUrl] = useState('');
-  const [videoCaption, setVideoCaption] = useState('');
-  const [videoTab, setVideoTab] = useState<'upload' | 'url'>('upload');
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [uploadProgressVideo, setUploadProgressVideo] = useState(0);
-
-  // Document Proof State
-  const [docUrl, setDocUrl] = useState('');
-  const [docCaption, setDocCaption] = useState('');
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [uploadProgressDoc, setUploadProgressDoc] = useState(0);
+  // Deletion confirmation state for existing proofs
+  const [proofToDelete, setProofToDelete] = useState<{ index: number; caption: string } | null>(null);
 
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -86,7 +91,20 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   useEffect(() => {
     if (programToEdit) {
       setName(programToEdit.name);
-      setCategory(programToEdit.category || '');
+      
+      // Resolve assigned category and ID
+      let initialCatName = (programToEdit.category || '').trim();
+      let initialCatId = programToEdit.category_id || '';
+      if (initialCatId && !initialCatName) {
+        const match = programCategories.find((c) => c.id === initialCatId);
+        if (match) initialCatName = match.name;
+      } else if (initialCatName && !initialCatId) {
+        const match = programCategories.find((c) => (c.name || '').trim().toLowerCase() === initialCatName.toLowerCase());
+        if (match) initialCatId = match.id;
+      }
+      setCategory(initialCatName);
+      setCategoryId(initialCatId);
+
       setDate(programToEdit.date);
       setTime(programToEdit.time || '');
       setPlace(programToEdit.place);
@@ -116,6 +134,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
     } else {
       setName('');
       setCategory('');
+      setCategoryId('');
       setDate(new Date().toISOString().split('T')[0]);
       setTime('10:00 AM – 01:00 PM');
       setPlace('Main College Auditorium');
@@ -128,10 +147,12 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setAttendanceCount('');
       setInitialProofs([]);
     }
+    setQueuedFiles([]);
+    setProofToDelete(null);
     setError('');
     setSuccessMessage('');
     setIsSubmitting(false);
-  }, [programToEdit, isOpen]);
+  }, [programToEdit, isOpen, programCategories]);
 
   if (!isOpen) return null;
 
@@ -152,89 +173,125 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
     }
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsUploadingPhoto(true);
-      setUploadProgressPhoto(0);
-      setError('');
-      const url = await uploadFile(file, (percent) => setUploadProgressPhoto(percent));
-      setPhotoUrl(url);
-      if (!photoCaption) setPhotoCaption(file.name);
-    } catch (err: any) {
-      setError(err.message || 'Photo upload failed.');
-    } finally {
-      setIsUploadingPhoto(false);
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'video' | 'document') => {
+    const selectedList = e.target.files;
+    if (!selectedList || selectedList.length === 0) return;
+
+    const newItems: typeof queuedFiles = [];
+    let hasUnsupported = false;
+
+    for (let i = 0; i < selectedList.length; i++) {
+      const file = selectedList[i];
+
+      // Validate file type
+      let isValid = false;
+      if (type === 'photo') {
+        isValid = file.type.startsWith('image/');
+      } else if (type === 'video') {
+        isValid = file.type.startsWith('video/');
+      } else if (type === 'document') {
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'];
+        const lowerName = file.name.toLowerCase();
+        const isAllowedExt = allowedExtensions.some(ext => lowerName.endsWith(ext));
+        const isDocMime = file.type.startsWith('application/') || file.type.startsWith('text/') || file.type === 'application/pdf';
+        isValid = isAllowedExt || isDocMime;
+      }
+
+      if (!isValid) {
+        hasUnsupported = true;
+        continue;
+      }
+
+      // Prevent duplicate video/photo/doc uploads based on filename and size
+      const isDuplicateInQueue = queuedFiles.some(item => item.name === file.name && item.size === file.size);
+      const isDuplicateInExisting = initialProofs.some(p => p.caption === file.name || p.url.includes(encodeURIComponent(file.name)));
+
+      if (isDuplicateInQueue || isDuplicateInExisting) {
+        continue;
+      }
+
+      const fileId = 'queued_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+      newItems.push({
+        id: fileId,
+        file,
+        name: file.name,
+        size: file.size,
+        type,
+        status: 'queued',
+        progress: 0,
+        url: URL.createObjectURL(file)
+      });
+    }
+
+    if (hasUnsupported) {
+      setError(`Some files were skipped because they have unsupported formats.`);
+    }
+
+    if (newItems.length > 0) {
+      setQueuedFiles(prev => [...prev, ...newItems]);
+    }
+    // Clear value to allow picking same files again if deleted
+    e.target.value = '';
+  };
+
+  // Auto upload effect
+  useEffect(() => {
+    const queuedItem = queuedFiles.find(item => item.status === 'queued');
+    if (queuedItem) {
+      const uploadWorker = async () => {
+        // Mark as uploading immediately to avoid double calls
+        setQueuedFiles(prev => prev.map(f => f.id === queuedItem.id ? { ...f, status: 'uploading', progress: 0 } : f));
+        try {
+          const serverUrl = await uploadFile(queuedItem.file, (percent) => {
+            setQueuedFiles(prev => prev.map(f => f.id === queuedItem.id ? { ...f, progress: percent } : f));
+          });
+          setQueuedFiles(prev => prev.map(f => f.id === queuedItem.id ? { ...f, status: 'completed', progress: 100, url: serverUrl } : f));
+        } catch (err: any) {
+          setQueuedFiles(prev => prev.map(f => f.id === queuedItem.id ? { ...f, status: 'failed', error: err.message || 'Upload failed' } : f));
+        }
+      };
+      uploadWorker();
+    }
+  }, [queuedFiles]);
+
+  const handleRetryUpload = (id: string) => {
+    setQueuedFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'queued', progress: 0, error: undefined } : f));
+  };
+
+  const handleRemoveQueuedFile = (id: string) => {
+    setQueuedFiles(prev => {
+      const match = prev.find(f => f.id === id);
+      if (match?.url && match.url.startsWith('blob:')) {
+        URL.revokeObjectURL(match.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
+  };
+
+  const handleRequestDeleteExistingProof = (index: number) => {
+    const target = initialProofs[index];
+    if (target) {
+      setProofToDelete({ index, caption: target.caption || 'this file' });
     }
   };
 
-  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsUploadingVideo(true);
-      setUploadProgressVideo(0);
-      setError('');
-      const url = await uploadFile(file, (percent) => setUploadProgressVideo(percent));
-      setVideoUrl(url);
-      if (!videoCaption) setVideoCaption(file.name);
-    } catch (err: any) {
-      setError(err.message || 'Video upload failed.');
-    } finally {
-      setIsUploadingVideo(false);
+  const handleConfirmDeleteExistingProof = async () => {
+    if (proofToDelete === null) return;
+    const { index } = proofToDelete;
+    const targetProof = initialProofs[index];
+    
+    // If we're editing an existing program and it has an ID, call the cloud deletion
+    if (programToEdit && targetProof && targetProof.id) {
+      try {
+        await deleteProgramMedia(programToEdit.id, targetProof.id);
+      } catch (err: any) {
+        console.error('Failed to delete media from firestore:', err);
+      }
     }
-  };
 
-  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsUploadingDoc(true);
-      setUploadProgressDoc(0);
-      setError('');
-      const url = await uploadFile(file, (percent) => setUploadProgressDoc(percent));
-      setDocUrl(url);
-      if (!docCaption) setDocCaption(file.name);
-    } catch (err: any) {
-      setError(err.message || 'Document upload failed.');
-    } finally {
-      setIsUploadingDoc(false);
-    }
-  };
-
-  const addPhotoProof = () => {
-    if (!photoUrl) {
-      setError('Please upload or provide a photo URL.');
-      return;
-    }
-    setInitialProofs(prev => [...prev, { type: 'photo', url: photoUrl, caption: photoCaption || 'Photo Proof' }]);
-    setPhotoUrl('');
-    setPhotoCaption('');
-  };
-
-  const addVideoProof = () => {
-    if (!videoUrl) {
-      setError('Please upload or provide a video URL.');
-      return;
-    }
-    setInitialProofs(prev => [...prev, { type: 'video', url: videoUrl, caption: videoCaption || 'Video Proof' }]);
-    setVideoUrl('');
-    setVideoCaption('');
-  };
-
-  const addDocProof = () => {
-    if (!docUrl) {
-      setError('Please upload or provide a document URL.');
-      return;
-    }
-    setInitialProofs(prev => [...prev, { type: 'document', url: docUrl, caption: docCaption || 'Document Proof' }]);
-    setDocUrl('');
-    setDocCaption('');
-  };
-
-  const removeProof = (index: number) => {
     setInitialProofs((prev) => prev.filter((_, idx) => idx !== index));
+    setProofToDelete(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -265,66 +322,99 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
     const finalPoster = posterTab === 'url' && customPosterUrl ? customPosterUrl : poster;
 
-    const programData = {
-      name: name.trim(),
-      category: category.trim(),
-      date,
-      time: time.trim(),
-      place: place.trim(),
-      audience: finalAudience,
-      description: description.trim(),
-      poster: finalPoster,
-      status,
-      attendance_count: attendanceCount === '' ? undefined : Number(attendanceCount),
-    };
+    const trimmedCategory = category.trim();
+    let finalCategoryId = categoryId;
+    let finalCategoryName = trimmedCategory;
 
     try {
       setIsSubmitting(true);
       setError('');
       setSuccessMessage('');
 
+      // Check for any ongoing uploads
+      const activeUploadsCount = queuedFiles.filter(f => f.status === 'queued' || f.status === 'uploading').length;
+      if (activeUploadsCount > 0) {
+        setError(`Please wait for ${activeUploadsCount} selected file(s) to finish uploading.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check for failed uploads
+      const failedUploadsCount = queuedFiles.filter(f => f.status === 'failed').length;
+      if (failedUploadsCount > 0) {
+        setError(`Please retry or remove the ${failedUploadsCount} failed upload(s) before saving.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (trimmedCategory) {
+        try {
+          const ensuredCat = await ensureCategoryExists(trimmedCategory);
+          if (ensuredCat) {
+            finalCategoryId = ensuredCat.id;
+            finalCategoryName = ensuredCat.name;
+          }
+        } catch (catErr) {
+          console.warn('Could not auto-ensure category document:', catErr);
+        }
+      } else {
+        finalCategoryId = '';
+        finalCategoryName = '';
+      }
+
+      const parsedAttendance = attendanceCount === '' ? 0 : Number(attendanceCount);
+
+      const programData = {
+        name: name.trim(),
+        category_id: finalCategoryId || '',
+        category: finalCategoryName || '',
+        date,
+        time: time.trim(),
+        place: place.trim(),
+        audience: finalAudience,
+        description: description.trim(),
+        poster: finalPoster || '',
+        status,
+        attendance_count: isNaN(parsedAttendance) ? 0 : parsedAttendance,
+      };
+
+      const formattedInitialMedia = initialProofs.map((p, idx) => ({
+        id: p.id || 'med_' + Date.now() + '_' + idx,
+        program_id: programToEdit ? programToEdit.id : '',
+        type: p.type || 'photo',
+        url: p.url || '',
+        caption: p.caption || '',
+        file_name: p.caption || '',
+        created_at: new Date().toISOString(),
+      }));
+
+      // Add completed queued files to media
+      const newlyUploadedMedia = queuedFiles
+        .filter(f => f.status === 'completed')
+        .map((f, idx) => ({
+          id: 'med_' + Date.now() + '_new_' + idx + '_' + Math.random().toString(36).substr(2, 4),
+          program_id: programToEdit ? programToEdit.id : '',
+          type: f.type,
+          url: f.url || '',
+          caption: f.name,
+          file_name: f.name,
+          created_at: new Date().toISOString(),
+        }));
+
+      const finalMedia = [...formattedInitialMedia, ...newlyUploadedMedia];
+
       if (programToEdit) {
         await updateProgram({
           id: programToEdit.id,
           ...programData,
+          media: finalMedia,
         });
-
-        // Manage Media Changes
-        const existingMedia = programToEdit.media || [];
-        const currentMediaIds = initialProofs.filter(p => p.id).map(p => p.id);
-        
-        // 1. Identify and delete removed media
-        const mediaToDelete = existingMedia.filter(m => !currentMediaIds.includes(m.id));
-        for (const m of mediaToDelete) {
-          await deleteProgramMedia(programToEdit.id, m.id);
-        }
-
-        // 2. Identify and add new media
-        const mediaToAdd = initialProofs.filter(p => !p.id);
-        for (const m of mediaToAdd) {
-          await addProgramMedia(programToEdit.id, {
-            type: m.type,
-            url: m.url,
-            caption: m.caption,
-            file_name: m.caption,
-          });
-        }
         setSuccessMessage('Program changes saved & updated successfully!');
       } else {
-        const newProgram = await addProgram({
+        await addProgram({
           ...programData,
-          media: [],
+          media: finalMedia,
         });
-
-        // Add initial proofs
-        for (const proof of initialProofs) {
-          await addProgramMedia(newProgram.id, {
-            type: proof.type,
-            url: proof.url,
-            caption: proof.caption,
-            file_name: proof.caption,
-          });
-        }
         setSuccessMessage('Program uploaded & published successfully!');
       }
 
@@ -332,10 +422,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       setIsSubmitting(false);
-      setError(err.message || 'Failed to save program.');
+      setError(err.message || 'Failed to save program to cloud database.');
     }
   };
 
@@ -388,17 +478,24 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* Program Category */}
+          {/* Program Category (Optional Account Combobox) */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              PROGRAM CATEGORY
-            </label>
-            <input
-              type="text"
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Program Category <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+              </label>
+              {category && (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  {category}
+                </span>
+              )}
+            </div>
+            <ProgramCategoryCombobox
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Enter program category"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              onChange={(catName, catId) => {
+                setCategory(catName);
+                setCategoryId(catId || '');
+              }}
             />
           </div>
 
@@ -593,201 +690,400 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               <p className="text-xs text-slate-500">Attach photos, video recordings, and official reports to document the activity.</p>
             </div>
 
-            {/* 1. Photo Proofs Card */}
+            {/* 1. Photo Proofs Section */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                <Camera className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Photo Proofs</h4>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Photo Proofs</h4>
+                </div>
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer text-[11px] font-semibold text-slate-700 transition-colors">
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Choose Photo Files</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => handleFilesSelected(e, 'photo')}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
-              {/* Display existing photos */}
+              {/* A. Already Uploaded Photos */}
               {initialProofs.filter(p => p.type === 'photo').length > 0 && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pb-2">
-                  {initialProofs.map((proof, idx) => proof.type === 'photo' ? (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white group">
-                      <img src={proof.url} alt={proof.caption} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-1">
-                        <p className="text-[8px] text-white font-bold truncate w-full text-center mb-1">{proof.caption}</p>
-                        <button 
-                          type="button" 
-                          onClick={() => removeProof(idx)}
-                          className="p-1 bg-rose-600 text-white rounded-md hover:bg-rose-700"
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Already Uploaded</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {initialProofs.map((proof, idx) => proof.type === 'photo' ? (
+                      <div key={`existing-photo-${idx}`} className="relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-white group shadow-xs">
+                        <img src={proof.url} alt={proof.caption} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                          <p className="text-[10px] text-white font-bold truncate w-full" title={proof.caption}>
+                            {proof.caption}
+                          </p>
+                          <div className="flex justify-end gap-1.5">
+                            <a
+                              href={proof.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-lg backdrop-blur-xs transition-colors"
+                              title="View full image"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleRequestDeleteExistingProof(idx)}
+                              className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                              title="Delete proof"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              )}
+
+              {/* B. Newly Selected Photos Queue */}
+              {queuedFiles.filter(f => f.type === 'photo').length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Uploads</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {queuedFiles.map((item) => item.type === 'photo' ? (
+                      <div key={item.id} className="flex gap-3 p-2 bg-white rounded-xl border border-slate-200/80 shadow-xs relative">
+                        <div className="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-100">
+                          <img src={item.url} alt="Local preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div className="pr-6">
+                            <p className="text-xs font-bold text-slate-800 truncate" title={item.name}>{item.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{(item.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+
+                          {/* Upload Progress/Status */}
+                          <div className="w-full mt-1">
+                            {item.status === 'uploading' && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[8px] font-bold text-emerald-600">
+                                  <span>Uploading...</span>
+                                  <span>{item.progress}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${item.progress}%` }} />
+                                </div>
+                              </div>
+                            )}
+                            {item.status === 'completed' && (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>Success</span>
+                              </div>
+                            )}
+                            {item.status === 'failed' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-rose-600">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate" title={item.error}>{item.error || 'Upload failed'}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryUpload(item.id)}
+                                  className="flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-bold underline cursor-pointer"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  Retry
+                                </button>
+                              </div>
+                            )}
+                            {item.status === 'queued' && (
+                              <p className="text-[10px] text-slate-400 font-bold">In Queue...</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Remove Action Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQueuedFile(item.id)}
+                          className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </div>
-                  ) : null)}
+                    ) : null)}
+                  </div>
                 </div>
               )}
-
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-emerald-500 text-xs font-semibold text-slate-700">
-                    <Upload className="w-4 h-4 text-emerald-600" />
-                    <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Choose Photo File'}</span>
-                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                  </label>
-                  <input
-                    type="text"
-                    value={photoCaption}
-                    onChange={(e) => setPhotoCaption(e.target.value)}
-                    placeholder="Photo Caption (e.g. Stage Event)"
-                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={addPhotoProof}
-                  disabled={!photoUrl}
-                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Attach Photo</span>
-                </button>
-              </div>
             </div>
 
-            {/* 2. Video Proofs Card */}
+            {/* 2. Video Proofs Section */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                <Video className="w-4 h-4 text-blue-600" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Video Proofs</h4>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2">
+                  <Video className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Video Proofs</h4>
+                </div>
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer text-[11px] font-semibold text-slate-700 transition-colors">
+                  <Upload className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Choose Video Files</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="video/*"
+                    onChange={(e) => handleFilesSelected(e, 'video')}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
-              {/* Display existing videos */}
+              {/* A. Already Uploaded Videos */}
               {initialProofs.filter(p => p.type === 'video').length > 0 && (
-                <div className="space-y-2 pb-2">
-                  {initialProofs.map((proof, idx) => proof.type === 'video' ? (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-[11px]">
-                      <div className="flex items-center gap-2 truncate">
-                        <Video className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="font-bold text-slate-800 truncate">{proof.caption}</span>
-                        <span className="text-slate-400 truncate hidden sm:inline">({proof.url})</span>
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Already Uploaded</div>
+                  <div className="space-y-2">
+                    {initialProofs.map((proof, idx) => proof.type === 'video' ? (
+                      <div key={`existing-video-${idx}`} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-xs">
+                        <div className="flex items-center gap-2.5 truncate min-w-0 flex-1">
+                          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
+                            <Video className="w-4 h-4" />
+                          </div>
+                          <div className="truncate pr-4">
+                            <span className="font-bold text-slate-800 block truncate">{proof.caption}</span>
+                            <span className="text-[10px] text-slate-400 truncate block">Click view to watch on-demand</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <a
+                            href={proof.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Watch Video"
+                          >
+                            <Play className="w-4 h-4" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestDeleteExistingProof(idx)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete proof"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <button 
-                        type="button" 
-                        onClick={() => removeProof(idx)}
-                        className="text-rose-600 hover:bg-rose-50 p-1 rounded-md"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : null)}
+                    ) : null)}
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-3">
-                <div className="flex gap-2 text-[10px] mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setVideoTab('upload')}
-                    className={`px-3 py-1 rounded-lg font-bold ${videoTab === 'upload' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}
-                  >
-                    Upload Video
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVideoTab('url')}
-                    className={`px-3 py-1 rounded-lg font-bold ${videoTab === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}
-                  >
-                    YouTube / Link
-                  </button>
-                </div>
+              {/* B. Newly Selected Videos Queue */}
+              {queuedFiles.filter(f => f.type === 'video').length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Uploads</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {queuedFiles.map((item) => item.type === 'video' ? (
+                      <div key={item.id} className="flex gap-3 p-2 bg-white rounded-xl border border-slate-200/80 shadow-xs relative">
+                        <div className="w-14 h-14 rounded-lg bg-slate-50 shrink-0 border border-slate-100 flex items-center justify-center">
+                          <Video className="w-6 h-6 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div className="pr-6">
+                            <p className="text-xs font-bold text-slate-800 truncate" title={item.name}>{item.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{(item.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {videoTab === 'upload' ? (
-                    <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-blue-500 text-xs font-semibold text-slate-700">
-                      <Upload className="w-4 h-4 text-blue-600" />
-                      <span>{isUploadingVideo ? 'Uploading Video...' : 'Choose Video File'}</span>
-                      <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
-                    </label>
-                  ) : (
-                    <div className="relative">
-                      <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                      <input
-                        type="url"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        placeholder="YouTube / Video URL"
-                        className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
-                      />
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    value={videoCaption}
-                    onChange={(e) => setVideoCaption(e.target.value)}
-                    placeholder="Video Title (e.g. Keynote Speech)"
-                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
-                  />
+                          {/* Upload Progress/Status */}
+                          <div className="w-full mt-1">
+                            {item.status === 'uploading' && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[8px] font-bold text-blue-600">
+                                  <span>Uploading...</span>
+                                  <span>{item.progress}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${item.progress}%` }} />
+                                </div>
+                              </div>
+                            )}
+                            {item.status === 'completed' && (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>Success</span>
+                              </div>
+                            )}
+                            {item.status === 'failed' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-rose-600">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate" title={item.error}>{item.error || 'Upload failed'}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryUpload(item.id)}
+                                  className="flex items-center gap-1 text-[10px] text-blue-700 hover:text-blue-800 font-bold underline cursor-pointer"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  Retry
+                                </button>
+                              </div>
+                            )}
+                            {item.status === 'queued' && (
+                              <p className="text-[10px] text-slate-400 font-bold">In Queue...</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Remove Action Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQueuedFile(item.id)}
+                          className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : null)}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={addVideoProof}
-                  disabled={!videoUrl}
-                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Attach Video</span>
-                </button>
-              </div>
+              )}
             </div>
 
-            {/* 3. Document & PDF Proofs Card */}
+            {/* 3. Document & PDF Proofs Section */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                <FileText className="w-4 h-4 text-amber-600" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Document & PDF Proofs</h4>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Document & PDF Proofs</h4>
+                </div>
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer text-[11px] font-semibold text-slate-700 transition-colors">
+                  <Upload className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Choose Document Files</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf"
+                    onChange={(e) => handleFilesSelected(e, 'document')}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
-              {/* Display existing documents */}
+              {/* A. Already Uploaded Documents */}
               {initialProofs.filter(p => p.type === 'document').length > 0 && (
-                <div className="space-y-2 pb-2">
-                  {initialProofs.map((proof, idx) => proof.type === 'document' ? (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-[11px]">
-                      <div className="flex items-center gap-2 truncate">
-                        <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span className="font-bold text-slate-800 truncate">{proof.caption}</span>
-                        <span className="text-slate-400 truncate hidden sm:inline">({proof.url.split('/').pop()})</span>
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Already Uploaded</div>
+                  <div className="space-y-2">
+                    {initialProofs.map((proof, idx) => proof.type === 'document' ? (
+                      <div key={`existing-doc-${idx}`} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-xs">
+                        <div className="flex items-center gap-2.5 truncate min-w-0 flex-1">
+                          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div className="truncate pr-4">
+                            <span className="font-bold text-slate-800 block truncate">{proof.caption}</span>
+                            <span className="text-[10px] text-slate-400 truncate block">Official uploaded report</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <a
+                            href={proof.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Download / View Report"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestDeleteExistingProof(idx)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete proof"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <button 
-                        type="button" 
-                        onClick={() => removeProof(idx)}
-                        className="text-rose-600 hover:bg-rose-50 p-1 rounded-md"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : null)}
+                    ) : null)}
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-amber-500 text-xs font-semibold text-slate-700">
-                    <Upload className="w-4 h-4 text-amber-600" />
-                    <span>{isUploadingDoc ? 'Uploading Doc...' : 'Choose Doc / PDF'}</span>
-                    <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={handleDocUpload} className="hidden" />
-                  </label>
-                  <input
-                    type="text"
-                    value={docCaption}
-                    onChange={(e) => setDocCaption(e.target.value)}
-                    placeholder="Document Title (e.g. Program Report)"
-                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs"
-                  />
+              {/* B. Newly Selected Documents Queue */}
+              {queuedFiles.filter(f => f.type === 'document').length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">New Uploads</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {queuedFiles.map((item) => item.type === 'document' ? (
+                      <div key={item.id} className="flex gap-3 p-2 bg-white rounded-xl border border-slate-200/80 shadow-xs relative">
+                        <div className="w-14 h-14 rounded-lg bg-slate-50 shrink-0 border border-slate-100 flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div className="pr-6">
+                            <p className="text-xs font-bold text-slate-800 truncate" title={item.name}>{item.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{(item.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+
+                          {/* Upload Progress/Status */}
+                          <div className="w-full mt-1">
+                            {item.status === 'uploading' && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[8px] font-bold text-amber-600">
+                                  <span>Uploading...</span>
+                                  <span>{item.progress}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-500 rounded-full transition-all duration-300" style={{ width: `${item.progress}%` }} />
+                                </div>
+                              </div>
+                            )}
+                            {item.status === 'completed' && (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                <span>Success</span>
+                              </div>
+                            )}
+                            {item.status === 'failed' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-rose-600">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate" title={item.error}>{item.error || 'Upload failed'}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryUpload(item.id)}
+                                  className="flex items-center gap-1 text-[10px] text-amber-700 hover:text-emerald-800 font-bold underline cursor-pointer"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  Retry
+                                </button>
+                              </div>
+                            )}
+                            {item.status === 'queued' && (
+                              <p className="text-[10px] text-slate-400 font-bold">In Queue...</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Remove Action Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQueuedFile(item.id)}
+                          className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : null)}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={addDocProof}
-                  disabled={!docUrl}
-                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Attach Document</span>
-                </button>
-              </div>
+              )}
             </div>
           </div>
 
@@ -829,6 +1125,41 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Custom Deletion Confirmation Modal Overlay */}
+      {proofToDelete !== null && (
+        <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3">
+              <div className="p-3 bg-rose-50 rounded-2xl text-rose-600 shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-bold text-slate-900 font-heading">Delete Proof Document</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Are you sure you want to permanently delete <strong className="text-slate-800 break-all">"{proofToDelete.caption}"</strong>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end text-xs font-bold pt-2">
+              <button
+                type="button"
+                onClick={() => setProofToDelete(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteExistingProof}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-colors"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

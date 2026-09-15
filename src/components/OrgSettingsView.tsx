@@ -10,9 +10,14 @@ import {
   LogOut,
   User,
   Image as ImageIcon,
+  Smartphone,
+  CheckCircle2,
+  Share2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { uploadFile, DEFAULT_ORG_LOGO } from '../utils/helpers';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { PWAInstallModal } from './pwa/PWAInstallModal';
 
 interface OrgSettingsViewProps {
   onOpenNewOrgModal?: () => void;
@@ -48,6 +53,9 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isPWAInstallModalOpen, setIsPWAInstallModalOpen] = useState(false);
+
+  const { isInstallable, isInstalled, isStandalone, install } = usePWAInstall();
 
   useEffect(() => {
     if (currentOrg) {
@@ -395,6 +403,68 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
             </div>
           )}
 
+          {/* PWA & App Installation Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 border border-emerald-500/30 p-1.5 flex items-center justify-center shrink-0">
+                <img
+                  src="/icon-192x192.png"
+                  alt="Munazzam App"
+                  className="w-full h-full object-contain rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/icon.svg';
+                  }}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 font-heading">
+                    Munazzam App
+                  </h3>
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-md border border-emerald-200">
+                    PWA v1.0
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 truncate">
+                  Progressive Web Application
+                </p>
+              </div>
+            </div>
+
+            {isStandalone || isInstalled ? (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div className="min-w-0 text-xs">
+                  <p className="font-bold text-emerald-900">Installed on Device</p>
+                  <p className="text-[11px] text-emerald-700">Running in standalone app mode</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Install Munazzam to your home screen or desktop for fast offline viewing and fullscreen experience.
+                </p>
+                <button
+                  id="settings-install-pwa-btn"
+                  onClick={async () => {
+                    if (isInstallable) {
+                      const res = await install();
+                      if (!res.success) {
+                        setIsPWAInstallModalOpen(true);
+                      }
+                    } else {
+                      setIsPWAInstallModalOpen(true);
+                    }
+                  }}
+                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Install Munazzam App</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Backup Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
@@ -451,6 +521,12 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
           <span>Sign Out</span>
         </button>
       </div>
+
+      {/* PWA Guided Install Modal */}
+      <PWAInstallModal
+        isOpen={isPWAInstallModalOpen}
+        onClose={() => setIsPWAInstallModalOpen(false)}
+      />
     </div>
   );
 };

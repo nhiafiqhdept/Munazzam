@@ -13,12 +13,13 @@ import {
   deleteDoc,
   getDocFromServer,
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, cleanFirestorePayload } from '../lib/firebase';
 import {
   AuthUser,
   Organization,
   Organizer,
   Program,
+  ProgramCategory,
   ProgramMedia,
   ActiveTab,
   FinancialAccount,
@@ -89,11 +90,14 @@ interface AppContextType {
 
   programs: Program[];
   allPrograms: Program[];
+  programCategories: ProgramCategory[];
   addProgram: (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => Promise<Program>;
   updateProgram: (prog: Partial<Program> & { id: string }) => Promise<void>;
   deleteProgram: (id: string) => Promise<void>;
   addProgramMedia: (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => Promise<void>;
   deleteProgramMedia: (programId: string, mediaId: string) => Promise<void>;
+  addProgramCategory: (name: string) => Promise<ProgramCategory>;
+  ensureCategoryExists: (name: string) => Promise<ProgramCategory | null>;
 
   // Treasury State & Methods
   accounts: FinancialAccount[];
@@ -171,6 +175,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
+  const [programCategories, setProgramCategories] = useState<ProgramCategory[]>([]);
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -212,6 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             role: 'admin',
           };
 
+          localStorage.setItem('org_token', idToken);
           setToken(idToken);
           setUser(authUser);
           setIsAuthenticated(true);
@@ -276,6 +282,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Firebase SignOut failed:', err);
     }
+    // Clean local user-specific caches
+    try {
+      localStorage.removeItem('local_programs');
+      localStorage.removeItem('org_token');
+      localStorage.removeItem('last_org_name');
+      localStorage.removeItem('last_org_logo');
+    } catch (e) {
+      console.warn('Could not clear local storage on logout:', e);
+    }
+
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
@@ -283,6 +299,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentOrgId('');
     setOrganizers([]);
     setPrograms([]);
+    setProgramCategories([]);
     setAccounts([]);
     setIncomes([]);
     setExpenses([]);
@@ -348,6 +365,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setOrganizers(list.sort((a, b) => a.display_order - b.display_order));
     }, (err) => handleFirestoreError(err, OperationType.GET, 'organizers'));
 
+    // 2.5 Program Categories
+    const qCategories = query(collection(db, 'program_categories'), where('accountId', '==', uid));
+    const unsubCategories = onSnapshot(qCategories, (snapshot) => {
+      const list: ProgramCategory[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          organization_id: uid,
+          name: d.name || '',
+          created_at: d.createdAt || d.created_at || '',
+          updated_at: d.updatedAt || d.updated_at || '',
+        });
+      });
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+      setProgramCategories(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'program_categories'));
+
     // 3. Programs
     const qPrograms = query(collection(db, 'programs'), where('accountId', '==', uid));
     const unsubPrograms = onSnapshot(qPrograms, (snapshot) => {
@@ -358,6 +393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: docSnap.id,
           organization_id: uid,
           name: d.name || '',
+          category_id: d.categoryId || d.category_id || '',
           category: d.category || '',
           date: d.date || '',
           time: d.time || '',
@@ -368,8 +404,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           media: d.media || [],
           status: d.status || 'completed',
           attendance_count: d.attendance_count || 0,
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+          created_at: d.created_at || d.createdAt || '',
+          updated_at: d.updated_at || d.updatedAt || '',
         });
       });
       list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
@@ -528,6 +564,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       unsubOrg();
       unsubOrganizers();
+      unsubCategories();
       unsubPrograms();
       unsubAccounts();
       unsubIncomes();
@@ -637,75 +674,210 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Category Operations
+  const ensureCategoryExists = async (categoryName: string): Promise<ProgramCategory | null> => {
+    const trimmed = (categoryName || '').trim();
+    if (!trimmed) return null;
+
+    // Check if category already exists in memory (case-insensitive and trimmed)
+    const existing = programCategories.find(
+      (c) => (c.name || '').trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const now = new Date().toISOString();
+    if (!user?.id) {
+      const tempCat: ProgramCategory = {
+        id: 'cat_' + Date.now(),
+        organization_id: 'guest',
+        name: trimmed,
+        created_at: now,
+        updated_at: now,
+      };
+      setProgramCategories((prev) => [...prev, tempCat]);
+      return tempCat;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, 'program_categories'), {
+        accountId: user.id,
+        name: trimmed,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const newCat: ProgramCategory = {
+        id: docRef.id,
+        organization_id: user.id,
+        name: trimmed,
+        created_at: now,
+        updated_at: now,
+      };
+      setProgramCategories((prev) => {
+        if (prev.some((c) => c.id === newCat.id || (c.name || '').trim().toLowerCase() === trimmed.toLowerCase())) {
+          return prev;
+        }
+        const next = [...prev, newCat];
+        return next.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+      });
+      return newCat;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'program_categories');
+      throw err;
+    }
+  };
+
+  const addProgramCategory = async (name: string): Promise<ProgramCategory> => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      throw new Error('Category name cannot be empty.');
+    }
+    const result = await ensureCategoryExists(trimmed);
+    if (!result) {
+      throw new Error('Failed to create category.');
+    }
+    return result;
+  };
+
   // Program Mutations
   const addProgram = async (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Program> => {
+    if (!user?.id) {
+      throw new Error('You must be logged in to record a program.');
+    }
     const now = new Date().toISOString();
-    const uid = user?.id || 'main_account';
-    const tempId = 'prog_' + Date.now();
-    const newProg: Program = {
-      id: tempId,
-      organization_id: uid,
-      name: prog.name,
-      category: prog.category || 'General',
+    const uid = user.id;
+
+    // Resolve category and category_id
+    let resolvedCategoryId = prog.category_id || '';
+    let resolvedCategoryName = (prog.category || '').trim();
+
+    if (resolvedCategoryId && !resolvedCategoryName) {
+      const match = programCategories.find((c) => c.id === resolvedCategoryId);
+      if (match) resolvedCategoryName = match.name;
+    } else if (resolvedCategoryName && !resolvedCategoryId) {
+      const match = programCategories.find((c) => (c.name || '').trim().toLowerCase() === resolvedCategoryName.toLowerCase());
+      if (match) {
+        resolvedCategoryId = match.id;
+        resolvedCategoryName = match.name;
+      }
+    }
+
+    const formattedMedia = (prog.media || []).map((m, idx) => ({
+      id: m.id || 'med_' + Date.now() + '_' + idx,
+      program_id: '',
+      type: m.type || 'photo',
+      url: m.url || '',
+      caption: m.caption || '',
+      file_name: m.file_name || m.caption || '',
+      created_at: m.created_at || now,
+    }));
+
+    const rawData = {
+      accountId: uid,
+      name: (prog.name || '').trim(),
+      categoryId: resolvedCategoryId || '',
+      category: resolvedCategoryName || '',
       date: prog.date || now.split('T')[0],
       time: prog.time || '',
-      place: prog.place || '',
+      place: (prog.place || '').trim(),
       audience: prog.audience || 'Students',
-      description: prog.description || '',
-      poster: prog.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1000&auto=format&fit=crop&q=80',
-      media: prog.media || [],
+      description: (prog.description || '').trim(),
+      poster: prog.poster || '',
+      media: formattedMedia,
       status: prog.status || 'completed',
-      attendance_count: prog.attendance_count || 0,
+      attendance_count: prog.attendance_count !== undefined && !isNaN(Number(prog.attendance_count)) ? Number(prog.attendance_count) : 0,
       created_at: now,
       updated_at: now,
     };
 
-    // Immediate optimistic update to React state and localStorage
-    setPrograms((prev) => {
-      const updated = [newProg, ...prev.filter((p) => p.id !== tempId)];
-      try {
-        localStorage.setItem('local_programs', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    const payload = cleanFirestorePayload(rawData);
 
-    if (user?.id) {
-      try {
-        const docRef = await addDoc(collection(db, 'programs'), {
-          accountId: user.id,
-          name: newProg.name,
-          category: newProg.category,
-          date: newProg.date,
-          time: newProg.time,
-          place: newProg.place,
-          audience: newProg.audience,
-          description: newProg.description,
-          poster: newProg.poster,
-          media: newProg.media,
-          status: newProg.status,
-          attendance_count: newProg.attendance_count,
-          created_at: now,
-          updated_at: now,
-        });
+    try {
+      const docRef = await addDoc(collection(db, 'programs'), payload);
 
-        const savedProg: Program = { ...newProg, id: docRef.id };
-        setPrograms((prev) => {
-          const updated = prev.map((p) => (p.id === tempId ? savedProg : p));
-          try {
-            localStorage.setItem('local_programs', JSON.stringify(updated));
-          } catch {}
-          return updated;
-        });
-        return savedProg;
-      } catch (err) {
-        handleFirestoreError(err, OperationType.CREATE, 'programs');
-      }
+      const savedProg: Program = {
+        id: docRef.id,
+        organization_id: uid,
+        name: rawData.name,
+        category_id: rawData.categoryId || undefined,
+        category: rawData.category || undefined,
+        date: rawData.date,
+        time: rawData.time,
+        place: rawData.place,
+        audience: rawData.audience,
+        description: rawData.description,
+        poster: rawData.poster,
+        media: formattedMedia.map((m) => ({ ...m, program_id: docRef.id })),
+        status: rawData.status,
+        attendance_count: rawData.attendance_count,
+        created_at: now,
+        updated_at: now,
+      };
+
+      setPrograms((prev) => {
+        const filtered = prev.filter((p) => p.id !== docRef.id);
+        const updated = [savedProg, ...filtered];
+        try {
+          localStorage.setItem('local_programs', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+
+      return savedProg;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'programs');
+      throw err;
     }
-    return newProg;
   };
 
   const updateProgram = async (prog: Partial<Program> & { id: string }) => {
+    if (!user?.id) {
+      throw new Error('You must be logged in to update a program.');
+    }
     const now = new Date().toISOString();
+
+    // Resolve category and category_id if updated
+    let resolvedCategoryId = prog.category_id;
+    let resolvedCategoryName = prog.category !== undefined ? (prog.category || '').trim() : undefined;
+
+    if (resolvedCategoryId && resolvedCategoryName === undefined) {
+      const match = programCategories.find((c) => c.id === resolvedCategoryId);
+      if (match) resolvedCategoryName = match.name;
+    } else if (resolvedCategoryName && resolvedCategoryId === undefined) {
+      const match = programCategories.find((c) => (c.name || '').trim().toLowerCase() === resolvedCategoryName!.toLowerCase());
+      if (match) {
+        resolvedCategoryId = match.id;
+        resolvedCategoryName = match.name;
+      }
+    }
+
+    const updatesToApply: Record<string, any> = {
+      updated_at: now,
+    };
+
+    if (prog.name !== undefined) updatesToApply.name = (prog.name || '').trim();
+    if (prog.date !== undefined) updatesToApply.date = prog.date;
+    if (prog.time !== undefined) updatesToApply.time = prog.time;
+    if (prog.place !== undefined) updatesToApply.place = (prog.place || '').trim();
+    if (prog.audience !== undefined) updatesToApply.audience = prog.audience;
+    if (prog.description !== undefined) updatesToApply.description = (prog.description || '').trim();
+    if (prog.poster !== undefined) updatesToApply.poster = prog.poster;
+    if (prog.media !== undefined) updatesToApply.media = prog.media;
+    if (prog.status !== undefined) updatesToApply.status = prog.status;
+    if (prog.attendance_count !== undefined) {
+      updatesToApply.attendance_count = isNaN(Number(prog.attendance_count)) ? 0 : Number(prog.attendance_count);
+    }
+    if (resolvedCategoryId !== undefined) {
+      updatesToApply.categoryId = resolvedCategoryId || '';
+      updatesToApply.category_id = resolvedCategoryId || '';
+    }
+    if (resolvedCategoryName !== undefined) {
+      updatesToApply.category = resolvedCategoryName || '';
+    }
+
+    const payload = cleanFirestorePayload(updatesToApply);
+
     setPrograms((prev) => {
       const updated = prev.map((p) => (p.id === prog.id ? { ...p, ...prog, updated_at: now } : p));
       try {
@@ -714,21 +886,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    if (user?.id) {
-      try {
-        const docRef = doc(db, 'programs', prog.id);
-        const { id, organization_id, ...updates } = prog;
-        await updateDoc(docRef, {
-          ...updates,
-          updated_at: now,
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `programs/${prog.id}`);
-      }
+    try {
+      const docRef = doc(db, 'programs', prog.id);
+      await updateDoc(docRef, payload);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `programs/${prog.id}`);
+      throw err;
     }
   };
 
   const deleteProgram = async (id: string) => {
+    if (!user?.id) throw new Error('Not authenticated');
+
     setPrograms((prev) => {
       const updated = prev.filter((p) => p.id !== id);
       try {
@@ -737,36 +906,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    if (user?.id) {
-      try {
-        await deleteDoc(doc(db, 'programs', id));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `programs/${id}`);
-      }
+    try {
+      await deleteDoc(doc(db, 'programs', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `programs/${id}`);
+      throw err;
     }
   };
 
   const addProgramMedia = async (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => {
-    const targetProg = programs.find((p) => p.id === programId);
-    if (!targetProg) return;
+    if (!user?.id) throw new Error('Not authenticated');
 
+    const now = new Date().toISOString();
     const newMedia: ProgramMedia = {
-      id: 'med_' + Date.now(),
+      id: 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       program_id: programId,
-      ...mediaItem,
-      created_at: new Date().toISOString(),
+      type: mediaItem.type || 'photo',
+      url: mediaItem.url || '',
+      caption: mediaItem.caption || '',
+      file_name: mediaItem.file_name || mediaItem.caption || '',
+      created_at: now,
     };
 
-    const updatedMedia = [...(targetProg.media || []), newMedia];
-    await updateProgram({ id: programId, media: updatedMedia });
+    const docRef = doc(db, 'programs', programId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const currentData = docSnap.data();
+      const existingMedia: ProgramMedia[] = currentData.media || [];
+      const updatedMedia = [...existingMedia, newMedia];
+      await updateDoc(docRef, cleanFirestorePayload({ media: updatedMedia, updated_at: now }));
+
+      setPrograms((prev) => {
+        return prev.map((p) => (p.id === programId ? { ...p, media: updatedMedia, updated_at: now } : p));
+      });
+    }
   };
 
   const deleteProgramMedia = async (programId: string, mediaId: string) => {
-    const targetProg = programs.find((p) => p.id === programId);
-    if (!targetProg) return;
+    if (!user?.id) throw new Error('Not authenticated');
 
-    const updatedMedia = (targetProg.media || []).filter((m) => m.id !== mediaId);
-    await updateProgram({ id: programId, media: updatedMedia });
+    const now = new Date().toISOString();
+    const docRef = doc(db, 'programs', programId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const currentData = docSnap.data();
+      const existingMedia: ProgramMedia[] = currentData.media || [];
+      const updatedMedia = existingMedia.filter((m) => m.id !== mediaId);
+      await updateDoc(docRef, cleanFirestorePayload({ media: updatedMedia, updated_at: now }));
+
+      setPrograms((prev) => {
+        return prev.map((p) => (p.id === programId ? { ...p, media: updatedMedia, updated_at: now } : p));
+      });
+    }
   };
 
   // Financial Account Mutations
@@ -1028,6 +1219,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       {
         organization: currentOrg,
         organizers,
+        programCategories,
         programs,
         accounts,
         incomes,
@@ -1072,11 +1264,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         programs,
         allPrograms: programs,
+        programCategories,
         addProgram,
         updateProgram,
         deleteProgram,
         addProgramMedia,
         deleteProgramMedia,
+        addProgramCategory,
+        ensureCategoryExists,
 
         accounts,
         allAccounts: accounts,

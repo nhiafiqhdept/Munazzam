@@ -253,28 +253,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         id="auth-card"
         className="w-full max-w-[420px] bg-white rounded-3xl border border-slate-200/60 shadow-xl px-6 py-10 sm:p-10 flex flex-col items-center"
       >
-        {/* Logo Container */}
-        <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200/80 p-2 flex items-center justify-center overflow-hidden mb-6 shadow-xs shrink-0">
-          <img
-            src={lastLogo || DEFAULT_ORG_LOGO}
-            alt={lastName}
-            className="w-full h-full object-contain rounded-xl"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
-            }}
-          />
+        {/* Munazzam App Icon & Branding */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border border-emerald-500/30 p-2 flex items-center justify-center overflow-hidden mb-3.5 shadow-md shrink-0">
+            <img
+              src="/icon-192x192.png"
+              alt="Munazzam"
+              className="w-full h-full object-contain rounded-xl"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/icon.svg';
+              }}
+            />
+          </div>
+          <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 font-heading">
+            Munazzam
+          </span>
+          <span className="text-[11px] font-semibold text-emerald-800 tracking-wide">
+            Organization Management Platform
+          </span>
         </div>
 
         {/* Heading */}
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 text-center mb-1">
-          {isRegister ? 'Create Account' : 'Admin Login'}
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 text-center mb-1">
+          {isRegister ? 'Create Administrator Account' : 'Sign in to your account'}
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xs sm:text-sm text-slate-500 text-center mb-8">
+        <p className="text-xs text-slate-500 text-center mb-6">
           {isRegister
-            ? 'Sign up with your email to manage your organization'
-            : 'Sign in with your email and password'}
+            ? 'Sign up with your credentials to start managing records'
+            : 'Enter your credentials to access your organization workspace'}
         </p>
 
         {/* General Error Banner */}

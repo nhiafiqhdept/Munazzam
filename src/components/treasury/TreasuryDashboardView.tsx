@@ -53,10 +53,6 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
     expenses.filter((e) => e.account_id === accountId).forEach((e) => (bal -= e.amount));
     transfers.filter((t) => t.to_account_id === accountId).forEach((t) => (bal += t.amount));
     transfers.filter((t) => t.from_account_id === accountId).forEach((t) => (bal -= t.amount));
-    loans.filter((l) => l.type === 'BORROWED' && l.account_id === accountId).forEach((l) => (bal += l.original_amount));
-    loanRepayments.filter((r) => r.account_id === accountId && r.type === 'REPAY').forEach((r) => (bal -= r.amount));
-    loans.filter((l) => l.type === 'LENT' && l.account_id === accountId).forEach((l) => (bal -= l.original_amount));
-    loanRepayments.filter((r) => r.account_id === accountId && r.type === 'RECOVER').forEach((r) => (bal += r.amount));
     return bal;
   };
 
@@ -201,13 +197,16 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
         </div>
 
         {/* Total Available */}
-        <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
-          <div>
+        <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-md flex items-center justify-between relative group">
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Total Available Balance</p>
             <p className="text-2xl font-bold font-heading text-white mt-1">₹{totalAvailable.toLocaleString()}</p>
             <p className="text-[11px] text-emerald-300 mt-1 font-medium">Net liquid reserves</p>
+            <p className="text-[10px] text-emerald-100/80 mt-1.5 leading-relaxed bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-800/30">
+              Loans are tracked separately and are not included in Total Available Balance.
+            </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-200 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-200 flex items-center justify-center shrink-0 ml-4">
             <ShieldCheck className="w-6 h-6" />
           </div>
         </div>
@@ -238,15 +237,25 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
 
       {/* Secondary Financial Summary (Loans & Receivables) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Money Lent (Receivables)</p>
-          <p className="text-xl font-bold font-heading text-blue-700 mt-1">₹{moneyLent.toLocaleString()}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Outstanding amounts to recover</p>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Money Lent (Receivables)</p>
+            <p className="text-xl font-bold font-heading text-blue-700 mt-1">₹{moneyLent.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Outstanding amounts to recover</p>
+          </div>
+          <p className="text-[9px] text-slate-400 mt-2 italic border-t border-slate-100 pt-1.5">
+            Tracked separately from available balance.
+          </p>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Money Borrowed (Payables)</p>
-          <p className="text-xl font-bold font-heading text-amber-700 mt-1">₹{moneyBorrowed.toLocaleString()}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Outstanding liabilities to repay</p>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Money Borrowed (Payables)</p>
+            <p className="text-xl font-bold font-heading text-amber-700 mt-1">₹{moneyBorrowed.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Outstanding liabilities to repay</p>
+          </div>
+          <p className="text-[9px] text-slate-400 mt-2 italic border-t border-slate-100 pt-1.5">
+            Tracked separately from available balance.
+          </p>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <p className="text-xs font-semibold text-slate-500 uppercase">Active Accounts</p>

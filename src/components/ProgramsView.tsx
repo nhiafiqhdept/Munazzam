@@ -27,6 +27,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const {
     currentOrg,
     programs,
+    programCategories,
     viewProgramDetails,
     deleteProgram,
     isAdmin,
@@ -34,6 +35,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
 
   if (!currentOrg) return null;
@@ -51,7 +53,14 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       const matchesStatus =
         selectedStatus === 'all' || (prog.status || 'completed').toLowerCase() === selectedStatus.toLowerCase();
 
-      return matchesSearch && matchesStatus;
+      const matchesCategory =
+        selectedCategory === 'all' ||
+        (selectedCategory === 'uncategorized'
+          ? !prog.category
+          : (prog.category || '').toLowerCase() === selectedCategory.toLowerCase() ||
+            prog.category_id === selectedCategory);
+
+      return matchesSearch && matchesStatus && matchesCategory;
     })
     .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
 
@@ -62,7 +71,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     }
   };
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || selectedStatus !== 'all';
+  const hasActiveFilters = searchQuery.trim().length > 0 || selectedStatus !== 'all' || selectedCategory !== 'all';
 
   return (
     <div className="space-y-4 pb-12">
@@ -116,6 +125,22 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {programCategories.length > 0 && (
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {programCategories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+                <option value="uncategorized">Uncategorized</option>
+              </select>
+            )}
+
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
@@ -152,6 +177,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               onClick={() => {
                 setSearchQuery('');
                 setSelectedStatus('all');
+                setSelectedCategory('all');
               }}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >

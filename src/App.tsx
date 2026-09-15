@@ -33,6 +33,7 @@ import { LoanModal } from './components/treasury/LoanModal';
 import { RepaymentModal } from './components/treasury/RepaymentModal';
 import { Organizer, Program, FinancialAccount, Loan } from './types';
 import { LogOut } from 'lucide-react';
+import { OfflineBanner } from './components/pwa/OfflineBanner';
 
 const MainLayout: React.FC = () => {
   const { currentOrg, organizations, activeTab, logoutUser, user } = useApp();
@@ -309,10 +310,23 @@ const AuthenticatedApp: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-3 border-purple-700 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-slate-600 tracking-wide">Validating session...</p>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-950 p-2.5 border border-emerald-500/30 shadow-2xl flex items-center justify-center">
+            <img 
+              src="/icon-192x192.png" 
+              alt="Munazzam" 
+              className="w-full h-full object-contain rounded-xl"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/icon.svg';
+              }} 
+            />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold font-heading text-white tracking-tight">Munazzam</h2>
+            <p className="text-xs text-slate-400">Organization & Recordkeeping Platform</p>
+          </div>
+          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mt-2" />
         </div>
       </div>
     );
@@ -320,15 +334,23 @@ const AuthenticatedApp: React.FC = () => {
 
   if (!token || !user) {
     return (
-      <AuthScreen
-        onLoginSuccess={(newToken, newUser) => {
-          loginUser(newToken, newUser);
-        }}
-      />
+      <>
+        <OfflineBanner />
+        <AuthScreen
+          onLoginSuccess={(newToken, newUser) => {
+            loginUser(newToken, newUser);
+          }}
+        />
+      </>
     );
   }
 
-  return <MainLayout />;
+  return (
+    <>
+      <OfflineBanner />
+      <MainLayout />
+    </>
+  );
 };
 
 export function App() {

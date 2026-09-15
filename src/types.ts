@@ -49,10 +49,19 @@ export interface ProgramMedia {
   created_at: string;
 }
 
+export interface ProgramCategory {
+  id: string;
+  organization_id: string; // matches accountId
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Program {
   id: string;
   organization_id: string;
   name: string;
+  category_id?: string;
   category?: string;
   date: string; // YYYY-MM-DD
   time?: string;
