@@ -311,7 +311,12 @@ const MainLayout: React.FC = () => {
 const AuthenticatedApp: React.FC = () => {
   const { token, user, authLoading, loginUser } = useApp();
 
-  if (authLoading) {
+  const isSuborgPortal = window.location.search.includes('suborg=true') || 
+                         window.location.hash.includes('suborg=true') || 
+                         window.location.search.includes('reg=') || 
+                         window.location.hash.includes('reg=');
+
+  if (authLoading && !isSuborgPortal) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -330,6 +335,17 @@ const AuthenticatedApp: React.FC = () => {
             <p className="text-xs text-slate-400">Organization & Recordkeeping Platform</p>
           </div>
           <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mt-2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isSuborgPortal) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 sm:p-6 lg:p-8">
+        <OfflineBanner />
+        <div className="max-w-7xl mx-auto">
+          <StudentPointsPortal />
         </div>
       </div>
     );

@@ -160,7 +160,7 @@ export const SubOrgDashboard: React.FC = () => {
       setQueuedVideos([]);
       setQueuedDocs([]);
 
-      setFormSuccess('Achievement successfully submitted to NSU Review Panel!');
+      setFormSuccess('Achievement successfully submitted to the Review Panel!');
       setActiveTab('overview');
     } catch (err: any) {
       setFormError(err?.message || 'Failed to submit achievement. Try again.');
@@ -368,7 +368,7 @@ export const SubOrgDashboard: React.FC = () => {
         <div className="bg-white rounded-3xl border border-slate-200 p-8 space-y-6">
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-900">Submit New Achievement Proof</h2>
-            <p className="text-xs text-slate-500">Attach files, fill details, and request evaluations from NSU administrators.</p>
+            <p className="text-xs text-slate-500">Attach files, fill details, and request evaluations from administrators.</p>
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -678,10 +678,10 @@ export const SubOrgDashboard: React.FC = () => {
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Uploading files and submitting to NSU...</span>
+                  <span>Uploading files and submitting to Admin...</span>
                 </>
               ) : (
-                'Submit Achievement to NSU'
+                'Submit Achievement to Admin'
               )}
             </button>
           </form>
@@ -811,7 +811,7 @@ export const SubOrgDashboard: React.FC = () => {
 
             {selectedAchievement.reviewNotes && (
               <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-1">
-                <h4 className="text-xs font-bold text-emerald-900">NSU REVIEWER FEEDBACK</h4>
+                <h4 className="text-xs font-bold text-emerald-900">ADMIN REVIEWER FEEDBACK</h4>
                 <p className="text-xs text-emerald-800 italic leading-relaxed">"{selectedAchievement.reviewNotes}"</p>
               </div>
             )}

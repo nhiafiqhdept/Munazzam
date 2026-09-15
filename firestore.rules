@@ -130,5 +130,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /sp_registration_links/{linkId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

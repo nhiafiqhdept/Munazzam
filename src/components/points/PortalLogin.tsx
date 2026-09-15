@@ -20,7 +20,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Auto-fill master admin email if choosing NSU Admin mode
+  // Auto-fill master admin email if choosing Admin mode
   const handleRoleChange = (role: 'sub_org' | 'nsu_admin' | 'viewer') => {
     setRoleMode(role);
     setError('');
@@ -104,7 +104,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            NSU Admin
+            Admin
           </button>
           <button
             type="button"
@@ -201,7 +201,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
             {roleMode === 'nsu_admin' && (
               <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-normal flex gap-2">
                 <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p><strong>NSU Admin Notice:</strong> Use your standard login credentials. For workspace admin testing, the master password bypass is <strong>1234</strong>.</p>
+                <p><strong>Admin Notice:</strong> Use your standard login credentials. For workspace admin testing, the master password bypass is <strong>1234</strong>.</p>
               </div>
             )}
 

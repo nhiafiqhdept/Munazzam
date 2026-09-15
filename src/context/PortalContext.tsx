@@ -15,7 +15,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db, cleanFirestorePayload } from '../lib/firebase';
-import { useApp } from './AppContext';
+import { useApp, OperationType, handleFirestoreError } from './AppContext';
 import { generateId } from '../utils/helpers';
 import bcrypt from 'bcryptjs';
 
@@ -48,6 +48,16 @@ export interface SP_Portal {
   name: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SP_RegistrationLink {
+  id: string;
+  portalId: string;
+  label: string;
+  status: 'pending' | 'completed';
+  organizationId: string | null;
+  createdAt: string;
+  completedAt?: string;
 }
 
 export interface SP_Organization {
@@ -197,6 +207,7 @@ interface PortalContextType {
   announcements: SP_Announcement[];
   notifications: SP_Notification[];
   auditLogs: SP_AuditLog[];
+  registrationLinks: SP_RegistrationLink[];
   loading: boolean;
   
   initializePortal: (name: string) => Promise<void>;
@@ -232,6 +243,9 @@ interface PortalContextType {
   markNotificationsAsRead: () => Promise<void>;
   
   logPortalAction: (action: string, details: string) => Promise<void>;
+  generateRegistrationLink: (label?: string) => Promise<string>;
+  getRegistrationLinkStatus: (linkId: string) => Promise<{ status: 'pending' | 'completed' | 'not_found'; organizationId: string | null; label: string } | null>;
+  registerSubOrganization: (linkId: string, orgData: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, loginEmail: string, loginPass: string) => Promise<void>;
 }
 
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
@@ -254,6 +268,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [announcements, setAnnouncements] = useState<SP_Announcement[]>([]);
   const [notifications, setNotifications] = useState<SP_Notification[]>([]);
   const [auditLogs, setAuditLogs] = useState<SP_AuditLog[]>([]);
+  const [registrationLinks, setRegistrationLinks] = useState<SP_RegistrationLink[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Load Saved Sub-Org Admin session if present
@@ -312,6 +327,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `sp_portals/${masterAccountId}`);
     });
 
     // 2. Real-time Subscriptions for Portal Data
@@ -320,6 +337,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Organization[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Organization));
       setOrganizations(list.sort((a, b) => b.totalPoints - a.totalPoints));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_organizations');
     });
 
     const qCats = query(collection(db, 'sp_categories'), where('portalId', '==', masterAccountId));
@@ -327,6 +346,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Category[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Category));
       setCategories(list.sort((a, b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_categories');
     });
 
     const qAchs = query(collection(db, 'sp_achievements'), where('portalId', '==', masterAccountId));
@@ -334,6 +355,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Achievement[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Achievement));
       setAchievements(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_achievements');
     });
 
     const qMed = query(collection(db, 'sp_media'), where('portalId', '==', masterAccountId));
@@ -341,6 +364,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Media[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Media));
       setMediaAttachments(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_media');
     });
 
     const qTx = query(collection(db, 'sp_transactions'), where('portalId', '==', masterAccountId));
@@ -348,6 +373,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Transaction[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Transaction));
       setTransactions(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_transactions');
     });
 
     const qComp = query(collection(db, 'sp_competitions'), where('portalId', '==', masterAccountId));
@@ -355,6 +382,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Competition[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Competition));
       setCompetitions(list.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_competitions');
     });
 
     const qAward = query(collection(db, 'sp_awards'), where('portalId', '==', masterAccountId));
@@ -362,6 +391,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Award[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Award));
       setAwards(list.sort((a, b) => new Date(b.awardDate).getTime() - new Date(a.awardDate).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_awards');
     });
 
     const qAnn = query(collection(db, 'sp_announcements'), where('portalId', '==', masterAccountId));
@@ -369,6 +400,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Announcement[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Announcement));
       setAnnouncements(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_announcements');
     });
 
     const qNot = query(collection(db, 'sp_notifications'), where('portalId', '==', masterAccountId));
@@ -376,6 +409,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_Notification[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Notification));
       setNotifications(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_notifications');
     });
 
     const qLogs = query(collection(db, 'sp_audit_logs'), where('portalId', '==', masterAccountId));
@@ -383,6 +418,17 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const list: SP_AuditLog[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_AuditLog));
       setAuditLogs(list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_audit_logs');
+    });
+
+    const qRegs = query(collection(db, 'sp_registration_links'), where('portalId', '==', masterAccountId));
+    const unsubRegs = onSnapshot(qRegs, (snap) => {
+      const list: SP_RegistrationLink[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_RegistrationLink));
+      setRegistrationLinks(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_registration_links');
     });
 
     return () => {
@@ -397,6 +443,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubAnn();
       unsubNot();
       unsubLogs();
+      unsubRegs();
     };
   }, [masterAccountId, isAuthenticated, user]);
 
@@ -448,14 +495,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }));
     }
 
-    // Set portalUser as NSU Admin
+    // Set portalUser as Admin
     const adminUser: PortalUser = {
       id: masterAccountId,
       portalId: masterAccountId,
       organizationId: null,
       email: user?.email || 'admin@nsu.edu',
       role: 'nsu_admin',
-      name: 'NSU Super Admin',
+      name: 'Super Admin',
       status: 'active'
     };
     setPortalUser(adminUser);
@@ -466,7 +513,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: generateId('sp_log'),
       portalId: masterAccountId,
       userId: masterAccountId,
-      username: 'NSU Super Admin',
+      username: 'Super Admin',
       action: 'INITIALIZE_PORTAL',
       details: `Initialized Points Portal with name "${name}"`,
       timestamp: now
@@ -477,7 +524,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const loginPortalUser = async (email: string, password: string): Promise<boolean> => {
     if (!masterAccountId) return false;
 
-    // Check if NSU Admin password bypass (for simplicity and offline mode)
+    // Check if Admin password bypass (for simplicity and offline mode)
     if (email === user?.email && password === '1234') {
       const admin: PortalUser = {
         id: masterAccountId,
@@ -485,7 +532,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         organizationId: null,
         email: email,
         role: 'nsu_admin',
-        name: 'NSU Super Admin',
+        name: 'Super Admin',
         status: 'active'
       };
       setPortalUser(admin);
@@ -946,6 +993,139 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
   };
 
+  // 14. Registration Link Helper: Generate
+  const generateRegistrationLink = async (label?: string): Promise<string> => {
+    if (!masterAccountId) throw new Error('Portal not loaded');
+    const linkId = generateId('reg');
+    const now = new Date().toISOString();
+    
+    const linkObj: SP_RegistrationLink = {
+      id: linkId,
+      portalId: masterAccountId,
+      label: label || `Sub-Org Registration Slot #${registrationLinks.length + 1}`,
+      status: 'pending',
+      organizationId: null,
+      createdAt: now
+    };
+    
+    await setDoc(doc(db, 'sp_registration_links', linkId), cleanFirestorePayload(linkObj));
+    await logPortalAction('GENERATE_REG_LINK', `Generated new sub-organization registration link with ID: ${linkId}`);
+    return linkId;
+  };
+
+  // 15. Registration Link Helper: Status Lookup
+  const getRegistrationLinkStatus = async (linkId: string): Promise<{ status: 'pending' | 'completed' | 'not_found'; organizationId: string | null; label: string } | null> => {
+    if (!masterAccountId) return null;
+    try {
+      const snap = await getDoc(doc(db, 'sp_registration_links', linkId));
+      if (!snap.exists()) {
+        return { status: 'not_found', organizationId: null, label: '' };
+      }
+      const data = snap.data();
+      return {
+        status: data.status,
+        organizationId: data.organizationId || null,
+        label: data.label || ''
+      };
+    } catch (e) {
+      console.error('Error fetching registration link status', e);
+      return null;
+    }
+  };
+
+  // 16. Registration Link Helper: Register Sub-Organization
+  const registerSubOrganization = async (
+    linkId: string, 
+    orgData: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, 
+    loginEmail: string, 
+    loginPass: string
+  ) => {
+    if (!masterAccountId) throw new Error('Portal not loaded');
+    
+    // Check if the link exists and is not used
+    const linkRef = doc(db, 'sp_registration_links', linkId);
+    const linkSnap = await getDoc(linkRef);
+    if (!linkSnap.exists()) {
+      throw new Error('This registration link is invalid or has expired.');
+    }
+    const linkData = linkSnap.data() as SP_RegistrationLink;
+    if (linkData.status === 'completed') {
+      throw new Error('This registration link has already been used to register an organization.');
+    }
+
+    // Check if email already registered in sp_users
+    const emailCheckQ = query(collection(db, 'sp_users'), where('portalId', '==', masterAccountId), where('email', '==', loginEmail));
+    const emailCheckSnap = await getDocs(emailCheckQ);
+    if (!emailCheckSnap.empty) {
+      throw new Error('An account with this email address is already registered.');
+    }
+
+    const orgId = generateId('sp_org');
+    const now = new Date().toISOString();
+
+    const orgObj: SP_Organization = {
+      id: orgId,
+      portalId: masterAccountId,
+      totalPoints: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...orgData
+    };
+
+    // Save Organization
+    await setDoc(doc(db, 'sp_organizations', orgId), cleanFirestorePayload(orgObj));
+
+    // Hash Password for User Account
+    const passwordHash = bcrypt.hashSync(loginPass, 10);
+    const userId = generateId('sp_usr');
+
+    const userObj: SP_User = {
+      id: userId,
+      portalId: masterAccountId,
+      organizationId: orgId,
+      email: loginEmail,
+      passwordHash,
+      role: 'sub_org_admin',
+      name: orgData.name,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // Save User Credentials
+    await setDoc(doc(db, 'sp_users', userId), cleanFirestorePayload(userObj));
+
+    // Connect link to organization
+    await updateDoc(linkRef, {
+      status: 'completed',
+      organizationId: orgId,
+      completedAt: now
+    });
+
+    // Create a Welcome Notification for them
+    const notId = generateId('sp_not');
+    await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
+      id: notId,
+      portalId: masterAccountId,
+      organizationId: orgId,
+      title: 'Welcome to Points Portal!',
+      message: `Your class organization "${orgData.name}" has been successfully added via shared registration link. Start submitting achievements to earn points!`,
+      isRead: false,
+      createdAt: now
+    }));
+
+    // Log Action as SYSTEM/INVITED
+    await setDoc(doc(db, 'sp_audit_logs', generateId('sp_log')), cleanFirestorePayload({
+      id: generateId('sp_log'),
+      portalId: masterAccountId,
+      userId: userId,
+      username: loginEmail,
+      action: 'REGISTER_ORGANIZATION',
+      details: `Registered class organization "${orgData.name}" (Class: ${orgData.className}) via invite link ID: ${linkId}`,
+      timestamp: now
+    }));
+  };
+
   // 13. Clear Notifications
   const markNotificationsAsRead = async () => {
     if (!masterAccountId) return;
@@ -971,6 +1151,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       announcements,
       notifications,
       auditLogs,
+      registrationLinks,
       loading,
       
       initializePortal,
@@ -995,7 +1176,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addAward,
       addAnnouncement,
       markNotificationsAsRead,
-      logPortalAction
+      logPortalAction,
+      generateRegistrationLink,
+      getRegistrationLinkStatus,
+      registerSubOrganization
     }}>
       {children}
     </PortalContext.Provider>

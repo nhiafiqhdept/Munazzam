@@ -408,7 +408,7 @@ export const ViewerDashboard: React.FC = () => {
 
             {selectedAchievement.reviewNotes && (
               <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-1">
-                <h4 className="text-xs font-bold text-emerald-900">NSU REVIEWER FEEDBACK</h4>
+                <h4 className="text-xs font-bold text-emerald-900">ADMIN REVIEWER FEEDBACK</h4>
                 <p className="text-xs text-emerald-800 italic leading-relaxed">"{selectedAchievement.reviewNotes}"</p>
               </div>
             )}

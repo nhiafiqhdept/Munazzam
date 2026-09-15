@@ -154,8 +154,6 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
     setIsSubmitting(false);
   }, [programToEdit, isOpen, programCategories]);
 
-  if (!isOpen) return null;
-
   const handlePosterFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -237,6 +235,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
   // Auto upload effect
   useEffect(() => {
+    if (!isOpen) return;
     const queuedItem = queuedFiles.find(item => item.status === 'queued');
     if (queuedItem) {
       const uploadWorker = async () => {
@@ -253,7 +252,9 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       };
       uploadWorker();
     }
-  }, [queuedFiles]);
+  }, [queuedFiles, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleRetryUpload = (id: string) => {
     setQueuedFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'queued', progress: 0, error: undefined } : f));

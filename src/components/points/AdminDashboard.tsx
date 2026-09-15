@@ -12,11 +12,29 @@ export const AdminDashboard: React.FC = () => {
   const { 
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
     createClassOrganization, updateClassOrganization, reviewAchievement, addCategory, deleteCategory,
-    addCompetition, completeCompetition, addAward, addAnnouncement
+    addCompetition, completeCompetition, addAward, addAnnouncement,
+    registrationLinks, generateRegistrationLink
   } = usePortal();
 
   const [activeTab, setActiveTab] = useState<'review' | 'organizations' | 'categories' | 'competitions' | 'awards' | 'announcements' | 'audit'>('review');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
+
+  // Invitation invite state
+  const [inviteLabel, setInviteLabel] = useState('');
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
+  const getFullRegistrationUrl = (linkId: string) => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?reg=${linkId}`;
+  };
+
+  const handleCopyLink = (linkId: string) => {
+    const fullUrl = getFullRegistrationUrl(linkId);
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedLinkId(linkId);
+    setTimeout(() => setCopiedLinkId(null), 2000);
+  };
 
   // Redesigned review workflow state
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
@@ -681,99 +699,48 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Add organization form */}
+          {/* General Points Portal Link Card */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Add Sub-Organization</h3>
-            <form onSubmit={handleCreateOrgSubmit} className="space-y-4">
-              {orgError && (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
-                  {orgError}
-                </div>
-              )}
-              {orgSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-700">
-                  {orgSuccess}
-                </div>
-              )}
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">General Shared Points Portal Link</h3>
+              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+                Copy and share this permanent link with all sub-organizations. They can register new class accounts or log in directly to access their dashboards.
+              </p>
+            </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Org Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Class Organization 1"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
+            <div className="space-y-3">
+              <div className="flex gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <span className="text-[10px] text-slate-500 font-mono truncate flex-grow select-all">
+                  {window.location.origin + window.location.pathname}?suborg=true
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fullUrl = `${window.location.origin}${window.location.pathname}?suborg=true`;
+                    navigator.clipboard.writeText(fullUrl);
+                    setCopiedLinkId('general_link');
+                    setTimeout(() => setCopiedLinkId(null), 2000);
+                  }}
+                  className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer text-xs font-bold ${
+                    copiedLinkId === 'general_link'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                  }`}
+                >
+                  {copiedLinkId === 'general_link' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Class/Grade Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Class 1"
-                  value={orgClass}
-                  onChange={(e) => setOrgClass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Leader Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. John Doe"
-                  value={orgLeader}
-                  onChange={(e) => setOrgLeader(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Contact Details</label>
-                <input
-                  type="text"
-                  placeholder="e.g. john@nsu.edu"
-                  value={orgContact}
-                  onChange={(e) => setOrgContact(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="space-y-1 pt-2 border-t border-slate-100">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Login Email *</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. class1@nsu.edu"
-                  value={orgEmail}
-                  onChange={(e) => setOrgEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Login Password *</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Minimum 6 chars"
-                  value={orgPass}
-                  onChange={(e) => setOrgPass(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={orgLoading}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer disabled:opacity-50"
-              >
-                {orgLoading ? 'Saving...' : 'Create Class Account'}
-              </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
