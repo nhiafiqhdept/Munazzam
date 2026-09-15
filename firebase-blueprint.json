@@ -293,6 +293,41 @@
         "completedAt": { "type": "string" }
       },
       "required": ["id", "portalId", "label", "status", "createdAt"]
+    },
+    "SP_PortalLink": {
+      "title": "SP_PortalLink",
+      "description": "Account-specific Points Portal link relationship",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mainAccountId": { "type": "string" },
+        "mainAccountEmail": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "pointsPortalId": { "type": "string" },
+        "secureToken": { "type": "string" },
+        "pointsPortalSlug": { "type": "string" },
+        "pointsPortalUrl": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "not_generated", "disabled"] }
+      },
+      "required": ["id", "mainAccountId", "mainAccountEmail", "pointsPortalId", "secureToken", "status"]
+    },
+    "SP_PortalToken": {
+      "title": "SP_PortalToken",
+      "description": "Public unguessable token lookup mapping to a pointsPortalId",
+      "type": "object",
+      "properties": {
+        "secureToken": { "type": "string" },
+        "mainAccountId": { "type": "string" },
+        "mainAccountEmail": { "type": "string" },
+        "portalId": { "type": "string" },
+        "portalName": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "disabled"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["secureToken", "mainAccountId", "portalId", "status"]
     }
   },
   "firestore": {
@@ -363,6 +398,14 @@
     "/sp_registration_links/{linkId}": {
       "schema": "SP_RegistrationLink",
       "description": "Sub-org registration slot tokens"
+    },
+    "/sp_portal_links/{mainAccountId}": {
+      "schema": "SP_PortalLink",
+      "description": "Account-specific Points Portal link configuration"
+    },
+    "/sp_portal_tokens/{secureToken}": {
+      "schema": "SP_PortalToken",
+      "description": "Secure unguessable token lookup mapping to portalId"
     }
   }
 }

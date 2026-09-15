@@ -134,5 +134,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Portal links isolated by mainAccountId (only owner can read or write)
+    match /sp_portal_links/{accountId} {
+      allow read, write: if request.auth != null && request.auth.uid == accountId;
+    }
+
+    // Portal tokens (for public lookup: individual get allowed, list disallowed to prevent scraping, writes restricted to owner)
+    match /sp_portal_tokens/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null && request.resource.data.mainAccountId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.mainAccountId == request.auth.uid;
+    }
   }
 }

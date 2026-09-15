@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { PortalProvider, usePortal, SP_Organization, DEFAULT_PORTAL_ID } from '../../context/PortalContext';
+import { useApp } from '../../context/AppContext';
 import { PortalLogin } from './PortalLogin';
 import { AdminDashboard } from './AdminDashboard';
 import { SubOrgDashboard } from './SubOrgDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
+import { PortalUnavailableScreen } from './PortalUnavailableScreen';
 import { LogOut, Shield, Users, Award, Eye, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -474,7 +476,15 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
 };
 
 const StudentPointsInner: React.FC = () => {
-  const { portalUser, logoutPortalUser, setPortalUserDirectly } = usePortal();
+  const { user, isAuthenticated } = useApp();
+  const { 
+    portalUser, 
+    logoutPortalUser, 
+    setPortalUserDirectly,
+    portalStatus,
+    portalErrorMessage,
+    loading
+  } = usePortal();
   const [isViewer, setIsViewer] = useState(false);
   const [explicitLogout, setExplicitLogout] = useState(false);
 
@@ -583,21 +593,21 @@ const StudentPointsInner: React.FC = () => {
     }
   }, []);
 
-  // Auto-login as Admin on load if no session exists and no invite code is present and didn't explicitly log out
+  // Auto-login as Admin on load ONLY if user is authenticated in the main Munazzam app
   useEffect(() => {
-    if (!portalUser && !isViewer && !regCode && !explicitLogout && !isSuborgLink) {
+    if (isAuthenticated && user?.id && !portalUser && !explicitLogout) {
       const adminUser: any = {
-        id: DEFAULT_PORTAL_ID,
-        portalId: DEFAULT_PORTAL_ID,
+        id: user.id,
+        portalId: user.id,
         organizationId: null,
-        email: 'admin@nsu.edu',
+        email: user.email || 'admin@munazzam.app',
         role: 'nsu_admin',
-        name: 'Admin',
+        name: user.name || 'Munazzam Admin',
         status: 'active'
       };
       setPortalUserDirectly(adminUser);
     }
-  }, [portalUser, isViewer, regCode, explicitLogout, isSuborgLink, setPortalUserDirectly]);
+  }, [isAuthenticated, user?.id, user?.email, user?.name, portalUser, explicitLogout, setPortalUserDirectly]);
 
   const handleExit = () => {
     if (portalUser) {
@@ -615,6 +625,22 @@ const StudentPointsInner: React.FC = () => {
     url.searchParams.delete('reg');
     window.history.replaceState({}, '', url.toString());
   };
+
+  // For unauthenticated external visitors: check portal status
+  if (!isAuthenticated && !portalUser) {
+    if (portalStatus === 'loading' || (portalStatus === 'active' && loading)) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3" id="points-portal-loading-view">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <p className="text-xs font-semibold text-slate-500 tracking-wide">Connecting to Points Portal...</p>
+        </div>
+      );
+    }
+
+    if (portalStatus === 'invalid' || portalStatus === 'disabled' || portalStatus === 'missing') {
+      return <PortalUnavailableScreen reason={portalStatus} message={portalErrorMessage || undefined} />;
+    }
+  }
 
   const getRoleLabel = () => {
     if (portalUser?.role === 'super_admin' || portalUser?.role === 'nsu_admin') {

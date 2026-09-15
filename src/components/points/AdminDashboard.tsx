@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import { usePortal, SP_Organization, SP_Achievement } from '../../context/PortalContext';
+import { useApp } from '../../context/AppContext';
 import { 
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
-  Building, ChevronLeft, ChevronRight, Search, ArrowUpDown, Download, Play
+  Building, ChevronLeft, ChevronRight, Search, ArrowUpDown, Download, Play,
+  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId } from '../../utils/helpers';
 
 export const AdminDashboard: React.FC = () => {
+  const { user } = useApp();
   const { 
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
     createClassOrganization, updateClassOrganization, reviewAchievement, addCategory, deleteCategory,
     addCompetition, completeCompetition, addAward, addAnnouncement,
-    registrationLinks, generateRegistrationLink
+    registrationLinks, generateRegistrationLink,
+    portalLink, portalLinkLoading, generateAccountPortalLink, togglePortalLinkStatus, regenerateAccountPortalLink
   } = usePortal();
 
   const [activeTab, setActiveTab] = useState<'review' | 'organizations' | 'categories' | 'competitions' | 'awards' | 'announcements' | 'audit'>('review');
@@ -23,6 +27,60 @@ export const AdminDashboard: React.FC = () => {
   const [inviteLabel, setInviteLabel] = useState('');
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+
+  // Account-specific portal link state & actions
+  const [portalActionLoading, setPortalActionLoading] = useState(false);
+  const [portalActionMessage, setPortalActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleGeneratePortalLink = async () => {
+    setPortalActionLoading(true);
+    setPortalActionMessage(null);
+    try {
+      await generateAccountPortalLink();
+      setPortalActionMessage({ type: 'success', text: 'Points Portal link generated successfully!' });
+      setTimeout(() => setPortalActionMessage(null), 4000);
+    } catch (e: any) {
+      setPortalActionMessage({ type: 'error', text: e?.message || 'Failed to generate Points Portal link.' });
+    } finally {
+      setPortalActionLoading(false);
+    }
+  };
+
+  const handleTogglePortalStatus = async () => {
+    if (!portalLink) return;
+    setPortalActionLoading(true);
+    setPortalActionMessage(null);
+    try {
+      const nextStatus = portalLink.status === 'active' ? 'disabled' : 'active';
+      await togglePortalLinkStatus(nextStatus);
+      setPortalActionMessage({ 
+        type: 'success', 
+        text: nextStatus === 'active' ? 'Points Portal link re-activated.' : 'Points Portal link disabled.' 
+      });
+      setTimeout(() => setPortalActionMessage(null), 4000);
+    } catch (e: any) {
+      setPortalActionMessage({ type: 'error', text: e?.message || 'Failed to update link status.' });
+    } finally {
+      setPortalActionLoading(false);
+    }
+  };
+
+  const handleRegeneratePortalLink = async () => {
+    if (!window.confirm('Are you sure you want to regenerate your Points Portal link? The previous URL and token will immediately stop working.')) {
+      return;
+    }
+    setPortalActionLoading(true);
+    setPortalActionMessage(null);
+    try {
+      await regenerateAccountPortalLink();
+      setPortalActionMessage({ type: 'success', text: 'Points Portal link regenerated with a new secure token.' });
+      setTimeout(() => setPortalActionMessage(null), 4000);
+    } catch (e: any) {
+      setPortalActionMessage({ type: 'error', text: e?.message || 'Failed to regenerate link.' });
+    } finally {
+      setPortalActionLoading(false);
+    }
+  };
 
   // Public URL formatter (maps internal AI Studio dev preview host to public shared preview host)
   const getPublicOrigin = () => {
@@ -708,68 +766,205 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* General Points Portal Link Card */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">General Shared Points Portal Link</h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
-                Copy and share this permanent link with all sub-organizations. They can register new class accounts or log in directly to access their dashboards.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {/* Public link (for external users / other accounts) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-bold text-slate-700">Public Shared Link (For all students & other accounts)</span>
-                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">No Google Login Required</span>
-                </div>
-                <div className="flex gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                  <span className="text-[10px] text-slate-600 font-mono truncate flex-grow select-all">
-                    {getPublicOrigin() + window.location.pathname}?suborg=true
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const fullUrl = `${getPublicOrigin()}${window.location.pathname}?suborg=true`;
-                      navigator.clipboard.writeText(fullUrl);
-                      setCopiedLinkId('general_link');
-                      setTimeout(() => setCopiedLinkId(null), 2000);
-                    }}
-                    className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer text-xs font-bold shrink-0 ${
-                      copiedLinkId === 'general_link'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        : 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                    }`}
-                  >
-                    {copiedLinkId === 'general_link' ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Copy Public Link</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+          {/* Account-Specific Points Portal Link Card */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4" id="account-points-portal-link-card">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-emerald-600" />
+                  <span>Account Points Portal Link</span>
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
+                  Dedicated, private portal link for: <span className="font-semibold text-slate-800">{user?.email || 'Authenticated Account'}</span>
+                </p>
               </div>
 
-              {window.location.origin.includes('ais-dev-') && (
-                <div className="p-3 bg-blue-50 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 space-y-1.5">
-                  <div className="flex items-center gap-1.5 font-bold text-blue-900">
-                    <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>How to activate the Public Link (Fixes 404 / 403 errors):</span>
-                  </div>
-                  <p className="text-[10px] text-blue-800 leading-relaxed">
-                    If opening the public link shows <em>"404 Page not found"</em>, it simply means the public build hasn't been published yet. 
-                    Click the <strong className="font-semibold text-blue-950">"Share"</strong> button in the top-right header of Google AI Studio to publish it. Once shared, anyone on any Google account or phone can access the portal without errors.
+              {/* Status Indicator */}
+              <div className="flex items-center">
+                {portalLinkLoading ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Loading status...</span>
+                  </span>
+                ) : !portalLink || portalLink.status === 'not_generated' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>Not generated</span>
+                  </span>
+                ) : portalLink.status === 'active' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Active</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Disabled</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Action Feedback Banner */}
+            {portalActionMessage && (
+              <div 
+                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  portalActionMessage.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {portalActionMessage.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{portalActionMessage.text}</span>
+              </div>
+            )}
+
+            {/* Content Body */}
+            {portalLinkLoading ? (
+              <div className="py-6 flex items-center justify-center gap-2 text-slate-400 text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                <span>Loading your account portal settings...</span>
+              </div>
+            ) : !portalLink || portalLink.status === 'not_generated' ? (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5 text-center space-y-3">
+                <div className="mx-auto w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <LinkIcon className="w-5 h-5" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h4 className="text-xs font-bold text-slate-800">No Portal Link Generated Yet</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Generate an account-specific link for <span className="font-semibold text-slate-700">{user?.email}</span>. This creates an isolated Points Portal where your sub-organizations and students can register and track achievements.
                   </p>
                 </div>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={handleGeneratePortalLink}
+                  disabled={portalActionLoading}
+                  className="py-2.5 px-5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer disabled:opacity-50"
+                >
+                  {portalActionLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generating Unique Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Generate Points Portal Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Active or Disabled Link View */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-700">Account Points Portal Link</span>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Token: <span className="font-mono text-slate-700">{portalLink.secureToken}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                    <div className="flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                      <span className="text-[11px] text-slate-700 font-mono truncate select-all">
+                        {portalLink.pointsPortalUrl}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(portalLink.pointsPortalUrl);
+                        setCopiedLinkId('account_portal_link');
+                        setTimeout(() => setCopiedLinkId(null), 2000);
+                      }}
+                      className={`py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs font-bold shrink-0 ${
+                        copiedLinkId === 'account_portal_link'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs'
+                      }`}
+                    >
+                      {copiedLinkId === 'account_portal_link' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Copied Link!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy Points Portal Link</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Disabled status warning banner */}
+                {portalLink.status === 'disabled' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>Portal Link Disabled:</strong> External users and sub-organizations who visit this link will see a "Portal Unavailable" screen until you re-enable it.
+                    </span>
+                  </div>
+                )}
+
+                {/* Action Controls Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+                  <a
+                    href={portalLink.pointsPortalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-1.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Open in New Tab</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={handleTogglePortalStatus}
+                    disabled={portalActionLoading}
+                    className={`py-1.5 px-3 border rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 ${
+                      portalLink.status === 'active'
+                        ? 'bg-white border-rose-200 text-rose-700 hover:bg-rose-50'
+                        : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <Power className="w-3.5 h-3.5" />
+                    <span>{portalLink.status === 'active' ? 'Disable Link' : 'Enable Link'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRegeneratePortalLink}
+                    disabled={portalActionLoading}
+                    className="py-1.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Regenerate Link</span>
+                  </button>
+                </div>
+
+                {window.location.origin.includes('ais-dev-') && (
+                  <div className="p-3 bg-blue-50 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                      <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>Opening link across different devices or Google accounts:</span>
+                    </div>
+                    <p className="text-[10px] text-blue-800 leading-relaxed">
+                      The generated link is automatically formatted with the public preview domain (<code className="bg-blue-100/70 px-1 py-0.5 rounded text-blue-900">ais-pre-...</code>). If you have updated the code, make sure to click the <strong className="font-semibold text-blue-950">"Share"</strong> button in the top-right header of Google AI Studio so other accounts and phones can load the latest build.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

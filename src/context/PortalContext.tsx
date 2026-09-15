@@ -50,6 +50,73 @@ export interface SP_Portal {
   updatedAt: string;
 }
 
+export interface SP_PortalLinkRecord {
+  id: string; // mainAccountId
+  mainAccountId: string;
+  mainAccountEmail: string;
+  organizationId: string;
+  pointsPortalId: string;
+  secureToken: string;
+  pointsPortalSlug?: string;
+  pointsPortalUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  status: 'active' | 'not_generated' | 'disabled';
+}
+
+export interface SP_PortalTokenRecord {
+  secureToken: string;
+  mainAccountId: string;
+  mainAccountEmail: string;
+  portalId: string;
+  portalName?: string;
+  status: 'active' | 'disabled';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function buildPortalUrl(secureToken: string): string {
+  let origin = window.location.origin;
+  if (origin.includes('ais-dev-')) {
+    origin = origin.replace('ais-dev-', 'ais-pre-');
+  }
+  return `${origin}${window.location.pathname}?suborg=true&portal=${encodeURIComponent(secureToken)}`;
+}
+
+export function extractPortalToken(): string | null {
+  try {
+    const searchParams = new URLSearchParams(window.location.search);
+    const portalParam = searchParams.get('portal');
+    if (portalParam && portalParam.trim()) {
+      return portalParam.trim();
+    }
+
+    if (window.location.pathname.includes('/points-portal/')) {
+      const parts = window.location.pathname.split('/points-portal/');
+      if (parts[1] && parts[1].trim()) {
+        return parts[1].split('/')[0].split('?')[0].trim();
+      }
+    }
+
+    if (window.location.hash.includes('portal=')) {
+      const hashParts = window.location.hash.split('portal=');
+      if (hashParts.length > 1) {
+        return hashParts[1].split('&')[0].trim();
+      }
+    }
+
+    if (window.location.hash.includes('#points-portal/')) {
+      const hashParts = window.location.hash.split('#points-portal/');
+      if (hashParts.length > 1) {
+        return hashParts[1].split('&')[0].split('?')[0].trim();
+      }
+    }
+  } catch (e) {
+    console.warn('Error extracting portal token', e);
+  }
+  return null;
+}
+
 export interface SP_RegistrationLink {
   id: string;
   portalId: string;
@@ -246,6 +313,15 @@ interface PortalContextType {
   generateRegistrationLink: (label?: string) => Promise<string>;
   getRegistrationLinkStatus: (linkId: string) => Promise<{ status: 'pending' | 'completed' | 'not_found'; organizationId: string | null; label: string } | null>;
   registerSubOrganization: (linkId: string, orgData: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, loginEmail: string, loginPass: string) => Promise<void>;
+  
+  // Account-Specific Points Portal Link Management
+  portalLink: SP_PortalLinkRecord | null;
+  portalLinkLoading: boolean;
+  portalStatus: 'active' | 'not_generated' | 'disabled' | 'invalid' | 'missing' | 'loading';
+  portalErrorMessage: string | null;
+  generateAccountPortalLink: () => Promise<SP_PortalLinkRecord>;
+  togglePortalLinkStatus: (status: 'active' | 'disabled') => Promise<void>;
+  regenerateAccountPortalLink: () => Promise<SP_PortalLinkRecord>;
 }
 
 export const DEFAULT_PORTAL_ID = 'f7e7snzA9iP7lxUvhKrvaCLBlh62';
@@ -255,31 +331,185 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useApp();
   
-  // A portal is tied to the master account ID (the user.id or active master portal ID)
+  // Account-Specific Portal Link and Access States
+  const [portalLink, setPortalLink] = useState<SP_PortalLinkRecord | null>(null);
+  const [portalLinkLoading, setPortalLinkLoading] = useState<boolean>(true);
+  const [portalStatus, setPortalStatus] = useState<'active' | 'not_generated' | 'disabled' | 'invalid' | 'missing' | 'loading'>('loading');
+  const [portalErrorMessage, setPortalErrorMessage] = useState<string | null>(null);
+
+  // Active portal ID resolution (isolated per account or URL token)
   const [activePortalId, setActivePortalId] = useState<string>(() => {
-    return user?.id || localStorage.getItem('sp_portal_id') || DEFAULT_PORTAL_ID;
+    if (user?.id) return user.id;
+    return '';
   });
 
-  useEffect(() => {
-    if (user?.id) {
-      setActivePortalId(user.id);
-      localStorage.setItem('sp_portal_id', user.id);
-    }
-  }, [user?.id]);
+  // Master account ID is strictly the resolved activePortalId or user.id
+  const masterAccountId = user?.id || activePortalId;
 
+  // Resolve portal access and account link
   useEffect(() => {
-    getDoc(doc(db, 'sp_portals', 'default')).then((snap) => {
-      if (snap.exists() && snap.data()?.activePortalId) {
-        const pId = snap.data().activePortalId;
-        if (!user?.id) {
-          setActivePortalId(pId);
-          localStorage.setItem('sp_portal_id', pId);
+    let isCancelled = false;
+
+    async function resolvePortalAccess() {
+      // 1. If authenticated as main Munazzam account
+      if (user?.id) {
+        const accountId = user.id;
+        setActivePortalId(accountId);
+        setPortalStatus('active');
+        setPortalErrorMessage(null);
+        setPortalLinkLoading(true);
+
+        try {
+          const linkSnap = await getDoc(doc(db, 'sp_portal_links', accountId));
+          if (!isCancelled) {
+            if (linkSnap.exists()) {
+              const data = linkSnap.data() as SP_PortalLinkRecord;
+              const expectedUrl = buildPortalUrl(data.secureToken);
+              data.pointsPortalUrl = expectedUrl;
+              setPortalLink(data);
+            } else {
+              // Legacy migration for original NHIA account
+              if (accountId === DEFAULT_PORTAL_ID) {
+                const now = new Date().toISOString();
+                const secureToken = 'ptk_nhia_points_f7e7';
+                const linkUrl = buildPortalUrl(secureToken);
+                const initialRecord: SP_PortalLinkRecord = {
+                  id: accountId,
+                  mainAccountId: accountId,
+                  mainAccountEmail: user.email || 'nhiafiqhdept@gmail.com',
+                  organizationId: accountId,
+                  pointsPortalId: accountId,
+                  secureToken,
+                  pointsPortalSlug: secureToken,
+                  pointsPortalUrl: linkUrl,
+                  createdAt: now,
+                  updatedAt: now,
+                  status: 'active'
+                };
+                await setDoc(doc(db, 'sp_portal_links', accountId), cleanFirestorePayload(initialRecord));
+                await setDoc(doc(db, 'sp_portal_tokens', secureToken), cleanFirestorePayload({
+                  secureToken,
+                  mainAccountId: accountId,
+                  mainAccountEmail: user.email || 'nhiafiqhdept@gmail.com',
+                  portalId: accountId,
+                  portalName: 'NSU Student Points Management',
+                  status: 'active',
+                  createdAt: now,
+                  updatedAt: now
+                }));
+                await setDoc(doc(db, 'sp_portal_tokens', accountId), cleanFirestorePayload({
+                  secureToken: accountId,
+                  mainAccountId: accountId,
+                  mainAccountEmail: user.email || 'nhiafiqhdept@gmail.com',
+                  portalId: accountId,
+                  portalName: 'NSU Student Points Management',
+                  status: 'active',
+                  createdAt: now,
+                  updatedAt: now
+                }));
+                setPortalLink(initialRecord);
+              } else {
+                setPortalLink(null);
+              }
+            }
+          }
+        } catch (err: any) {
+          console.warn('Error fetching sp_portal_links for account:', err);
+          if (!isCancelled) setPortalLink(null);
+        } finally {
+          if (!isCancelled) setPortalLinkLoading(false);
+        }
+        return;
+      }
+
+      // 2. If unauthenticated public or sub-org visitor: check token from URL
+      setPortalLinkLoading(false);
+      const token = extractPortalToken();
+      const params = new URLSearchParams(window.location.search);
+      const regParam = params.get('reg');
+
+      if (!token && !regParam) {
+        if (!isCancelled) {
+          setActivePortalId('');
+          setPortalStatus('missing');
+          setPortalErrorMessage('No Points Portal identifier was provided in the link.');
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (token) {
+        try {
+          const tokenSnap = await getDoc(doc(db, 'sp_portal_tokens', token));
+          if (!isCancelled) {
+            if (tokenSnap.exists()) {
+              const tData = tokenSnap.data();
+              if (tData.status === 'disabled') {
+                setPortalStatus('disabled');
+                setPortalErrorMessage('This Points Portal has been temporarily disabled by its administrator.');
+                setLoading(false);
+                return;
+              }
+              const pId = tData.portalId || tData.pointsPortalId;
+              if (pId) {
+                setActivePortalId(pId);
+                setPortalStatus('active');
+                setPortalErrorMessage(null);
+              } else {
+                setPortalStatus('invalid');
+                setPortalErrorMessage('Points Portal configuration is invalid.');
+                setLoading(false);
+              }
+            } else {
+              // Backward compatibility: check if token directly matches a legacy portalId in sp_portals
+              const portalSnap = await getDoc(doc(db, 'sp_portals', token));
+              if (portalSnap.exists()) {
+                setActivePortalId(token);
+                setPortalStatus('active');
+                setPortalErrorMessage(null);
+              } else {
+                setPortalStatus('invalid');
+                setPortalErrorMessage('This Points Portal link is invalid, unrecognized, or has expired.');
+                setLoading(false);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Error verifying portal token:', err);
+          if (!isCancelled) {
+            setPortalStatus('invalid');
+            setPortalErrorMessage('Could not verify Points Portal token.');
+            setLoading(false);
+          }
+        }
+      } else if (regParam) {
+        try {
+          const regSnap = await getDoc(doc(db, 'sp_registration_links', regParam));
+          if (!isCancelled && regSnap.exists() && regSnap.data().portalId) {
+            setActivePortalId(regSnap.data().portalId);
+            setPortalStatus('active');
+            setPortalErrorMessage(null);
+          } else if (!isCancelled) {
+            setPortalStatus('invalid');
+            setPortalErrorMessage('This registration invite link is invalid or has expired.');
+            setLoading(false);
+          }
+        } catch (e) {
+          if (!isCancelled) {
+            setPortalStatus('invalid');
+            setPortalErrorMessage('Could not verify registration invite.');
+            setLoading(false);
+          }
         }
       }
-    }).catch((e) => console.warn('Could not fetch default portal config', e));
-  }, [user?.id]);
+    }
 
-  const masterAccountId = user?.id || activePortalId || DEFAULT_PORTAL_ID;
+    resolvePortalAccess();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, user?.email]);
   
   const [portal, setPortal] = useState<SP_Portal | null>(null);
   const [portalUser, setPortalUser] = useState<PortalUser | null>(null);
@@ -547,14 +777,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 2. Portal User Authentication
   const loginPortalUser = async (email: string, password: string): Promise<boolean> => {
-    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
+    const targetPortalId = masterAccountId || activePortalId;
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if Admin password bypass (for simplicity and offline mode)
     if (user?.email && cleanEmail === user.email.toLowerCase() && password === '1234') {
       const admin: PortalUser = {
-        id: targetPortalId,
-        portalId: targetPortalId,
+        id: targetPortalId || user.id,
+        portalId: targetPortalId || user.id,
         organizationId: null,
         email: email,
         role: 'nsu_admin',
@@ -584,9 +814,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const match = bcrypt.compareSync(password, userData.passwordHash);
     if (!match) return false;
 
+    // Verify user belongs to this active portal (if an active portal is specified)
+    if (targetPortalId && userData.portalId && userData.portalId !== targetPortalId) {
+      throw new Error('This account does not belong to the currently active Points Portal.');
+    }
+
+    const resolvedPortalId = userData.portalId || targetPortalId || '';
     const loggedUser: PortalUser = {
       id: userData.id,
-      portalId: userData.portalId || targetPortalId,
+      portalId: resolvedPortalId,
       organizationId: userData.organizationId || null,
       email: userData.email,
       role: userData.role as any,
@@ -597,7 +833,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPortalUser(loggedUser);
     localStorage.setItem('sp_portal_user', JSON.stringify(loggedUser));
     if (userData.portalId) {
-      localStorage.setItem('sp_portal_id', userData.portalId);
       setActivePortalId(userData.portalId);
     }
     await logPortalAction('USER_LOGIN', `Logged in: ${userData.email}`).catch(() => {});
@@ -627,7 +862,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loginEmail: string,
     loginPass: string
   ) => {
-    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
+    const targetPortalId = masterAccountId || activePortalId;
+    if (!targetPortalId) {
+      throw new Error('Cannot create an organization without an active Points Portal ID.');
+    }
     const cleanEmail = loginEmail.trim().toLowerCase();
 
     // Check if email already registered in sp_users
@@ -1089,9 +1327,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loginEmail: string, 
     loginPass: string
   ) => {
-    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
-    const cleanEmail = loginEmail.trim().toLowerCase();
-    
     // Check if the link exists and is not used
     const linkRef = doc(db, 'sp_registration_links', linkId);
     const linkSnap = await getDoc(linkRef);
@@ -1102,6 +1337,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (linkData.status === 'completed') {
       throw new Error('This registration link has already been used to register an organization.');
     }
+
+    const targetPortalId = linkData.portalId || masterAccountId || activePortalId;
+    if (!targetPortalId) {
+      throw new Error('Could not identify the Points Portal associated with this registration link.');
+    }
+    const cleanEmail = loginEmail.trim().toLowerCase();
 
     // Check if email already registered in sp_users
     let emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
@@ -1195,6 +1436,133 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // 17. Account-Specific Points Portal Link Management
+  const generateAccountPortalLink = async (): Promise<SP_PortalLinkRecord> => {
+    if (!user?.id) {
+      throw new Error('You must be signed in to your Munazzam account to generate a Points Portal link.');
+    }
+
+    const accountId = user.id;
+    const accountEmail = user.email || '';
+
+    // Generate secure, unique token (24 hex characters)
+    const array = new Uint8Array(12);
+    crypto.getRandomValues(array);
+    const randomHex = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const secureToken = `ptk_${randomHex}`;
+    const publicUrl = buildPortalUrl(secureToken);
+    const now = new Date().toISOString();
+
+    const linkRecord: SP_PortalLinkRecord = {
+      id: accountId,
+      mainAccountId: accountId,
+      mainAccountEmail: accountEmail,
+      organizationId: accountId,
+      pointsPortalId: accountId,
+      secureToken,
+      pointsPortalSlug: secureToken,
+      pointsPortalUrl: publicUrl,
+      createdAt: now,
+      updatedAt: now,
+      status: 'active'
+    };
+
+    const tokenRecord: SP_PortalTokenRecord = {
+      secureToken,
+      mainAccountId: accountId,
+      mainAccountEmail: accountEmail,
+      portalId: accountId,
+      portalName: portal?.name || 'Student Points Management',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // 1. Write to sp_portal_links/{accountId}
+    await setDoc(doc(db, 'sp_portal_links', accountId), cleanFirestorePayload(linkRecord));
+
+    // 2. Write to sp_portal_tokens/{secureToken}
+    await setDoc(doc(db, 'sp_portal_tokens', secureToken), cleanFirestorePayload(tokenRecord));
+
+    // 3. Ensure sp_portals/{accountId} exists
+    const pSnap = await getDoc(doc(db, 'sp_portals', accountId));
+    if (!pSnap.exists()) {
+      await setDoc(doc(db, 'sp_portals', accountId), {
+        id: accountId,
+        name: 'Student Points Management',
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    // 4. Update accounts/{accountId}
+    try {
+      await updateDoc(doc(db, 'accounts', accountId), {
+        pointsPortal: {
+          pointsPortalId: accountId,
+          secureToken,
+          pointsPortalUrl: publicUrl,
+          status: 'active',
+          updatedAt: now
+        }
+      });
+    } catch (e) {
+      console.warn('Could not update accounts record with pointsPortal info', e);
+    }
+
+    setPortalLink(linkRecord);
+    return linkRecord;
+  };
+
+  const togglePortalLinkStatus = async (newStatus: 'active' | 'disabled') => {
+    if (!user?.id || !portalLink) return;
+    const now = new Date().toISOString();
+    const updated: SP_PortalLinkRecord = {
+      ...portalLink,
+      status: newStatus,
+      updatedAt: now
+    };
+
+    await updateDoc(doc(db, 'sp_portal_links', user.id), {
+      status: newStatus,
+      updatedAt: now
+    });
+
+    if (portalLink.secureToken) {
+      try {
+        await updateDoc(doc(db, 'sp_portal_tokens', portalLink.secureToken), {
+          status: newStatus,
+          updatedAt: now
+        });
+      } catch (e) {
+        console.warn('Could not update sp_portal_tokens status', e);
+      }
+    }
+
+    try {
+      await updateDoc(doc(db, 'accounts', user.id), {
+        'pointsPortal.status': newStatus,
+        'pointsPortal.updatedAt': now
+      });
+    } catch (e) {
+      console.warn('Could not update accounts status', e);
+    }
+
+    setPortalLink(updated);
+  };
+
+  const regenerateAccountPortalLink = async (): Promise<SP_PortalLinkRecord> => {
+    if (!user?.id) throw new Error('Must be signed in to regenerate link');
+    if (portalLink?.secureToken) {
+      try {
+        await deleteDoc(doc(db, 'sp_portal_tokens', portalLink.secureToken));
+      } catch (e) {
+        console.warn('Could not delete previous token doc', e);
+      }
+    }
+    return generateAccountPortalLink();
+  };
+
   return (
     <PortalContext.Provider value={{
       portal,
@@ -1211,6 +1579,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       auditLogs,
       registrationLinks,
       loading,
+      
+      portalLink,
+      portalLinkLoading,
+      portalStatus,
+      portalErrorMessage,
+      generateAccountPortalLink,
+      togglePortalLinkStatus,
+      regenerateAccountPortalLink,
       
       initializePortal,
       loginPortalUser,
