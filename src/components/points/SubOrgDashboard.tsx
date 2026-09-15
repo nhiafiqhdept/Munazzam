@@ -196,19 +196,19 @@ export const SubOrgDashboard: React.FC = () => {
   return (
     <div className="space-y-6" id="sub-org-portal-dashboard">
       {/* Overview stats header */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Class Identity Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex items-center gap-4 shadow-xs md:col-span-2">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 shadow-xs col-span-2">
           {activeOrg?.logo ? (
-            <img src={activeOrg.logo} alt={activeOrg.name} className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+            <img src={activeOrg.logo} alt={activeOrg.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
           ) : (
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-lg">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
               {activeOrg?.name.substring(0, 2).toUpperCase() || 'SP'}
             </div>
           )}
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 font-heading leading-tight">{activeOrg?.name}</h1>
-            <p className="text-xs text-slate-500">{activeOrg?.className} • Admin: {portalUser?.name || portalUser?.email}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">{activeOrg?.name}</h1>
+            <p className="text-xs text-slate-500 truncate">{activeOrg?.className} • Admin: {portalUser?.name || portalUser?.email}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md">
                 Active Organization
@@ -218,20 +218,20 @@ export const SubOrgDashboard: React.FC = () => {
         </div>
 
         {/* Total Points Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Earned Points</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-emerald-800">{activeOrg?.totalPoints || 0}</span>
-            <span className="text-xs font-semibold text-slate-500">POINTS</span>
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Earned</p>
+          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+            <span className="text-2xl sm:text-3xl font-black text-emerald-800">{activeOrg?.totalPoints || 0}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
           </div>
         </div>
 
         {/* Current Standing Rank Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Current Leaderboard Rank</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-slate-800">#{activeRank || '-'}</span>
-            <span className="text-xs font-semibold text-slate-500">OUT OF 10</span>
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Leaderboard Rank</p>
+          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+            <span className="text-2xl sm:text-3xl font-black text-slate-800">#{activeRank || '-'}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
           </div>
         </div>
       </div>

@@ -178,34 +178,34 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6" id="admin-portal-dashboard">
       {/* Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Sub-Organizations</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-slate-800">{organizations.length}</span>
-            <span className="text-xs font-semibold text-slate-500">OUT OF 10</span>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Sub-Organizations</p>
+          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+            <span className="text-2xl sm:text-3xl font-black text-slate-800">{organizations.length}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Pending Reviews</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-amber-600">{pendingAchievements.length}</span>
-            <span className="text-xs font-semibold text-slate-500">SUBMISSIONS</span>
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Pending Reviews</p>
+          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+            <span className="text-2xl sm:text-3xl font-black text-amber-600">{pendingAchievements.length}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">SUBMISSIONS</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Points Awarded</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-emerald-800">{totalPointsAwarded}</span>
-            <span className="text-xs font-semibold text-slate-500">POINTS</span>
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Points</p>
+          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+            <span className="text-2xl sm:text-3xl font-black text-emerald-800">{totalPointsAwarded}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs bg-emerald-50/20 border-emerald-100">
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Top Performer</p>
-          <p className="font-extrabold text-emerald-950 text-base mt-2 truncate">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-emerald-100 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs bg-emerald-50/20">
+          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Top Performer</p>
+          <p className="font-extrabold text-emerald-950 text-xs sm:text-base mt-2 truncate">
             {organizations[0] ? `${organizations[0].name} (${organizations[0].totalPoints} pts)` : 'None'}
           </p>
         </div>
@@ -718,47 +718,55 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <div className="flex gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                <span className="text-[10px] text-slate-500 font-mono truncate flex-grow select-all">
-                  {getPublicOrigin() + window.location.pathname}?suborg=true
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const fullUrl = `${getPublicOrigin()}${window.location.pathname}?suborg=true`;
-                    navigator.clipboard.writeText(fullUrl);
-                    setCopiedLinkId('general_link');
-                    setTimeout(() => setCopiedLinkId(null), 2000);
-                  }}
-                  className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer text-xs font-bold ${
-                    copiedLinkId === 'general_link'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                      : 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                  }`}
-                >
-                  {copiedLinkId === 'general_link' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Copy Link</span>
-                    </>
-                  )}
-                </button>
+              {/* Public link (for external users / other accounts) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-slate-700">Public Shared Link (For all students & other accounts)</span>
+                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">No Google Login Required</span>
+                </div>
+                <div className="flex gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                  <span className="text-[10px] text-slate-600 font-mono truncate flex-grow select-all">
+                    {getPublicOrigin() + window.location.pathname}?suborg=true
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fullUrl = `${getPublicOrigin()}${window.location.pathname}?suborg=true`;
+                      navigator.clipboard.writeText(fullUrl);
+                      setCopiedLinkId('general_link');
+                      setTimeout(() => setCopiedLinkId(null), 2000);
+                    }}
+                    className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer text-xs font-bold shrink-0 ${
+                      copiedLinkId === 'general_link'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                        : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    }`}
+                  >
+                    {copiedLinkId === 'general_link' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Copy Public Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {window.location.origin.includes('ais-dev-') && (
-                <div className="p-3 bg-amber-50 border border-amber-200/70 rounded-xl text-[11px] text-amber-800 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold">Public Sharing Guide</p>
-                    <p className="text-[10px] text-amber-700 leading-relaxed">
-                      The link copied above is automatically converted to the public access URL (<code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-[9px]">ais-pre-...</code>). Ensure you have clicked <strong className="font-semibold">Share</strong> in the top-right of AI Studio so that students and external accounts (e.g. non-owners, incognito windows, phones) can access it without hitting Google's development 403 error.
-                    </p>
+                <div className="p-3 bg-blue-50 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                    <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>How to activate the Public Link (Fixes 404 / 403 errors):</span>
                   </div>
+                  <p className="text-[10px] text-blue-800 leading-relaxed">
+                    If opening the public link shows <em>"404 Page not found"</em>, it simply means the public build hasn't been published yet. 
+                    Click the <strong className="font-semibold text-blue-950">"Share"</strong> button in the top-right header of Google AI Studio to publish it. Once shared, anyone on any Google account or phone can access the portal without errors.
+                  </p>
                 </div>
               )}
             </div>
