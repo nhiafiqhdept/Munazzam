@@ -117,44 +117,59 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-2xl font-bold font-heading text-slate-900 tracking-tight">
-            Treasurer & Financial Operations Dashboard
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Real-time multi-account tracking, income, expenses, and loan management.
-          </p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 shrink-0">
+            <Landmark className="w-6 h-6 text-emerald-700" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900 tracking-tight">
+                Treasury & Financial Operations
+              </h1>
+              <span className="text-[11px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/70 rounded-full">
+                Active Ledger
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Real-time multi-account tracking, income, expenses, loans, and cashbook logs.
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Action Button Matrix: 2x2 on Mobile, Inline Row on Desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
           <button
+            id="treasury-record-income-btn"
             onClick={onOpenAddIncome}
-            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+            className="w-full px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
           >
-            <ArrowDownLeft className="w-4 h-4" />
-            <span>Record Income</span>
+            <ArrowDownLeft className="w-4 h-4 text-emerald-200 shrink-0" />
+            <span className="whitespace-nowrap">Record Income</span>
           </button>
           <button
+            id="treasury-record-expense-btn"
             onClick={onOpenAddExpense}
-            className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+            className="w-full px-3.5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
           >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Record Expense</span>
+            <ArrowUpRight className="w-4 h-4 text-rose-200 shrink-0" />
+            <span className="whitespace-nowrap">Record Expense</span>
           </button>
           <button
+            id="treasury-transfer-funds-btn"
             onClick={onOpenAddTransfer}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+            className="w-full px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
           >
-            <ArrowLeftRight className="w-4 h-4" />
-            <span>Transfer Funds</span>
+            <ArrowLeftRight className="w-4 h-4 text-slate-300 shrink-0" />
+            <span className="whitespace-nowrap">Transfer Funds</span>
           </button>
           <button
+            id="treasury-add-loan-btn"
             onClick={onOpenAddLoan}
-            className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+            className="w-full px-3.5 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
           >
-            <Landmark className="w-4 h-4" />
-            <span>Add Loan</span>
+            <Landmark className="w-4 h-4 text-amber-200 shrink-0" />
+            <span className="whitespace-nowrap">Add Loan</span>
           </button>
         </div>
       </div>

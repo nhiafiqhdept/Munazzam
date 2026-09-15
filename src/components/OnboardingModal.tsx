@@ -107,8 +107,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8"
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 sm:p-8">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 sm:p-8 pb-8">
+          <div className="flex items-center gap-3 mb-2.5">
             <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
               <School className="w-6 h-6" />
             </div>
@@ -121,33 +121,33 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </h2>
             </div>
           </div>
-          <p className="text-sm text-slate-300 max-w-lg mt-1">
+          <p className="text-sm text-slate-300 max-w-lg mt-2 leading-relaxed">
             Configure your student union, academic department, or student council profile to document programs and activities.
           </p>
 
           {/* Quick presets helper */}
-          <div className="mt-4 pt-4 border-t border-slate-700/60 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+          <div className="mt-6 pt-5 pb-1 border-t border-slate-700/70 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mr-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Quick Starters:
             </span>
             <button
               type="button"
               onClick={() => handleApplyPresetOrg('fiqh')}
-              className="text-xs px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 text-emerald-300 rounded-lg border border-slate-700 transition-colors"
+              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-emerald-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
             >
               Dept of Fiqh
             </button>
             <button
               type="button"
               onClick={() => handleApplyPresetOrg('union')}
-              className="text-xs px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 text-sky-300 rounded-lg border border-slate-700 transition-colors"
+              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-sky-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
             >
               Noorul Huda Students Union
             </button>
             <button
               type="button"
               onClick={() => handleApplyPresetOrg('clean')}
-              className="text-xs px-2.5 py-1 bg-slate-800/90 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors"
+              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
             >
               Fresh Blank Form
             </button>
@@ -155,7 +155,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 pt-8 sm:pt-10 space-y-7">
           {error && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-medium">
               {error}
@@ -163,9 +163,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           )}
 
           {/* Core Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 Organization Name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -183,7 +183,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 College / Institution Name <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -201,7 +201,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 Motto / Tagline <span className="text-slate-400 text-xs font-normal">(Optional)</span>
               </label>
               <input
@@ -215,7 +215,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 Established Year <span className="text-slate-400 text-xs font-normal">(Optional)</span>
               </label>
               <input

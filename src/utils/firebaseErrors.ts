@@ -23,6 +23,9 @@ export function getFirebaseErrorMessage(error: any): string {
       return 'Network error. Please check your internet connection.';
     case 'auth/too-many-requests':
       return 'Too many unsuccessful attempts. Please try again later.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return '';
     case 'permission-denied':
       return "You don't have permission to access this account.";
     default:

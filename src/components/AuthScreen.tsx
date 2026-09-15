@@ -94,8 +94,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         onLoginSuccess(token, authUser);
       }, 500);
     } catch (err: any) {
-      logAuthDiagnostic('Google Sign-In', err);
-      setGeneralError(getFirebaseErrorMessage(err));
+      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+        logAuthDiagnostic('Google Sign-In', err);
+        setGeneralError(getFirebaseErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
