@@ -342,9 +342,9 @@ const AuthenticatedApp: React.FC = () => {
 
   if (isSuborgPortal) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-2 xs:p-3 sm:p-6 lg:p-8">
         <OfflineBanner />
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <StudentPointsPortal />
         </div>
       </div>

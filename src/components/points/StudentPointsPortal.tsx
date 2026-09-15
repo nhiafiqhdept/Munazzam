@@ -153,11 +153,11 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   // Segment 1: Selection screen showing Options 1 & 2
   if (viewMode === 'choose') {
     return (
-      <div className="max-w-lg mx-auto my-12">
+      <div className="w-full max-w-lg mx-auto my-4 sm:my-8 px-2 sm:px-0">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 space-y-6"
+          className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-5 sm:p-8 space-y-5 sm:space-y-6"
         >
           <div className="text-center space-y-2">
             <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
@@ -174,13 +174,13 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 pt-2">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 pt-2">
             {/* Option 1 Option Card */}
             <button
               onClick={() => setViewMode('register')}
-              className="text-left p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-4 items-start"
+              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
             >
-              <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl group-hover:bg-emerald-100 transition-colors flex-shrink-0">
+              <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-xl group-hover:bg-emerald-100 transition-colors flex-shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -192,9 +192,9 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             {/* Option 2 Option Card */}
             <button
               onClick={() => setViewMode('login')}
-              className="text-left p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-4 items-start"
+              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
             >
-              <div className="p-3 bg-slate-100 text-slate-700 rounded-xl group-hover:bg-emerald-100 group-hover:text-emerald-700 transition-colors flex-shrink-0">
+              <div className="p-2.5 sm:p-3 bg-slate-100 text-slate-700 rounded-xl group-hover:bg-emerald-100 group-hover:text-emerald-700 transition-colors flex-shrink-0">
                 <Lock className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -220,34 +220,36 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   if (viewMode === 'register') {
     if (linkStatus === 'completed' && !success) {
       return (
-        <div className="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-900">Link Already Registered</h3>
-          <p className="text-xs text-slate-500">This registration link has already been used to create an organization. To prevent duplicates, each registration link can only be used once.</p>
-          <div className="flex flex-col gap-2 pt-2">
-            <button
-              onClick={() => setViewMode('login')}
-              className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-            >
-              Already Have an Account? Login
-            </button>
-            <button
-              onClick={() => setViewMode('choose')}
-              className="w-full py-2 px-4 text-slate-500 hover:text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              Back to Options
-            </button>
+        <div className="w-full max-w-md mx-auto my-4 sm:my-12 px-2 sm:px-0">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-6 sm:p-8 text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
+            <h3 className="text-lg font-bold text-slate-900">Link Already Registered</h3>
+            <p className="text-xs text-slate-500">This registration link has already been used to create an organization. To prevent duplicates, each registration link can only be used once.</p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => setViewMode('login')}
+                className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Already Have an Account? Login
+              </button>
+              <button
+                onClick={() => setViewMode('choose')}
+                className="w-full py-2 px-4 text-slate-500 hover:text-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Back to Options
+              </button>
+            </div>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="max-w-lg mx-auto my-12">
+      <div className="w-full max-w-lg mx-auto my-4 sm:my-8 px-2 sm:px-0">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 space-y-6"
+          className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-5 sm:p-8 space-y-5 sm:space-y-6"
         >
           <div className="text-center space-y-2">
             <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
@@ -677,11 +679,11 @@ const StudentPointsInner: React.FC = () => {
   if (!portalUser) {
     if (isSuborgLink) {
       return (
-        <div className="max-w-lg mx-auto my-12" id="direct-suborg-portal-access">
+        <div className="w-full max-w-lg mx-auto my-4 sm:my-8 px-2 sm:px-0" id="direct-suborg-portal-access">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 space-y-6"
+            className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-5 sm:p-8 space-y-5 sm:space-y-6"
           >
             {/* Direct Header Branding */}
             <div className="text-center space-y-2">

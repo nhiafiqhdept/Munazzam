@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import {
   ChevronDown,
   PlusCircle,
-  Menu,
-  X,
+  Settings,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
@@ -19,11 +18,19 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
 }) => {
   const handleOpenNewOrg = onOpenNewOrgModal || onOpenOnboarding || (() => {});
-  const { currentOrg, organizations, currentOrgId, setCurrentOrgId } =
-    useApp();
+  const {
+    currentOrg,
+    organizations,
+    currentOrgId,
+    setCurrentOrgId,
+    activeTab,
+    setActiveTab,
+  } = useApp();
   const [showOrgDropdown, setShowOrgDropdown] = useState(false);
 
   if (!currentOrg) return null;
+
+  const isSettingsActive = activeTab === 'settings';
 
   return (
     <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs backdrop-blur-md bg-white/95">
@@ -128,14 +135,31 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Upper Right Corner: Academic Year / Session Pill */}
-          {currentOrg.academic_year && (
-            <div className="flex items-center shrink-0 pt-0.5">
-              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-full text-[11px] sm:text-xs font-bold tracking-tight">
+          {/* Upper Right Corner: Academic Year Pill & Settings Button */}
+          <div className="flex items-center gap-2 shrink-0 pt-0.5">
+            {currentOrg.academic_year && (
+              <span className="hidden xs:inline-flex px-2.5 py-0.5 sm:px-3 sm:py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-full text-[11px] sm:text-xs font-bold tracking-tight">
                 {currentOrg.academic_year}
               </span>
-            </div>
-          )}
+            )}
+            <button
+              id="header-settings-btn"
+              onClick={() => {
+                setActiveTab('settings');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border transition-all duration-200 flex items-center gap-1.5 cursor-pointer select-none text-xs font-semibold ${
+                isSettingsActive
+                  ? 'bg-emerald-50 text-[#0B7A5A] border-emerald-300 shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-slate-200 shadow-2xs'
+              }`}
+              title="Organization Settings"
+              aria-label="Settings"
+            >
+              <Settings className={`w-4 h-4 transition-transform duration-200 ${isSettingsActive ? 'rotate-45 text-[#0B7A5A]' : 'group-hover:rotate-45'}`} />
+              <span className="hidden sm:inline">Settings</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>

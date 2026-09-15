@@ -4,7 +4,6 @@ import {
   Users,
   CalendarDays,
   Landmark,
-  Settings,
   Award,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -44,12 +43,6 @@ export const Navigation: React.FC = () => {
       isActive: (tab) => tab.startsWith('treasury'),
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      isActive: (tab) => tab === 'settings',
-    },
-    {
       id: 'student-points',
       label: 'Points',
       icon: Award,
@@ -68,7 +61,7 @@ export const Navigation: React.FC = () => {
       className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] no-print pb-[max(0.5rem,env(safe-area-inset-bottom))]"
     >
       <div className="max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto px-2 pt-1.5">
-        <div className="grid grid-cols-6 gap-1 items-center justify-between text-center">
+        <div className="grid grid-cols-5 gap-1 items-center justify-between text-center">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = item.isActive(activeTab);

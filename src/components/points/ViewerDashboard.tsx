@@ -37,18 +37,18 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
   };
 
   return (
-    <div className="space-y-6" id="viewer-portal-dashboard">
+    <div className="space-y-4 sm:space-y-6" id="viewer-portal-dashboard">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white rounded-3xl p-8 shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-md relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
           <Trophy className="w-64 h-64 rotate-12 text-white" />
         </div>
-        <div className="max-w-2xl space-y-3 relative z-10">
-          <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] uppercase font-bold tracking-wider text-emerald-300">
+        <div className="max-w-2xl space-y-2 sm:space-y-3 relative z-10">
+          <span className="px-3 py-0.5 sm:py-1 bg-white/10 backdrop-blur-md rounded-full text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-emerald-300">
             Public Dashboard
           </span>
-          <h1 className="text-3xl font-bold font-heading tracking-tight leading-none">Student Points Leaderboard</h1>
-          <p className="text-emerald-100/80 text-sm leading-relaxed max-w-lg">
+          <h1 className="text-xl sm:text-3xl font-bold font-heading tracking-tight leading-tight">Student Points Leaderboard</h1>
+          <p className="text-emerald-100/80 text-xs sm:text-sm leading-relaxed max-w-lg">
             Track performance and check current ranks of class sub-organizations.
           </p>
         </div>
@@ -56,10 +56,10 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
       {/* Tabs Menu */}
       {!hideTabsHeader && (
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setViewTab('leaderboard')}
-            className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            className={`py-2.5 sm:py-3.5 px-4 sm:px-6 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               viewTab === 'leaderboard'
                 ? 'border-emerald-700 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -69,7 +69,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
           </button>
           <button
             onClick={() => setViewTab('awards')}
-            className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+            className={`py-2.5 sm:py-3.5 px-4 sm:px-6 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               viewTab === 'awards'
                 ? 'border-emerald-700 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -82,11 +82,11 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
       {/* Tab Contents */}
       {viewTab === 'leaderboard' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Leaderboard Table */}
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-amber-500" />
                 Live Standings
               </h2>

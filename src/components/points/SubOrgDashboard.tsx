@@ -198,13 +198,13 @@ export const SubOrgDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" id="sub-org-portal-dashboard">
+    <div className="space-y-4 sm:space-y-6" id="sub-org-portal-dashboard">
       {/* Sub-Org Unified Portal Navigation */}
-      <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none">
+      <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 px-1">
         <button
           type="button"
           onClick={() => setActiveTab('leaderboard')}
-          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'leaderboard'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -215,7 +215,7 @@ export const SubOrgDashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('awards')}
-          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'awards'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -226,7 +226,7 @@ export const SubOrgDashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'overview'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -237,7 +237,7 @@ export const SubOrgDashboard: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('submit')}
-          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'submit'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -251,7 +251,7 @@ export const SubOrgDashboard: React.FC = () => {
             setActiveTab('notifications');
             markNotificationsAsRead();
           }}
-          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
+          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'notifications'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -322,15 +322,15 @@ export const SubOrgDashboard: React.FC = () => {
             </div>
           </div>
           {/* Achievements Submissions Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <div className="flex justify-between items-center">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <History className="w-5 h-5 text-emerald-600" />
                 Submissions Registry
               </h2>
               <button
                 onClick={() => setActiveTab('submit')}
-                className="py-1.5 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer"
+                className="py-1.5 px-3.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 New Submission
@@ -407,13 +407,13 @@ export const SubOrgDashboard: React.FC = () => {
 
       {/* Submit Achievement tab */}
       {activeTab === 'submit' && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-8 space-y-6">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6">
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-900">Submit New Achievement Proof</h2>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">Submit New Achievement Proof</h2>
             <p className="text-xs text-slate-500">Attach files, fill details, and request evaluations from administrators.</p>
           </div>
 
-          <form onSubmit={handleFormSubmit} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-5 sm:space-y-6">
             {formError && (
               <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-2xl text-xs text-rose-700 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
