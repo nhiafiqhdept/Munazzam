@@ -12,6 +12,7 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { OrganizerModal } from './components/OrganizerModal';
 import { ProgramModal } from './components/ProgramModal';
+import { StudentPointsPortal } from './components/points/StudentPointsPortal';
 
 import { TreasuryNav } from './components/treasury/TreasuryNav';
 import { TreasuryDashboardView } from './components/treasury/TreasuryDashboardView';
@@ -223,6 +224,8 @@ const MainLayout: React.FC = () => {
             {activeTab === 'treasury-cashbook' && <CashBookView />}
 
             {activeTab === 'treasury-reports' && <ReportsView />}
+
+            {activeTab === 'student-points' && <StudentPointsPortal />}
           </>
         )}
       </main>

@@ -67,6 +67,217 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "accountId", "name"]
+    },
+    "SP_Portal": {
+      "title": "SP_Portal",
+      "description": "Student Points Portal setting node",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "SP_Organization": {
+      "title": "SP_Organization",
+      "description": "Class sub-organization inside Student Points Portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "name": { "type": "string" },
+        "className": { "type": "string" },
+        "logo": { "type": "string" },
+        "description": { "type": "string" },
+        "leader": { "type": "string" },
+        "contactDetails": { "type": "string" },
+        "status": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "name", "className"]
+    },
+    "SP_User": {
+      "title": "SP_User",
+      "description": "Sub-organization or Admin login account for Student Points Portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "email": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "role": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "email", "passwordHash", "role"]
+    },
+    "SP_Category": {
+      "title": "SP_Category",
+      "description": "Achievement point categories customizable by NSU Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "name": { "type": "string" },
+        "defaultPoints": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "name"]
+    },
+    "SP_Achievement": {
+      "title": "SP_Achievement",
+      "description": "Sub-organization achievement submissions for points evaluation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "title": { "type": "string" },
+        "programName": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "date": { "type": "string" },
+        "place": { "type": "string" },
+        "description": { "type": "string" },
+        "participantsCount": { "type": "number" },
+        "responsiblePerson": { "type": "string" },
+        "requestedPoints": { "type": "number" },
+        "additionalNotes": { "type": "string" },
+        "status": { "type": "string" },
+        "reviewNotes": { "type": "string" },
+        "awardedPoints": { "type": "number" },
+        "reviewerId": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "organizationId", "title", "programName", "categoryId", "date", "status"]
+    },
+    "SP_Media": {
+      "title": "SP_Media",
+      "description": "Saved media attachment records for Student Points Portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "achievementId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "proofType": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "mimeType": { "type": "string" },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "achievementId", "organizationId", "proofType", "fileUrl"]
+    },
+    "SP_Transaction": {
+      "title": "SP_Transaction",
+      "description": "Individual point transaction audit log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "achievementId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "points": { "type": "number" },
+        "type": { "type": "string" },
+        "reason": { "type": "string" },
+        "awardedBy": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "organizationId", "points", "type", "reason"]
+    },
+    "SP_Competition": {
+      "title": "SP_Competition",
+      "description": "Competitions or evaluation periods",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "name": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "name", "startDate", "endDate"]
+    },
+    "SP_Award": {
+      "title": "SP_Award",
+      "description": "Award categories and winners",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "evaluationPeriod": { "type": "string" },
+        "winnerOrganizationId": { "type": "string" },
+        "winnerOrganizationName": { "type": "string" },
+        "awardDate": { "type": "string" },
+        "certificateUrl": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "name", "winnerOrganizationId", "awardDate"]
+    },
+    "SP_Announcement": {
+      "title": "SP_Announcement",
+      "description": "Published announcements from NSU Super Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "publishedBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "title", "content", "publishedBy", "createdAt"]
+    },
+    "SP_Notification": {
+      "title": "SP_Notification",
+      "description": "Portal notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "userId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "title", "message", "createdAt"]
+    },
+    "SP_AuditLog": {
+      "title": "SP_AuditLog",
+      "description": "Portal auditing history logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "portalId", "action", "details", "timestamp"]
     }
   },
   "firestore": {
@@ -85,6 +296,54 @@
     "/program_categories/{categoryId}": {
       "schema": "ProgramCategory",
       "description": "Program categories belonging to account"
+    },
+    "/sp_portals/{portalId}": {
+      "schema": "SP_Portal",
+      "description": "Student points portal root node"
+    },
+    "/sp_organizations/{orgId}": {
+      "schema": "SP_Organization",
+      "description": "Class organizations"
+    },
+    "/sp_users/{userId}": {
+      "schema": "SP_User",
+      "description": "Class login credentials"
+    },
+    "/sp_categories/{categoryId}": {
+      "schema": "SP_Category",
+      "description": "Achievement point evaluation categories"
+    },
+    "/sp_achievements/{achievementId}": {
+      "schema": "SP_Achievement",
+      "description": "Achievement submissions"
+    },
+    "/sp_media/{mediaId}": {
+      "schema": "SP_Media",
+      "description": "Proof files details"
+    },
+    "/sp_transactions/{transactionId}": {
+      "schema": "SP_Transaction",
+      "description": "Point transactions log"
+    },
+    "/sp_competitions/{competitionId}": {
+      "schema": "SP_Competition",
+      "description": "Competitions and periods"
+    },
+    "/sp_awards/{awardId}": {
+      "schema": "SP_Award",
+      "description": "Awards registry"
+    },
+    "/sp_announcements/{announcementId}": {
+      "schema": "SP_Announcement",
+      "description": "Announcements"
+    },
+    "/sp_notifications/{notificationId}": {
+      "schema": "SP_Notification",
+      "description": "System alerts and notification items"
+    },
+    "/sp_audit_logs/{logId}": {
+      "schema": "SP_AuditLog",
+      "description": "Portal audit log record"
     }
   }
 }

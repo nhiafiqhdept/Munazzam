@@ -149,6 +149,7 @@ export default defineConfig(() => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\/.*/, /^\/uploads\/.*/],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase limit to 5MB to handle larger bundle sizes
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -188,7 +189,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve('.'),
       },
     },
     server: {

@@ -93,7 +93,8 @@ export type ActiveTab =
   | 'treasury-events'
   | 'treasury-ledger'
   | 'treasury-cashbook'
-  | 'treasury-reports';
+  | 'treasury-reports'
+  | 'student-points';
 
 export type FinancialAccountType = 'cash' | 'bank' | 'upi' | 'emergency' | 'other';
 

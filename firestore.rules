@@ -81,5 +81,54 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.accountId == request.auth.uid;
       allow update: if request.auth != null && resource.data.accountId == request.auth.uid && request.resource.data.accountId == request.auth.uid;
     }
+
+    // STUDENT POINTS MANAGEMENT PORTAL (sp_) COLLECTIONS
+    match /sp_portals/{portalId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_organizations/{orgId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_users/{userId} {
+      allow read, write: if true;
+    }
+    match /sp_categories/{categoryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_achievements/{achievementId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_media/{mediaId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_transactions/{transactionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_competitions/{competitionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_awards/{awardId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_announcements/{announcementId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_notifications/{notificationId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /sp_audit_logs/{logId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }
