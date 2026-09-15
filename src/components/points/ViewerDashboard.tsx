@@ -4,11 +4,22 @@ import { Award, Trophy, Star, ChevronRight, FileText, Calendar, MapPin, Eye, Fil
 import { motion } from 'motion/react';
 import { formatDate } from '../../utils/helpers';
 
-export const ViewerDashboard: React.FC = () => {
+export interface ViewerDashboardProps {
+  currentTab?: 'leaderboard' | 'awards';
+  hideTabsHeader?: boolean;
+}
+
+export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hideTabsHeader = false }) => {
   const { organizations, achievements, awards, announcements, competitions, categories, mediaAttachments } = usePortal();
   
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
-  const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>('leaderboard');
+  const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>(currentTab || 'leaderboard');
+
+  React.useEffect(() => {
+    if (currentTab) {
+      setViewTab(currentTab);
+    }
+  }, [currentTab]);
 
   // Find media attachments for an achievement
   const getMediaForAchievement = (achId: string) => {
@@ -44,28 +55,30 @@ export const ViewerDashboard: React.FC = () => {
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setViewTab('leaderboard')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
-            viewTab === 'leaderboard'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Leaderboard & Ranks
-        </button>
-        <button
-          onClick={() => setViewTab('awards')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
-            viewTab === 'awards'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Conferred Awards
-        </button>
-      </div>
+      {!hideTabsHeader && (
+        <div className="flex border-b border-slate-200">
+          <button
+            onClick={() => setViewTab('leaderboard')}
+            className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+              viewTab === 'leaderboard'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Leaderboard & Ranks
+          </button>
+          <button
+            onClick={() => setViewTab('awards')}
+            className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+              viewTab === 'awards'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Conferred Awards
+          </button>
+        </div>
+      )}
 
       {/* Tab Contents */}
       {viewTab === 'leaderboard' && (

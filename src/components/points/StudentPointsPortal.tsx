@@ -897,7 +897,7 @@ const StudentPointsInner: React.FC = () => {
       );
     }
 
-    return <PortalLogin onJoinAsViewer={() => setIsViewer(true)} />;
+    return <PortalLogin />;
   }
 
   return (

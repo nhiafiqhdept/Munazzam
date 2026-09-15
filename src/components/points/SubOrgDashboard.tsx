@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
+import { ViewerDashboard } from './ViewerDashboard';
+
+export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'notifications';
 
 export const SubOrgDashboard: React.FC = () => {
   const { 
@@ -18,7 +21,7 @@ export const SubOrgDashboard: React.FC = () => {
   const orgIndex = organizations.findIndex(o => o.id === portalUser?.organizationId);
   const activeRank = orgIndex >= 0 ? orgIndex + 1 : '-';
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit' | 'notifications'>('overview');
+  const [activeTab, setActiveTab] = useState<SubOrgTab>('leaderboard');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
 
   // Filter achievements for this org only
@@ -196,56 +199,34 @@ export const SubOrgDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6" id="sub-org-portal-dashboard">
-      {/* Overview stats header */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Class Identity Card */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 shadow-xs col-span-2">
-          {activeOrg?.logo ? (
-            <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
-          ) : (
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
-              {((activeOrg?.name || portalUser?.name || 'SP').trim().slice(0, 2)).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
-              {activeOrg?.name || portalUser?.name || 'Class Organization'}
-            </h1>
-            <p className="text-xs text-slate-500 truncate">
-              {activeOrg?.className || 'Class Account'} • Admin: {portalUser?.name || portalUser?.email}
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md">
-                Active Organization
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Points Card */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Earned</p>
-          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-800">{activeOrg?.totalPoints || 0}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
-          </div>
-        </div>
-
-        {/* Current Standing Rank Card */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Leaderboard Rank</p>
-          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">#{activeRank || '-'}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      {/* Sub-Org Unified Portal Navigation */}
+      <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none">
         <button
+          type="button"
+          onClick={() => setActiveTab('leaderboard')}
+          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+            activeTab === 'leaderboard'
+              ? 'border-emerald-700 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Leaderboard & Ranks
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('awards')}
+          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+            activeTab === 'awards'
+              ? 'border-emerald-700 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Conferred Awards
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab('overview')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'overview'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -254,8 +235,9 @@ export const SubOrgDashboard: React.FC = () => {
           Overview & Submissions
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('submit')}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer ${
+          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'submit'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -264,11 +246,12 @@ export const SubOrgDashboard: React.FC = () => {
           Submit Achievement
         </button>
         <button
+          type="button"
           onClick={() => {
             setActiveTab('notifications');
             markNotificationsAsRead();
           }}
-          className={`py-3.5 px-6 font-bold text-sm border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+          className={`py-3.5 px-5 font-bold text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'notifications'
               ? 'border-emerald-700 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -281,9 +264,63 @@ export const SubOrgDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Overview tab */}
+      {/* Leaderboard & Ranks Tab (Default) */}
+      {activeTab === 'leaderboard' && (
+        <ViewerDashboard currentTab="leaderboard" hideTabsHeader={true} />
+      )}
+
+      {/* Conferred Awards Tab */}
+      {activeTab === 'awards' && (
+        <ViewerDashboard currentTab="awards" hideTabsHeader={true} />
+      )}
+
+      {/* Overview & Submissions tab */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          {/* Overview stats header */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Class Identity Card */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 shadow-xs col-span-2">
+              {activeOrg?.logo ? (
+                <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
+              ) : (
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
+                  {((activeOrg?.name || portalUser?.name || 'SP').trim().slice(0, 2)).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
+                  {activeOrg?.name || portalUser?.name || 'Class Organization'}
+                </h1>
+                <p className="text-xs text-slate-500 truncate">
+                  {activeOrg?.className || 'Class Account'} • Admin: {portalUser?.name || portalUser?.email}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md">
+                    Active Organization
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Points Card */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+              <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Earned</p>
+              <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+                <span className="text-2xl sm:text-3xl font-black text-emerald-800">{activeOrg?.totalPoints || 0}</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
+              </div>
+            </div>
+
+            {/* Current Standing Rank Card */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
+              <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Leaderboard Rank</p>
+              <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
+                <span className="text-2xl sm:text-3xl font-black text-slate-800">#{activeRank || '-'}</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
+              </div>
+            </div>
+          </div>
           {/* Achievements Submissions Table */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
             <div className="flex justify-between items-center">
