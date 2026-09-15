@@ -248,13 +248,38 @@ interface PortalContextType {
   registerSubOrganization: (linkId: string, orgData: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, loginEmail: string, loginPass: string) => Promise<void>;
 }
 
+export const DEFAULT_PORTAL_ID = 'f7e7snzA9iP7lxUvhKrvaCLBlh62';
+
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useApp();
   
-  // A portal is tied to the master account ID (the user.id)
-  const masterAccountId = user?.id || '';
+  // A portal is tied to the master account ID (the user.id or active master portal ID)
+  const [activePortalId, setActivePortalId] = useState<string>(() => {
+    return user?.id || localStorage.getItem('sp_portal_id') || DEFAULT_PORTAL_ID;
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      setActivePortalId(user.id);
+      localStorage.setItem('sp_portal_id', user.id);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    getDoc(doc(db, 'sp_portals', 'default')).then((snap) => {
+      if (snap.exists() && snap.data()?.activePortalId) {
+        const pId = snap.data().activePortalId;
+        if (!user?.id) {
+          setActivePortalId(pId);
+          localStorage.setItem('sp_portal_id', pId);
+        }
+      }
+    }).catch((e) => console.warn('Could not fetch default portal config', e));
+  }, [user?.id]);
+
+  const masterAccountId = user?.id || activePortalId || DEFAULT_PORTAL_ID;
   
   const [portal, setPortal] = useState<SP_Portal | null>(null);
   const [portalUser, setPortalUser] = useState<PortalUser | null>(null);
@@ -318,17 +343,17 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setPortalUser(adminUser);
         }
       } else {
-        setPortal(null);
-        // Do not auto-set portalUser if portal doesn't exist
-        if (isAuthenticated) {
-          // Admin can initialize it
-        } else {
-          setPortalUser(null);
-        }
+        setPortal({
+          id: masterAccountId,
+          name: 'NSU Student Points Management',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `sp_portals/${masterAccountId}`);
+      setLoading(false);
     });
 
     // 2. Real-time Subscriptions for Portal Data
@@ -522,13 +547,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // 2. Portal User Authentication
   const loginPortalUser = async (email: string, password: string): Promise<boolean> => {
-    if (!masterAccountId) return false;
+    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
+    const cleanEmail = email.trim().toLowerCase();
 
     // Check if Admin password bypass (for simplicity and offline mode)
-    if (email === user?.email && password === '1234') {
+    if (user?.email && cleanEmail === user.email.toLowerCase() && password === '1234') {
       const admin: PortalUser = {
-        id: masterAccountId,
-        portalId: masterAccountId,
+        id: targetPortalId,
+        portalId: targetPortalId,
         organizationId: null,
         email: email,
         role: 'nsu_admin',
@@ -540,9 +566,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     }
 
-    // Check sp_users collection
-    const q = query(collection(db, 'sp_users'), where('portalId', '==', masterAccountId), where('email', '==', email));
-    const snap = await getDocs(q);
+    // Check sp_users collection (support case-insensitive match and exact match)
+    let snap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+    if (snap.empty) {
+      snap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', email.trim())));
+    }
     if (snap.empty) return false;
 
     const userDoc = snap.docs[0];
@@ -558,7 +586,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const loggedUser: PortalUser = {
       id: userData.id,
-      portalId: userData.portalId,
+      portalId: userData.portalId || targetPortalId,
       organizationId: userData.organizationId || null,
       email: userData.email,
       role: userData.role as any,
@@ -568,7 +596,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setPortalUser(loggedUser);
     localStorage.setItem('sp_portal_user', JSON.stringify(loggedUser));
-    await logPortalAction('USER_LOGIN', `Logged in from IP/browser: ${userData.email}`);
+    if (userData.portalId) {
+      localStorage.setItem('sp_portal_id', userData.portalId);
+      setActivePortalId(userData.portalId);
+    }
+    await logPortalAction('USER_LOGIN', `Logged in: ${userData.email}`).catch(() => {});
     return true;
   };
 
@@ -589,19 +621,30 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // 3. Super Admin CRUD: Create Class Org
+  // 3. Super Admin / Direct CRUD: Create Class Org
   const createClassOrganization = async (
     org: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>,
     loginEmail: string,
     loginPass: string
   ) => {
-    if (!masterAccountId) return;
+    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
+    const cleanEmail = loginEmail.trim().toLowerCase();
+
+    // Check if email already registered in sp_users
+    let existingCheck = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+    if (existingCheck.empty) {
+      existingCheck = await getDocs(query(collection(db, 'sp_users'), where('email', '==', loginEmail.trim())));
+    }
+    if (!existingCheck.empty) {
+      throw new Error(`An account with email "${loginEmail}" already exists. Please choose a different email or log in.`);
+    }
+
     const orgId = generateId('sp_org');
     const now = new Date().toISOString();
 
     const orgObj: SP_Organization = {
       id: orgId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       totalPoints: 0,
       createdAt: now,
       updatedAt: now,
@@ -617,9 +660,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const userObj: SP_User = {
       id: userId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       organizationId: orgId,
-      email: loginEmail,
+      email: cleanEmail,
       passwordHash,
       role: 'sub_org_admin',
       name: org.name,
@@ -631,20 +674,26 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Save User Credentials
     await setDoc(doc(db, 'sp_users', userId), cleanFirestorePayload(userObj));
 
-    // Log Action
-    await logPortalAction('CREATE_ORGANIZATION', `Created class organization "${org.name}" with login "${loginEmail}"`);
-
     // Create a Welcome Notification for them
     const notId = generateId('sp_not');
     await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
       id: notId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       organizationId: orgId,
-      title: 'Welcome to Munazzam Points Portal!',
-      message: `Your class organization "${org.name}" has been successfully added by NSU Super Admin. Start submitting achievements to earn points!`,
+      title: 'Welcome to Points Portal!',
+      message: `Your class organization "${org.name}" has been successfully added. Start submitting achievements to earn points!`,
       isRead: false,
       createdAt: now
     }));
+
+    // Optimistically update local organizations state so UI updates immediately
+    setOrganizations(prev => {
+      if (prev.some(o => o.id === orgId)) return prev;
+      return [...prev, orgObj];
+    });
+
+    // Log Action
+    await logPortalAction('CREATE_ORGANIZATION', `Created class organization "${org.name}" with login "${cleanEmail}"`).catch(() => {});
   };
 
   // 4. Update Class Org details or password
@@ -1040,7 +1089,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loginEmail: string, 
     loginPass: string
   ) => {
-    if (!masterAccountId) throw new Error('Portal not loaded');
+    const targetPortalId = masterAccountId || activePortalId || DEFAULT_PORTAL_ID;
+    const cleanEmail = loginEmail.trim().toLowerCase();
     
     // Check if the link exists and is not used
     const linkRef = doc(db, 'sp_registration_links', linkId);
@@ -1054,8 +1104,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Check if email already registered in sp_users
-    const emailCheckQ = query(collection(db, 'sp_users'), where('portalId', '==', masterAccountId), where('email', '==', loginEmail));
-    const emailCheckSnap = await getDocs(emailCheckQ);
+    let emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+    if (emailCheckSnap.empty) {
+      emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', loginEmail.trim())));
+    }
     if (!emailCheckSnap.empty) {
       throw new Error('An account with this email address is already registered.');
     }
@@ -1065,7 +1117,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const orgObj: SP_Organization = {
       id: orgId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       totalPoints: 0,
       createdAt: now,
       updatedAt: now,
@@ -1081,9 +1133,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const userObj: SP_User = {
       id: userId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       organizationId: orgId,
-      email: loginEmail,
+      email: cleanEmail,
       passwordHash,
       role: 'sub_org_admin',
       name: orgData.name,
@@ -1106,7 +1158,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const notId = generateId('sp_not');
     await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
       id: notId,
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       organizationId: orgId,
       title: 'Welcome to Points Portal!',
       message: `Your class organization "${orgData.name}" has been successfully added via shared registration link. Start submitting achievements to earn points!`,
@@ -1114,16 +1166,22 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: now
     }));
 
+    // Optimistically update local organizations state so UI updates immediately
+    setOrganizations(prev => {
+      if (prev.some(o => o.id === orgId)) return prev;
+      return [...prev, orgObj];
+    });
+
     // Log Action as SYSTEM/INVITED
     await setDoc(doc(db, 'sp_audit_logs', generateId('sp_log')), cleanFirestorePayload({
       id: generateId('sp_log'),
-      portalId: masterAccountId,
+      portalId: targetPortalId,
       userId: userId,
-      username: loginEmail,
+      username: cleanEmail,
       action: 'REGISTER_ORGANIZATION',
       details: `Registered class organization "${orgData.name}" (Class: ${orgData.className}) via invite link ID: ${linkId}`,
       timestamp: now
-    }));
+    })).catch(() => {});
   };
 
   // 13. Clear Notifications

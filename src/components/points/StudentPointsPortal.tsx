@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PortalProvider, usePortal, SP_Organization } from '../../context/PortalContext';
+import { PortalProvider, usePortal, SP_Organization, DEFAULT_PORTAL_ID } from '../../context/PortalContext';
 import { PortalLogin } from './PortalLogin';
 import { AdminDashboard } from './AdminDashboard';
 import { SubOrgDashboard } from './SubOrgDashboard';
@@ -522,7 +522,15 @@ const StudentPointsInner: React.FC = () => {
 
       // Immediately log in!
       const ok = await loginPortalUser(regLoginEmail, regLoginPassword);
-      if (!ok) {
+      if (ok) {
+        setRegOrgName('');
+        setRegClassName('');
+        setRegLeader('');
+        setRegContactDetails('');
+        setRegLoginEmail('');
+        setRegLoginPassword('');
+        setRegError('');
+      } else {
         setRegError('Registration succeeded, but auto-login failed. Please log in using the Login option.');
         setSuborgViewMode('login');
       }
@@ -543,7 +551,11 @@ const StudentPointsInner: React.FC = () => {
     setLoggingIn(true);
     try {
       const ok = await loginPortalUser(loginFormEmail, loginFormPassword);
-      if (!ok) {
+      if (ok) {
+        setLoginFormEmail('');
+        setLoginFormPassword('');
+        setLoginError('');
+      } else {
         setLoginError('Incorrect email or password. Please verify your credentials.');
       }
     } catch (err: any) {
@@ -575,8 +587,8 @@ const StudentPointsInner: React.FC = () => {
   useEffect(() => {
     if (!portalUser && !isViewer && !regCode && !explicitLogout && !isSuborgLink) {
       const adminUser: any = {
-        id: 'admin_user',
-        portalId: 'admin_user',
+        id: DEFAULT_PORTAL_ID,
+        portalId: DEFAULT_PORTAL_ID,
         organizationId: null,
         email: 'admin@nsu.edu',
         role: 'nsu_admin',

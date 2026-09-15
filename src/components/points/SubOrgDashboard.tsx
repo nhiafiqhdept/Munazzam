@@ -15,7 +15,8 @@ export const SubOrgDashboard: React.FC = () => {
 
   // Active sub-organization
   const activeOrg = organizations.find(o => o.id === portalUser?.organizationId);
-  const activeRank = organizations.findIndex(o => o.id === portalUser?.organizationId) + 1;
+  const orgIndex = organizations.findIndex(o => o.id === portalUser?.organizationId);
+  const activeRank = orgIndex >= 0 ? orgIndex + 1 : '-';
 
   const [activeTab, setActiveTab] = useState<'overview' | 'submit' | 'notifications'>('overview');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
@@ -200,15 +201,19 @@ export const SubOrgDashboard: React.FC = () => {
         {/* Class Identity Card */}
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 shadow-xs col-span-2">
           {activeOrg?.logo ? (
-            <img src={activeOrg.logo} alt={activeOrg.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
+            <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
           ) : (
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
-              {activeOrg?.name.substring(0, 2).toUpperCase() || 'SP'}
+              {((activeOrg?.name || portalUser?.name || 'SP').trim().slice(0, 2)).toUpperCase()}
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">{activeOrg?.name}</h1>
-            <p className="text-xs text-slate-500 truncate">{activeOrg?.className} • Admin: {portalUser?.name || portalUser?.email}</p>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
+              {activeOrg?.name || portalUser?.name || 'Class Organization'}
+            </h1>
+            <p className="text-xs text-slate-500 truncate">
+              {activeOrg?.className || 'Class Account'} • Admin: {portalUser?.name || portalUser?.email}
+            </p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md">
                 Active Organization
