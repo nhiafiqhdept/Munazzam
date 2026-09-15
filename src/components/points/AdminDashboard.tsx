@@ -24,8 +24,17 @@ export const AdminDashboard: React.FC = () => {
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
 
+  // Public URL formatter (maps internal AI Studio dev preview host to public shared preview host)
+  const getPublicOrigin = () => {
+    let origin = window.location.origin;
+    if (origin.includes('ais-dev-')) {
+      origin = origin.replace('ais-dev-', 'ais-pre-');
+    }
+    return origin;
+  };
+
   const getFullRegistrationUrl = (linkId: string) => {
-    const baseUrl = window.location.origin + window.location.pathname;
+    const baseUrl = getPublicOrigin() + window.location.pathname;
     return `${baseUrl}?reg=${linkId}`;
   };
 
@@ -711,12 +720,12 @@ export const AdminDashboard: React.FC = () => {
             <div className="space-y-3">
               <div className="flex gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
                 <span className="text-[10px] text-slate-500 font-mono truncate flex-grow select-all">
-                  {window.location.origin + window.location.pathname}?suborg=true
+                  {getPublicOrigin() + window.location.pathname}?suborg=true
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    const fullUrl = `${window.location.origin}${window.location.pathname}?suborg=true`;
+                    const fullUrl = `${getPublicOrigin()}${window.location.pathname}?suborg=true`;
                     navigator.clipboard.writeText(fullUrl);
                     setCopiedLinkId('general_link');
                     setTimeout(() => setCopiedLinkId(null), 2000);
@@ -740,6 +749,18 @@ export const AdminDashboard: React.FC = () => {
                   )}
                 </button>
               </div>
+
+              {window.location.origin.includes('ais-dev-') && (
+                <div className="p-3 bg-amber-50 border border-amber-200/70 rounded-xl text-[11px] text-amber-800 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold">Public Sharing Guide</p>
+                    <p className="text-[10px] text-amber-700 leading-relaxed">
+                      The link copied above is automatically converted to the public access URL (<code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-[9px]">ais-pre-...</code>). Ensure you have clicked <strong className="font-semibold">Share</strong> in the top-right of AI Studio so that students and external accounts (e.g. non-owners, incognito windows, phones) can access it without hitting Google's development 403 error.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

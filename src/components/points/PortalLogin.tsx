@@ -62,12 +62,12 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
   };
 
   return (
-    <div className="max-w-md w-full mx-auto my-12" id="portal-login-screen">
+    <div className="max-w-md w-full mx-auto my-4 sm:my-8" id="portal-login-screen">
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 space-y-6"
+        className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-6 sm:p-8 space-y-5 sm:space-y-6"
       >
         {/* Header Branding */}
         <div className="text-center space-y-2">

@@ -867,7 +867,12 @@ const StudentPointsInner: React.FC = () => {
 
   return (
     <div className="space-y-6" id="student-points-inner-wrapper">
-      {/* Portal workspace top control header */}
+      {/* Render proper workspace view */}
+      {(portalUser?.role === 'super_admin' || portalUser?.role === 'nsu_admin') && <AdminDashboard />}
+      {portalUser?.role === 'sub_org_admin' && <SubOrgDashboard />}
+      {!portalUser && isViewer && <ViewerDashboard />}
+
+      {/* Portal workspace footer control */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xs">
         <div className="flex items-center gap-3 text-center sm:text-left">
           <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
@@ -890,11 +895,6 @@ const StudentPointsInner: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Render proper workspace view */}
-      {(portalUser?.role === 'super_admin' || portalUser?.role === 'nsu_admin') && <AdminDashboard />}
-      {portalUser?.role === 'sub_org_admin' && <SubOrgDashboard />}
-      {!portalUser && isViewer && <ViewerDashboard />}
     </div>
   );
 };
@@ -902,17 +902,12 @@ const StudentPointsInner: React.FC = () => {
 export const StudentPointsPortal: React.FC = () => {
   return (
     <PortalProvider>
-      <div className="space-y-6" id="student-points-portal-root">
-        {/* Decorative background visual */}
-        <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-xl font-extrabold text-slate-900 font-heading">Student Points Management</h1>
-            <p className="text-xs text-slate-500">Evaluate extracurricular activities, assign scores, and view leaderboards live.</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-emerald-800 font-bold bg-white/80 py-2 px-4 rounded-2xl border border-emerald-100/40">
-            <Award className="w-4 h-4 text-emerald-600 animate-pulse" />
-            <span>Campus League System</span>
-          </div>
+      <div className="space-y-4 sm:space-y-6" id="student-points-portal-root">
+        {/* Main Heading */}
+        <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-2xl sm:rounded-3xl px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-center sm:justify-start">
+          <h1 className="text-lg sm:text-2xl font-black text-slate-900 font-heading tracking-tight">
+            Student Points Management
+          </h1>
         </div>
 
         <StudentPointsInner />
