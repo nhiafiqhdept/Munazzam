@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext';
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
-  CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft
+  CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft,
+  User, UserCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
@@ -13,13 +14,16 @@ export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'noti
 export const SubOrgDashboard: React.FC = () => {
   const { 
     portalUser, organizations, achievements, categories, mediaAttachments, announcements, notifications,
-    submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead
+    members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead
   } = usePortal();
 
   // Active sub-organization
   const activeOrg = organizations.find(o => o.id === portalUser?.organizationId);
   const orgIndex = organizations.findIndex(o => o.id === portalUser?.organizationId);
   const activeRank = orgIndex >= 0 ? orgIndex + 1 : '-';
+
+  // Sub-org members for achiever selection
+  const orgMembers = members.filter(m => m.organizationId === portalUser?.organizationId);
 
   const [activeTab, setActiveTab] = useState<SubOrgTab>('leaderboard');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
@@ -35,7 +39,13 @@ export const SubOrgDashboard: React.FC = () => {
   const [place, setPlace] = useState('');
   const [description, setDescription] = useState('');
   const [participantsCount, setParticipantsCount] = useState<number>(0);
-  const [responsiblePerson, setResponsiblePerson] = useState('');
+  
+  // Achiever state (Individual student ownership)
+  const [achieverId, setAchieverId] = useState<string>('');
+  const [achieverName, setAchieverName] = useState<string>('');
+  const [achieverStudentId, setAchieverStudentId] = useState<string>('');
+  const [isCustomAchiever, setIsCustomAchiever] = useState<boolean>(false);
+
   const [requestedPoints, setRequestedPoints] = useState<number>(10);
   const [additionalNotes, setAdditionalNotes] = useState('');
 
@@ -122,8 +132,8 @@ export const SubOrgDashboard: React.FC = () => {
     setFormError('');
     setFormSuccess('');
 
-    if (!title || !programName || !categoryId || !date || !description) {
-      setFormError('Please fill in all required fields marked with *');
+    if (!title || !programName || !categoryId || !date || !description || !achieverName.trim()) {
+      setFormError('Please fill in all required fields marked with * including the Achiever name');
       return;
     }
 
@@ -144,7 +154,9 @@ export const SubOrgDashboard: React.FC = () => {
         place,
         description,
         participantsCount,
-        responsiblePerson,
+        achieverId,
+        achieverName: achieverName.trim(),
+        achieverStudentId: achieverStudentId.trim(),
         requestedPoints,
         additionalNotes
       }, allFiles);
@@ -157,7 +169,10 @@ export const SubOrgDashboard: React.FC = () => {
       setPlace('');
       setDescription('');
       setParticipantsCount(0);
-      setResponsiblePerson('');
+      setAchieverId('');
+      setAchieverName('');
+      setAchieverStudentId('');
+      setIsCustomAchiever(false);
       setRequestedPoints(10);
       setAdditionalNotes('');
       setQueuedPhotos([]);
@@ -338,6 +353,7 @@ export const SubOrgDashboard: React.FC = () => {
                   <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-100">
                     <tr>
                       <th className="py-3 px-4">Title / Program</th>
+                      <th className="py-3 px-4">Whose Achievement (Achiever)</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Requested Pts</th>
@@ -352,6 +368,17 @@ export const SubOrgDashboard: React.FC = () => {
                           <div>
                             <p>{ach.title}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{ach.programName}</p>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <div>
+                              <p className="font-extrabold text-slate-900 text-xs">{ach.achieverName || 'Achiever Not Assigned'}</p>
+                              {ach.achieverStudentId && (
+                                <p className="text-[10px] text-slate-400 font-mono">ID: {ach.achieverStudentId}</p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 px-4 font-semibold text-slate-500">
@@ -501,16 +528,96 @@ export const SubOrgDashboard: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-resp">Responsible Bearer / Leader</label>
-                <input
-                  type="text"
-                  id="ach-resp"
-                  placeholder="e.g. John Doe, President"
-                  value={responsiblePerson}
-                  onChange={(e) => setResponsiblePerson(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                />
+              {/* Achiever Field - Points belong directly to this individual */}
+              <div className="space-y-2 sm:col-span-2 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5" htmlFor="ach-achiever-select">
+                    <User className="w-4 h-4 text-emerald-700" />
+                    <span>Whose Achievement Is This? (Achiever) *</span>
+                  </label>
+                  <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100/60 px-2.5 py-0.5 rounded-md">
+                    Points awarded will belong directly to this individual
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Select Registered Member or Add New</label>
+                    <select
+                      id="ach-achiever-select"
+                      value={isCustomAchiever ? '__new__' : (achieverId || '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__new__') {
+                          setIsCustomAchiever(true);
+                          setAchieverId('new');
+                          setAchieverName('');
+                          setAchieverStudentId('');
+                        } else {
+                          setIsCustomAchiever(false);
+                          setAchieverId(val);
+                          const m = orgMembers.find(mem => mem.id === val);
+                          if (m) {
+                            setAchieverName(m.name);
+                            setAchieverStudentId(m.studentId || '');
+                          } else {
+                            setAchieverName('');
+                            setAchieverStudentId('');
+                          }
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                    >
+                      <option value="">-- Choose Class Member / Achiever --</option>
+                      {orgMembers.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} {m.studentId ? `(${m.studentId})` : ''} • {m.totalPoints || 0} pts
+                        </option>
+                      ))}
+                      <option value="__new__">+ Enter New Student / Achiever Name</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Achiever Individual Identification</label>
+                    {(isCustomAchiever || orgMembers.length === 0 || !achieverId) ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          id="ach-name-input"
+                          required
+                          placeholder="Achiever Full Name *"
+                          value={achieverName}
+                          onChange={(e) => {
+                            setAchieverName(e.target.value);
+                            setIsCustomAchiever(true);
+                            setAchieverId('new');
+                          }}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                        />
+                        <input
+                          type="text"
+                          id="ach-sid-input"
+                          placeholder="Student / Roll ID"
+                          value={achieverStudentId}
+                          onChange={(e) => setAchieverStudentId(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800">
+                        <span className="font-extrabold text-slate-900">{achieverName}</span>
+                        {achieverStudentId ? (
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded font-mono text-[10px] font-bold">
+                            ID: {achieverStudentId}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">No Student ID</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -787,7 +894,7 @@ export const SubOrgDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
                 <p className="text-slate-400 font-semibold">DATE & VENUE</p>
                 <p className="font-bold text-slate-800 flex items-center gap-1">
@@ -798,6 +905,19 @@ export const SubOrgDashboard: React.FC = () => {
                   <MapPin className="w-3.5 h-3.5 text-slate-500" />
                   {selectedAchievement.place || 'Main Campus'}
                 </p>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
+                <p className="text-slate-400 font-semibold">WHOSE ACHIEVEMENT (ACHIEVER)</p>
+                <p className="font-extrabold text-slate-900 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-emerald-700" />
+                  {selectedAchievement.achieverName || 'Achiever Not Assigned'}
+                </p>
+                {selectedAchievement.achieverStudentId && (
+                  <p className="text-slate-500 text-[10px] font-mono">
+                    Student ID: {selectedAchievement.achieverStudentId}
+                  </p>
+                )}
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">

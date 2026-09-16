@@ -134,6 +134,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /sp_members/{memberId} {
+      allow read: if true;
+      allow write: if true;
+    }
 
     // Portal links isolated by mainAccountId (only owner can read or write)
     match /sp_portal_links/{accountId} {

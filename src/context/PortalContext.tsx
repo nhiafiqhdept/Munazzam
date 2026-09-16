@@ -151,6 +151,21 @@ export interface SP_Category {
   updatedAt: string;
 }
 
+export interface SP_Member {
+  id: string;
+  portalId: string;
+  organizationId: string;
+  name: string;
+  studentId?: string;
+  email?: string;
+  contactDetails?: string;
+  role?: string;
+  totalPoints: number;
+  approvedAchievementsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SP_Achievement {
   id: string;
   portalId: string;
@@ -162,7 +177,10 @@ export interface SP_Achievement {
   place: string;
   description: string;
   participantsCount: number;
-  responsiblePerson: string;
+  achieverId: string;
+  achieverName: string;
+  achieverStudentId?: string;
+  responsiblePerson?: string; // Legacy field retained for backwards-compatibility
   requestedPoints: number;
   additionalNotes: string;
   status: 'Draft' | 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Returned for Correction';
@@ -195,6 +213,8 @@ export interface SP_Transaction {
   id: string;
   portalId: string;
   organizationId: string;
+  achieverId?: string;
+  achieverName?: string;
   achievementId?: string;
   categoryId?: string;
   points: number;
@@ -275,6 +295,7 @@ interface PortalContextType {
   notifications: SP_Notification[];
   auditLogs: SP_AuditLog[];
   registrationLinks: SP_RegistrationLink[];
+  members: SP_Member[];
   loading: boolean;
   
   initializePortal: (name: string) => Promise<void>;
@@ -285,6 +306,12 @@ interface PortalContextType {
   createClassOrganization: (org: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, loginEmail: string, loginPass: string) => Promise<void>;
   updateClassOrganization: (id: string, updates: Partial<SP_Organization>, newPass?: string) => Promise<void>;
   
+  addMember: (organizationId: string, name: string, studentId?: string, contactDetails?: string) => Promise<SP_Member>;
+  updateMember: (id: string, updates: Partial<SP_Member>) => Promise<void>;
+  deleteMember: (id: string) => Promise<void>;
+  updateAchievementAchiever: (achievementId: string, achieverId: string, achieverName: string, achieverStudentId?: string) => Promise<void>;
+  recalculateLeaderboardTotals: () => Promise<void>;
+
   submitAchievement: (achievement: Omit<SP_Achievement, 'id' | 'portalId' | 'organizationId' | 'status' | 'awardedPoints' | 'reviewerId' | 'reviewNotes' | 'submittedAt' | 'createdAt' | 'updatedAt'>, files: { fileUrl: string; name: string; size: number; type: 'photo' | 'video' | 'document' }[]) => Promise<void>;
   updateAchievement: (id: string, updates: Partial<SP_Achievement>, filesToAppend?: { fileUrl: string; name: string; size: number; type: 'photo' | 'video' | 'document' }[], fileIdsToDelete?: string[]) => Promise<void>;
   deleteAchievement: (id: string) => Promise<void>;
@@ -524,6 +551,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [notifications, setNotifications] = useState<SP_Notification[]>([]);
   const [auditLogs, setAuditLogs] = useState<SP_AuditLog[]>([]);
   const [registrationLinks, setRegistrationLinks] = useState<SP_RegistrationLink[]>([]);
+  const [members, setMembers] = useState<SP_Member[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Load Saved Sub-Org Admin session if present
@@ -596,6 +624,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_organizations');
     });
 
+    const qMembers = query(collection(db, 'sp_members'), where('portalId', '==', masterAccountId));
+    const unsubMembers = onSnapshot(qMembers, (snap) => {
+      const list: SP_Member[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Member));
+      setMembers(list.sort((a, b) => b.totalPoints - a.totalPoints));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_members');
+    });
+
     const qCats = query(collection(db, 'sp_categories'), where('portalId', '==', masterAccountId));
     const unsubCats = onSnapshot(qCats, (snap) => {
       const list: SP_Category[] = [];
@@ -608,7 +645,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const qAchs = query(collection(db, 'sp_achievements'), where('portalId', '==', masterAccountId));
     const unsubAchs = onSnapshot(qAchs, (snap) => {
       const list: SP_Achievement[] = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Achievement));
+      snap.forEach((d) => {
+        const item = { id: d.id, ...d.data() } as SP_Achievement;
+        // Fallback for historical/legacy records
+        if (!item.achieverId || !item.achieverName) {
+          item.achieverId = item.achieverId || 'unassigned';
+          item.achieverName = item.achieverName || 'Achiever Not Assigned';
+          item.achieverStudentId = item.achieverStudentId || '';
+        }
+        list.push(item);
+      });
       setAchievements(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'sp_achievements');
@@ -692,6 +738,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubCats();
       unsubAchs();
       unsubMed();
+      unsubMembers();
       unsubTx();
       unsubComp();
       unsubAward();
@@ -701,6 +748,112 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubRegs();
     };
   }, [masterAccountId, isAuthenticated, user]);
+
+  // Achiever & Member Management Methods
+  const addMember = async (organizationId: string, name: string, studentId?: string, contactDetails?: string): Promise<SP_Member> => {
+    if (!masterAccountId) throw new Error('No portal master account');
+    const memberId = generateId('sp_mem');
+    const now = new Date().toISOString();
+    const newMember: SP_Member = {
+      id: memberId,
+      portalId: masterAccountId,
+      organizationId,
+      name: name.trim(),
+      studentId: (studentId || '').trim(),
+      contactDetails: (contactDetails || '').trim(),
+      totalPoints: 0,
+      approvedAchievementsCount: 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    await setDoc(doc(db, 'sp_members', memberId), cleanFirestorePayload(newMember));
+    await logPortalAction('ADD_MEMBER', `Added achiever member "${newMember.name}" (${newMember.studentId || 'No ID'})`);
+    return newMember;
+  };
+
+  const updateMember = async (id: string, updates: Partial<SP_Member>) => {
+    if (!masterAccountId) return;
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, 'sp_members', id), cleanFirestorePayload({
+      ...updates,
+      updatedAt: now
+    }));
+    await logPortalAction('UPDATE_MEMBER', `Updated achiever member ID: ${id}`);
+  };
+
+  const deleteMember = async (id: string) => {
+    if (!masterAccountId) return;
+    await deleteDoc(doc(db, 'sp_members', id));
+    await logPortalAction('DELETE_MEMBER', `Deleted member ID: ${id}`);
+  };
+
+  const updateAchievementAchiever = async (achievementId: string, achieverId: string, achieverName: string, achieverStudentId?: string) => {
+    if (!masterAccountId) return;
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, 'sp_achievements', achievementId), cleanFirestorePayload({
+      achieverId,
+      achieverName,
+      achieverStudentId: achieverStudentId || '',
+      updatedAt: now
+    }));
+    // Recalculate totals across system
+    await recalculateLeaderboardTotals();
+    await logPortalAction('UPDATE_ACHIEVEMENT_ACHIEVER', `Assigned achiever "${achieverName}" to achievement ${achievementId}`);
+  };
+
+  const recalculateLeaderboardTotals = async () => {
+    if (!masterAccountId) return;
+    try {
+      const now = new Date().toISOString();
+      const qAchs = query(collection(db, 'sp_achievements'), where('portalId', '==', masterAccountId));
+      const snapAchs = await getDocs(qAchs);
+      
+      const memberTotals: { [memberId: string]: { points: number; count: number } } = {};
+      const orgTotals: { [orgId: string]: { points: number; count: number } } = {};
+
+      snapAchs.forEach((d) => {
+        const data = d.data() as SP_Achievement;
+        if (data.status === 'Approved') {
+          const pts = Number(data.awardedPoints) || 0;
+          if (data.achieverId && data.achieverId !== 'unassigned') {
+            if (!memberTotals[data.achieverId]) memberTotals[data.achieverId] = { points: 0, count: 0 };
+            memberTotals[data.achieverId].points += pts;
+            memberTotals[data.achieverId].count += 1;
+          }
+          if (data.organizationId) {
+            if (!orgTotals[data.organizationId]) orgTotals[data.organizationId] = { points: 0, count: 0 };
+            orgTotals[data.organizationId].points += pts;
+            orgTotals[data.organizationId].count += 1;
+          }
+        }
+      });
+
+      // Update members in Firestore
+      const qMembers = query(collection(db, 'sp_members'), where('portalId', '==', masterAccountId));
+      const snapMembers = await getDocs(qMembers);
+      for (const mDoc of snapMembers.docs) {
+        const totals = memberTotals[mDoc.id] || { points: 0, count: 0 };
+        await updateDoc(mDoc.ref, {
+          totalPoints: totals.points,
+          approvedAchievementsCount: totals.count,
+          updatedAt: now
+        });
+      }
+
+      // Update organizations in Firestore
+      const qOrgs = query(collection(db, 'sp_organizations'), where('portalId', '==', masterAccountId));
+      const snapOrgs = await getDocs(qOrgs);
+      for (const oDoc of snapOrgs.docs) {
+        const totals = orgTotals[oDoc.id] || { points: 0, count: 0 };
+        await updateDoc(oDoc.ref, {
+          totalPoints: totals.points,
+          updatedAt: now
+        });
+      }
+    } catch (e) {
+      console.error('Error recalculating totals', e);
+    }
+  };
 
   // Logger helper
   const logPortalAction = useCallback(async (action: string, details: string) => {
@@ -971,8 +1124,28 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const achId = generateId('sp_ach');
     const now = new Date().toISOString();
 
+    // Ensure member exists or register automatically if new achiever name is supplied
+    let finalAchieverId = achievement.achieverId;
+    let finalAchieverName = achievement.achieverName;
+    let finalAchieverStudentId = achievement.achieverStudentId || '';
+
+    if (!finalAchieverId || finalAchieverId === 'new') {
+      if (finalAchieverName && finalAchieverName.trim()) {
+        const newMember = await addMember(portalUser.organizationId, finalAchieverName, finalAchieverStudentId);
+        finalAchieverId = newMember.id;
+        finalAchieverName = newMember.name;
+        finalAchieverStudentId = newMember.studentId || '';
+      } else {
+        finalAchieverId = 'unassigned';
+        finalAchieverName = 'Achiever Not Assigned';
+      }
+    }
+
     const achObj: SP_Achievement = {
       ...achievement,
+      achieverId: finalAchieverId,
+      achieverName: finalAchieverName,
+      achieverStudentId: finalAchieverStudentId,
       id: achId,
       portalId: masterAccountId,
       organizationId: portalUser.organizationId,
@@ -1007,7 +1180,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await setDoc(doc(db, 'sp_media', medId), cleanFirestorePayload(medObj));
     }
 
-    await logPortalAction('SUBMIT_ACHIEVEMENT', `Submitted achievement: "${achievement.title}" with ${files.length} proofs`);
+    await logPortalAction('SUBMIT_ACHIEVEMENT', `Submitted achievement: "${achievement.title}" for ${finalAchieverName} with ${files.length} proofs`);
 
     // Notify Super Admin
     const notId = generateId('sp_not');
@@ -1015,7 +1188,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: notId,
       portalId: masterAccountId,
       title: 'New Achievement Submitted',
-      message: `Organization "${portalUser.name}" submitted a new achievement: "${achievement.title}". Needs point review.`,
+      message: `Organization "${portalUser.name}" submitted a new achievement for "${finalAchieverName}": "${achievement.title}". Needs point review.`,
       isRead: false,
       createdAt: now
     }));
@@ -1098,13 +1271,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!masterAccountId || !portalUser) return;
     const now = new Date().toISOString();
 
-    // 1. Get original achievement to fetch organization info
+    // 1. Get original achievement to fetch organization and achiever info
     const achRef = doc(db, 'sp_achievements', id);
     const achSnap = await getDoc(achRef);
     if (!achSnap.exists()) return;
     
     const ach = achSnap.data() as SP_Achievement;
     const orgId = ach.organizationId;
+    const achieverId = ach.achieverId;
+    const achieverName = ach.achieverName || 'Achiever';
 
     // 2. Update Achievement Status and awarded points
     await updateDoc(achRef, cleanFirestorePayload({
@@ -1125,17 +1300,33 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: txId,
         portalId: masterAccountId,
         organizationId: orgId,
+        achieverId: achieverId,
+        achieverName: achieverName,
         achievementId: id,
         categoryId: ach.categoryId,
         points: points,
         type: 'award',
-        reason: `Approved achievement: "${ach.title}"`,
+        reason: `Approved achievement: "${ach.title}" for ${achieverName}`,
         awardedBy: portalUser.id,
         status: 'active',
         createdAt: now,
         updatedAt: now
       };
       await setDoc(doc(db, 'sp_transactions', txId), cleanFirestorePayload(txObj));
+
+      // Recalculate member points
+      if (achieverId && achieverId !== 'unassigned') {
+        const memRef = doc(db, 'sp_members', achieverId);
+        const memSnap = await getDoc(memRef);
+        if (memSnap.exists()) {
+          const memData = memSnap.data();
+          await updateDoc(memRef, {
+            totalPoints: (memData.totalPoints || 0) + points,
+            approvedAchievementsCount: (memData.approvedAchievementsCount || 0) + 1,
+            updatedAt: now
+          });
+        }
+      }
 
       // Recalculate and update the organization's total points in real-time
       const orgRef = doc(db, 'sp_organizations', orgId);
@@ -1150,7 +1341,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    await logPortalAction('REVIEW_ACHIEVEMENT', `Reviewed achievement "${ach.title}" - Status: ${status}, Points: ${points}`);
+    await logPortalAction('REVIEW_ACHIEVEMENT', `Reviewed achievement "${ach.title}" for ${achieverName} - Status: ${status}, Points: ${points}`);
 
     // Create Notification for the class org
     const notId = generateId('sp_not');
@@ -1160,8 +1351,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       organizationId: orgId,
       title: status === 'Approved' ? 'Achievement Approved! 🎉' : 'Achievement Status Update',
       message: status === 'Approved' 
-        ? `Congratulations! Your achievement "${ach.title}" has been approved. +${points} points awarded.`
-        : `Your achievement "${ach.title}" has been reviewed. Status: ${status}. Notes: ${notes}`,
+        ? `Congratulations! Achievement "${ach.title}" for ${achieverName} has been approved. +${points} points awarded.`
+        : `Achievement "${ach.title}" for ${achieverName} has been reviewed. Status: ${status}. Notes: ${notes}`,
       isRead: false,
       createdAt: now
     }));
@@ -1578,6 +1769,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notifications,
       auditLogs,
       registrationLinks,
+      members,
       loading,
       
       portalLink,
@@ -1596,6 +1788,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createClassOrganization,
       updateClassOrganization,
       
+      addMember,
+      updateMember,
+      deleteMember,
+      updateAchievementAchiever,
+      recalculateLeaderboardTotals,
+
       submitAchievement,
       updateAchievement,
       deleteAchievement,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePortal, SP_Organization, SP_Achievement } from '../../context/PortalContext';
-import { Award, Trophy, Star, ChevronRight, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle } from 'lucide-react';
+import { Award, Trophy, Star, ChevronRight, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle, User, Users, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate } from '../../utils/helpers';
 
@@ -10,10 +10,12 @@ export interface ViewerDashboardProps {
 }
 
 export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hideTabsHeader = false }) => {
-  const { organizations, achievements, awards, announcements, competitions, categories, mediaAttachments } = usePortal();
+  const { organizations, achievements, awards, announcements, competitions, categories, mediaAttachments, members } = usePortal();
   
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
   const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>(currentTab || 'leaderboard');
+  const [leaderboardScope, setLeaderboardScope] = useState<'achievers' | 'organizations'>('achievers');
+  const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {
     if (currentTab) {
@@ -36,6 +38,11 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     return org ? org.name : 'Unknown Class';
   };
 
+  // Filtered & sorted members
+  const sortedMembers = [...members]
+    .filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || (m.studentId && m.studentId.toLowerCase().includes(searchQuery.toLowerCase())))
+    .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+
   return (
     <div className="space-y-4 sm:space-y-6" id="viewer-portal-dashboard">
       {/* Top Banner */}
@@ -49,7 +56,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
           </span>
           <h1 className="text-xl sm:text-3xl font-bold font-heading tracking-tight leading-tight">Student Points Leaderboard</h1>
           <p className="text-emerald-100/80 text-xs sm:text-sm leading-relaxed max-w-lg">
-            Track performance and check current ranks of class sub-organizations.
+            Track individual student achiever points, honors, and class sub-organization standings.
           </p>
         </div>
       </div>
@@ -85,69 +92,174 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Leaderboard Table */}
           <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-amber-500" />
-                Live Standings
-              </h2>
-              <span className="text-xs text-slate-500">Updated in real-time</span>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Live Standings
+                </h2>
+              </div>
+
+              {/* Scope Switcher: Achievers vs Organizations */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setLeaderboardScope('achievers')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    leaderboardScope === 'achievers'
+                      ? 'bg-white text-emerald-800 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Student Achievers</span>
+                </button>
+                <button
+                  onClick={() => setLeaderboardScope('organizations')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    leaderboardScope === 'organizations'
+                      ? 'bg-white text-emerald-800 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Class Orgs</span>
+                </button>
+              </div>
             </div>
 
-            {organizations.length === 0 ? (
-              <div className="text-center py-12 text-slate-500 text-sm">
-                No organizations created yet. Check back soon!
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {organizations.map((org, index) => {
-                  const rank = index + 1;
-                  return (
-                    <div key={org.id} className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 px-2 rounded-2xl transition-colors">
-                      <div className="flex items-center gap-4">
-                        {/* Rank Badge */}
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                          {rank === 1 ? (
-                            <span className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-300">
-                              🥇
-                            </span>
-                          ) : rank === 2 ? (
-                            <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-300">
-                              🥈
-                            </span>
-                          ) : rank === 3 ? (
-                            <span className="w-8 h-8 rounded-full bg-amber-50/50 text-amber-700 flex items-center justify-center border border-amber-200">
-                              🥉
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">{rank}</span>
-                          )}
-                        </div>
+            {/* ACHIEVERS LEADERBOARD */}
+            {leaderboardScope === 'achievers' && (
+              <div className="space-y-3">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search achiever name or student ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
 
-                        {/* Org Logo & Info */}
-                        <div className="flex items-center gap-3">
-                          {org.logo ? (
-                            <img src={org.logo} alt={org.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-xs font-bold uppercase">
-                              {org.name.substring(0, 2)}
+                {sortedMembers.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 text-sm">
+                    {searchQuery ? 'No student achievers match your search.' : 'No registered student achievers yet.'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {sortedMembers.map((member, index) => {
+                      const rank = index + 1;
+                      return (
+                        <div key={member.id} className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 px-2 rounded-2xl transition-colors">
+                          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            {/* Rank Badge */}
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                              {rank === 1 ? (
+                                <span className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-300">
+                                  🥇
+                                </span>
+                              ) : rank === 2 ? (
+                                <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-300">
+                                  🥈
+                                </span>
+                              ) : rank === 3 ? (
+                                <span className="w-8 h-8 rounded-full bg-amber-50/50 text-amber-700 flex items-center justify-center border border-amber-200">
+                                  🥉
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-bold">{rank}</span>
+                              )}
                             </div>
-                          )}
-                          <div>
-                            <p className="font-bold text-slate-900 text-sm">{org.name}</p>
-                            <p className="text-xs text-slate-500">{org.className} • Leader: {org.leader || 'N/A'}</p>
+
+                            {/* Achiever Info */}
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-slate-900 text-sm truncate">{member.name}</p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                                {member.studentId && (
+                                  <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded">
+                                    ID: {member.studentId}
+                                  </span>
+                                )}
+                                <span>{getOrgName(member.organizationId)}</span>
+                                <span>• {member.approvedAchievementsCount || 0} achievements</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Score */}
+                          <div className="text-right shrink-0 pl-2">
+                            <span className="text-base font-black text-emerald-800">{member.totalPoints || 0}</span>
+                            <span className="text-[10px] text-slate-500 block font-semibold">POINTS</span>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Score */}
-                      <div className="text-right">
-                        <span className="text-base font-black text-emerald-800">{org.totalPoints || 0}</span>
-                        <span className="text-[10px] text-slate-500 block font-semibold">POINTS</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* ORGANIZATIONS LEADERBOARD */}
+            {leaderboardScope === 'organizations' && (
+              <>
+                {organizations.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 text-sm">
+                    No organizations created yet. Check back soon!
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {organizations.map((org, index) => {
+                      const rank = index + 1;
+                      return (
+                        <div key={org.id} className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 px-2 rounded-2xl transition-colors">
+                          <div className="flex items-center gap-4">
+                            {/* Rank Badge */}
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                              {rank === 1 ? (
+                                <span className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-300">
+                                  🥇
+                                </span>
+                              ) : rank === 2 ? (
+                                <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-300">
+                                  🥈
+                                </span>
+                              ) : rank === 3 ? (
+                                <span className="w-8 h-8 rounded-full bg-amber-50/50 text-amber-700 flex items-center justify-center border border-amber-200">
+                                  🥉
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">{rank}</span>
+                              )}
+                            </div>
+
+                            {/* Org Logo & Info */}
+                            <div className="flex items-center gap-3">
+                              {org.logo ? (
+                                <img src={org.logo} alt={org.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-xs font-bold uppercase">
+                                  {org.name.substring(0, 2)}
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-slate-900 text-sm">{org.name}</p>
+                                <p className="text-xs text-slate-500">{org.className} • Leader: {org.leader || 'N/A'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Score */}
+                          <div className="text-right">
+                            <span className="text-base font-black text-emerald-800">{org.totalPoints || 0}</span>
+                            <span className="text-[10px] text-slate-500 block font-semibold">POINTS</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -245,7 +357,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
                 <p className="text-slate-400 font-semibold">DATE & VENUE</p>
                 <p className="font-bold text-slate-800 flex items-center gap-1">
@@ -256,6 +368,19 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   <MapPin className="w-3.5 h-3.5 text-slate-500" />
                   {selectedAchievement.place || 'Main Campus'}
                 </p>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
+                <p className="text-slate-400 font-semibold">WHOSE ACHIEVEMENT (ACHIEVER)</p>
+                <p className="font-extrabold text-slate-900 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-emerald-700" />
+                  {selectedAchievement.achieverName || 'Achiever Not Assigned'}
+                </p>
+                {selectedAchievement.achieverStudentId && (
+                  <p className="text-slate-500 text-[10px] font-mono">
+                    ID: {selectedAchievement.achieverStudentId}
+                  </p>
+                )}
               </div>
 
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">

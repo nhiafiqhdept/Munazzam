@@ -5,7 +5,7 @@ import {
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
   Building, ChevronLeft, ChevronRight, Search, ArrowUpDown, Download, Play,
-  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy
+  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy, User, UserCheck, Edit3
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId } from '../../utils/helpers';
@@ -14,14 +14,22 @@ export const AdminDashboard: React.FC = () => {
   const { user } = useApp();
   const { 
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
-    createClassOrganization, updateClassOrganization, reviewAchievement, addCategory, deleteCategory,
+    members, createClassOrganization, updateClassOrganization, reviewAchievement, addCategory, deleteCategory,
     addCompetition, completeCompetition, addAward, addAnnouncement,
     registrationLinks, generateRegistrationLink,
+    updateAchievementAchiever, recalculateLeaderboardTotals, addMember,
     portalLink, portalLinkLoading, generateAccountPortalLink, togglePortalLinkStatus, regenerateAccountPortalLink
   } = usePortal();
 
   const [activeTab, setActiveTab] = useState<'review' | 'organizations' | 'categories' | 'competitions' | 'awards' | 'announcements' | 'audit'>('review');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
+
+  // Achiever assignment in review modal
+  const [isEditingAchiever, setIsEditingAchiever] = useState(false);
+  const [targetAchieverId, setTargetAchieverId] = useState('');
+  const [targetAchieverName, setTargetAchieverName] = useState('');
+  const [targetAchieverStudentId, setTargetAchieverStudentId] = useState('');
+  const [savingAchiever, setSavingAchiever] = useState(false);
 
   // Invitation invite state
   const [inviteLabel, setInviteLabel] = useState('');
@@ -608,6 +616,7 @@ export const AdminDashboard: React.FC = () => {
                             <thead className="bg-slate-50/70 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-100">
                               <tr>
                                 <th className="py-3 px-4">Program / Achievement Title</th>
+                                <th className="py-3 px-4">Whose Achievement (Achiever)</th>
                                 <th className="py-3 px-4">Category</th>
                                 <th className="py-3 px-4">Date</th>
                                 <th className="py-3 px-4">Requested</th>
@@ -622,6 +631,23 @@ export const AdminDashboard: React.FC = () => {
                                   <td className="py-4 px-4 font-medium text-slate-700 max-w-xs">
                                     <p className="font-extrabold text-slate-950 text-sm">{ach.title}</p>
                                     <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{ach.programName}</p>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex items-center gap-1.5">
+                                      <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                      <div>
+                                        <p className="font-extrabold text-slate-900 text-xs">
+                                          {ach.achieverName || 'Achiever Not Assigned'}
+                                        </p>
+                                        {ach.achieverStudentId ? (
+                                          <p className="text-[10px] text-slate-400 font-mono">ID: {ach.achieverStudentId}</p>
+                                        ) : ach.achieverName === 'Achiever Not Assigned' || !ach.achieverName ? (
+                                          <span className="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block">
+                                            Needs Assignment
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </div>
                                   </td>
                                   <td className="py-4 px-4 font-semibold text-slate-600">
                                     <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200/40">
@@ -1369,7 +1395,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100 space-y-3">
                       <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Program Metadata</p>
                       
-                      <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div className="space-y-1">
                           <p className="text-slate-400 font-bold text-[10px] uppercase">Date & Venue</p>
                           <p className="font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -1380,16 +1406,141 @@ export const AdminDashboard: React.FC = () => {
                             <MapPin className="w-3.5 h-3.5 text-slate-500" />
                             {selectedAchievement.place || 'Main Campus'}
                           </p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <p className="text-slate-400 font-bold text-[10px] uppercase">Organizer Details</p>
-                          <p className="font-extrabold text-slate-800">
-                            {selectedAchievement.responsiblePerson || 'N/A'}
-                          </p>
-                          <p className="text-slate-500 text-[10px] font-semibold">
+                          <p className="text-slate-500 text-[10px] font-semibold mt-1">
                             Participants: {selectedAchievement.participantsCount || 0} students
                           </p>
+                        </div>
+
+                        {/* Achiever Info & Reassignment */}
+                        <div className="space-y-2 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <p className="text-slate-500 font-bold text-[10px] uppercase flex items-center gap-1">
+                              <User className="w-3 h-3 text-emerald-700" />
+                              <span>Whose Achievement (Achiever)</span>
+                            </p>
+                            {!isEditingAchiever && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsEditingAchiever(true);
+                                  setTargetAchieverId(selectedAchievement.achieverId || '');
+                                  setTargetAchieverName(selectedAchievement.achieverName || '');
+                                  setTargetAchieverStudentId(selectedAchievement.achieverStudentId || '');
+                                }}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                {selectedAchievement.achieverName === 'Achiever Not Assigned' || !selectedAchievement.achieverName ? 'Assign Achiever' : 'Edit'}
+                              </button>
+                            )}
+                          </div>
+
+                          {!isEditingAchiever ? (
+                            <div>
+                              <p className="font-black text-slate-900 text-xs">
+                                {selectedAchievement.achieverName || 'Achiever Not Assigned'}
+                              </p>
+                              {selectedAchievement.achieverStudentId ? (
+                                <p className="text-[10px] text-slate-500 font-mono">
+                                  Student ID: {selectedAchievement.achieverStudentId}
+                                </p>
+                              ) : selectedAchievement.achieverName === 'Achiever Not Assigned' || !selectedAchievement.achieverName ? (
+                                <span className="text-[9px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-1">
+                                  ⚠️ Achiever Not Assigned
+                                </span>
+                              ) : null}
+                              <p className="text-[9px] text-emerald-700 mt-1 font-semibold">
+                                Points will be credited to this individual upon approval.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 pt-1">
+                              <select
+                                value={targetAchieverId}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTargetAchieverId(val);
+                                  if (val === 'new') {
+                                    setTargetAchieverName('');
+                                    setTargetAchieverStudentId('');
+                                  } else {
+                                    const m = members.find(mem => mem.id === val);
+                                    if (m) {
+                                      setTargetAchieverName(m.name);
+                                      setTargetAchieverStudentId(m.studentId || '');
+                                    }
+                                  }
+                                }}
+                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                              >
+                                <option value="">-- Select Existing Member --</option>
+                                {members.filter(m => m.organizationId === selectedAchievement.organizationId).map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name} {m.studentId ? `(${m.studentId})` : ''}
+                                  </option>
+                                ))}
+                                <option value="new">+ Enter New Student / Achiever</option>
+                              </select>
+
+                              {(targetAchieverId === 'new' || members.filter(m => m.organizationId === selectedAchievement.organizationId).length === 0) && (
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    placeholder="Student / Achiever Full Name *"
+                                    value={targetAchieverName}
+                                    onChange={(e) => setTargetAchieverName(e.target.value)}
+                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Student ID / Roll No"
+                                    value={targetAchieverStudentId}
+                                    onChange={(e) => setTargetAchieverStudentId(e.target.value)}
+                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                                  />
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  disabled={savingAchiever || !targetAchieverName.trim()}
+                                  onClick={async () => {
+                                    setSavingAchiever(true);
+                                    try {
+                                      let finalMemId = targetAchieverId;
+                                      if (!finalMemId || finalMemId === 'new') {
+                                        const newM = await addMember(selectedAchievement.organizationId, targetAchieverName.trim(), targetAchieverStudentId.trim());
+                                        finalMemId = newM.id;
+                                      }
+                                      await updateAchievementAchiever(selectedAchievement.id, finalMemId, targetAchieverName.trim(), targetAchieverStudentId.trim());
+                                      setSelectedAchievement(prev => prev ? {
+                                        ...prev,
+                                        achieverId: finalMemId,
+                                        achieverName: targetAchieverName.trim(),
+                                        achieverStudentId: targetAchieverStudentId.trim()
+                                      } : null);
+                                      setIsEditingAchiever(false);
+                                    } catch (err) {
+                                      console.error('Error assigning achiever', err);
+                                    } finally {
+                                      setSavingAchiever(false);
+                                    }
+                                  }}
+                                  className="py-1 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                                >
+                                  {savingAchiever ? 'Saving...' : 'Save Achiever'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingAchiever(false)}
+                                  className="py-1 px-2 text-slate-500 hover:bg-slate-100 rounded-lg text-[10px] font-semibold cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
