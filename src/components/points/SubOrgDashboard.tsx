@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext';
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
-  CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip
+  CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
@@ -199,70 +199,61 @@ export const SubOrgDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6" id="sub-org-portal-dashboard">
-      {/* Sub-Org Unified Portal Navigation */}
-      <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 px-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('leaderboard')}
-          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'leaderboard'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Leaderboard & Ranks
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('awards')}
-          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'awards'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Conferred Awards
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('overview')}
-          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'overview'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Overview & Submissions
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('submit')}
-          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'submit'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Submit Achievement
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('notifications');
-            markNotificationsAsRead();
-          }}
-          className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'notifications'
-              ? 'border-emerald-700 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>Alert Notifications</span>
-          {notifications.filter(n => !n.isRead && n.organizationId === portalUser?.organizationId).length > 0 && (
-            <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-          )}
-        </button>
-      </div>
+      {/* Sub-Org Unified Portal Navigation - only shown when not on full-screen submit form page */}
+      {activeTab !== 'submit' && (
+        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 px-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('leaderboard')}
+            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'leaderboard'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Leaderboard & Ranks
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('awards')}
+            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'awards'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Conferred Awards
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'overview'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Overview & Submissions
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('notifications');
+              markNotificationsAsRead();
+            }}
+            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'notifications'
+                ? 'border-emerald-700 text-emerald-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>Alert Notifications</span>
+            {notifications.filter(n => !n.isRead && n.organizationId === portalUser?.organizationId).length > 0 && (
+              <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Leaderboard & Ranks Tab (Default) */}
       {activeTab === 'leaderboard' && (
@@ -339,7 +330,7 @@ export const SubOrgDashboard: React.FC = () => {
 
             {orgAchievements.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs italic">
-                You haven't submitted any achievements yet. Use the 'Submit Achievement' tab to start!
+                You haven't submitted any achievements yet. Click the + button at the bottom right to submit your first achievement!
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -405,11 +396,26 @@ export const SubOrgDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Submit Achievement tab */}
+      {/* Submit Achievement full page view */}
       {activeTab === 'submit' && (
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6 shadow-sm">
+          {/* Header with Back Button */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Overview</span>
+            </button>
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+              New Achievement Form
+            </span>
+          </div>
+
           <div className="space-y-1">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">Submit New Achievement Proof</h2>
+            <h2 className="text-base sm:text-xl font-bold text-slate-900">Submit New Achievement Proof</h2>
             <p className="text-xs text-slate-500">Attach files, fill details, and request evaluations from administrators.</p>
           </div>
 
@@ -858,6 +864,28 @@ export const SubOrgDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Floating Action Button (+ Add Achievement) - comfortably positioned above bottom navigation bar in both app and portal viewports */}
+      {activeTab !== 'submit' && (
+        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-[60]">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setActiveTab('submit');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-full shadow-[0_10px_30px_rgba(4,120,87,0.4)] border-2 border-white/30 transition-all cursor-pointer group"
+            title="Submit New Achievement"
+            aria-label="Submit New Achievement"
+          >
+            <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center group-hover:bg-emerald-500 transition-colors shadow-inner">
+              <Plus className="w-4 h-4 text-white stroke-[3]" />
+            </div>
+            <span className="font-bold pr-1">Add Achievement</span>
+          </motion.button>
         </div>
       )}
     </div>
