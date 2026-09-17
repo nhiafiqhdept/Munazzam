@@ -182,6 +182,18 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
               'Sign In securely'
             )}
           </button>
+
+          {onJoinAsViewer && (
+            <div className="border-t border-slate-100 pt-3 text-center">
+              <button
+                type="button"
+                onClick={onJoinAsViewer}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              >
+                ← Return to Public Portal
+              </button>
+            </div>
+          )}
         </form>
       </motion.div>
     </div>

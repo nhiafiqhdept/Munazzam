@@ -3,7 +3,7 @@ import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
   CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft,
-  User, UserCheck, Pencil, Lock
+  User, UserCheck, Pencil, Lock, LogOut
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
@@ -14,7 +14,7 @@ export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'noti
 export const SubOrgDashboard: React.FC = () => {
   const { 
     portal, portalUser, organizations, achievements, categories, mediaAttachments, announcements, notifications,
-    members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead
+    members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead, logoutPortalUser
   } = usePortal();
 
   // Active sub-organization
@@ -278,6 +278,40 @@ export const SubOrgDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6" id="sub-org-portal-dashboard">
+      {/* Sub-Org Top Header Card with Log Out */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
+        <div className="flex items-center gap-3 text-center sm:text-left w-full sm:w-auto">
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold shrink-0">
+            {((activeOrg?.name || portalUser?.name || 'SO').trim().slice(0, 2)).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-bold text-slate-900 font-heading truncate">
+                {activeOrg?.name || portalUser?.name || 'Class Sub-Organization'}
+              </h2>
+              <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-full">
+                Class Sub-Org Admin
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 truncate">
+              Logged in as {portalUser?.email}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            logoutPortalUser();
+            sessionStorage.setItem('sp_explicit_logout', 'true');
+          }}
+          className="w-full sm:w-auto py-2 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Log Out</span>
+        </button>
+      </div>
+
       {/* Sub-Org Unified Portal Navigation - only shown when not on full-screen submit form page */}
       {activeTab !== 'submit' && (
         <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 px-1">

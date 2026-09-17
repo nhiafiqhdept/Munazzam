@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { usePortal, SP_Organization, SP_Achievement, SP_Member, getAwardWinners, getWinnerDisplayName, getWinnerSubtext } from '../../context/PortalContext';
-import { Award, Trophy, Star, ChevronRight, ChevronLeft, ArrowLeft, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle, User, Users, Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { usePortal, SP_Organization, SP_Achievement, SP_Member, getAwardWinners, getWinnerDisplayName, getWinnerSubtext, getAchievementPeriodId, getAwardPeriodId } from '../../context/PortalContext';
+import { Award, Trophy, Star, ChevronRight, ChevronLeft, ArrowLeft, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle, User, Users, Search, Building2, ChevronDown, X, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate } from '../../utils/helpers';
 
@@ -16,14 +16,62 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
   const [selectedMemberForDetails, setSelectedMemberForDetails] = useState<SP_Member | null>(null);
   const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>(currentTab || 'leaderboard');
   const [leaderboardScope, setLeaderboardScope] = useState<'achievers' | 'organizations'>('achievers');
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
   const [awardsRecipientFilter, setAwardsRecipientFilter] = useState<'all' | 'class_organization' | 'individual'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Active competition
+  const activeCompetition = useMemo(() => {
+    return competitions.find(c => c.status === 'active');
+  }, [competitions]);
+
+  // Selected period filter state (defaults to active period if one exists, otherwise 'all')
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('all');
+  const [periodUserSelected, setPeriodUserSelected] = useState<boolean>(false);
+
+  // Auto-sync to active period initially when competitions load
+  useEffect(() => {
+    if (!periodUserSelected) {
+      if (activeCompetition) {
+        setSelectedPeriodFilter(activeCompetition.id);
+      } else {
+        setSelectedPeriodFilter('all');
+      }
+    }
+  }, [activeCompetition, periodUserSelected]);
 
   React.useEffect(() => {
     if (currentTab) {
       setViewTab(currentTab);
     }
   }, [currentTab]);
+
+  // Active/approved organizations only (exclude rejected/deleted)
+  const activeOrganizations = useMemo(() => {
+    return organizations.filter(o => o.status === 'active' || (o.status as string) === 'approved');
+  }, [organizations]);
+
+  // Sorted list of active organizations for the dropdown filter (alphabetical)
+  const dropdownOrganizations = useMemo(() => {
+    return [...activeOrganizations].sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeOrganizations]);
+
+  // Sorted competitions for dropdown (Active first, then Concluded by date descending)
+  const dropdownCompetitions = useMemo(() => {
+    return [...competitions].sort((a, b) => {
+      if (a.status === 'active' && b.status !== 'active') return -1;
+      if (b.status === 'active' && a.status !== 'active') return 1;
+      const tA = new Date(a.startDate || a.createdAt).getTime();
+      const tB = new Date(b.startDate || b.createdAt).getTime();
+      return tB - tA;
+    });
+  }, [competitions]);
+
+  // Currently selected competition metadata
+  const currentSelectedComp = useMemo(() => {
+    if (selectedPeriodFilter === 'all') return null;
+    return competitions.find(c => c.id === selectedPeriodFilter) || null;
+  }, [competitions, selectedPeriodFilter]);
 
   // Find media attachments for an achievement
   const getMediaForAchievement = (achId: string) => {
@@ -40,34 +88,154 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     return org ? org.name : 'Unknown Class';
   };
 
-  // Filtered & sorted members
-  const sortedMembers = [...members]
-    .filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || (m.studentId && m.studentId.toLowerCase().includes(searchQuery.toLowerCase())))
-    .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+  // Compute period-specific stats for each member
+  const memberPeriodStats = useMemo(() => {
+    const statsMap = new Map<string, { points: number; count: number }>();
+    members.forEach(m => statsMap.set(m.id, { points: 0, count: 0 }));
+
+    achievements.forEach(a => {
+      if (a.status !== 'Approved') return;
+      if (selectedPeriodFilter !== 'all') {
+        const periodId = getAchievementPeriodId(a, competitions);
+        if (periodId !== selectedPeriodFilter) return;
+      }
+
+      const pts = Number(a.awardedPoints) || 0;
+      let matchedMember = members.find(m => m.id === a.achieverId);
+      if (!matchedMember && a.achieverStudentId && a.organizationId) {
+        matchedMember = members.find(m => m.organizationId === a.organizationId && m.studentId && m.studentId.trim().toLowerCase() === a.achieverStudentId?.trim().toLowerCase());
+      }
+      if (!matchedMember && a.achieverName && a.organizationId) {
+        matchedMember = members.find(m => m.organizationId === a.organizationId && m.name.trim().toLowerCase() === a.achieverName.trim().toLowerCase());
+      }
+
+      if (matchedMember) {
+        const current = statsMap.get(matchedMember.id) || { points: 0, count: 0 };
+        statsMap.set(matchedMember.id, {
+          points: current.points + pts,
+          count: current.count + 1
+        });
+      }
+    });
+
+    return statsMap;
+  }, [members, achievements, competitions, selectedPeriodFilter]);
+
+  // Compute period-specific stats for each organization
+  const orgPeriodStats = useMemo(() => {
+    const statsMap = new Map<string, { points: number; count: number }>();
+    activeOrganizations.forEach(o => statsMap.set(o.id, { points: 0, count: 0 }));
+
+    achievements.forEach(a => {
+      if (a.status !== 'Approved') return;
+      if (selectedPeriodFilter !== 'all') {
+        const periodId = getAchievementPeriodId(a, competitions);
+        if (periodId !== selectedPeriodFilter) return;
+      }
+
+      const pts = Number(a.awardedPoints) || 0;
+      if (a.organizationId) {
+        const current = statsMap.get(a.organizationId) || { points: 0, count: 0 };
+        statsMap.set(a.organizationId, {
+          points: current.points + pts,
+          count: current.count + 1
+        });
+      }
+    });
+
+    return statsMap;
+  }, [activeOrganizations, achievements, competitions, selectedPeriodFilter]);
+
+  // Filtered & sorted members based on selected organization, period stats, and search query
+  const sortedMembers = useMemo(() => {
+    return [...members]
+      .filter(m => {
+        // Filter by organization if specific organization selected
+        if (selectedOrgFilter !== 'all' && m.organizationId !== selectedOrgFilter) {
+          return false;
+        }
+        // Search query filter (name or student ID)
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase().trim();
+        const matchName = m.name?.toLowerCase().includes(query);
+        const matchId = m.studentId && m.studentId.toLowerCase().includes(query);
+        return matchName || matchId;
+      })
+      .map(m => {
+        const stats = memberPeriodStats.get(m.id) || { points: 0, count: 0 };
+        return {
+          ...m,
+          periodPoints: stats.points,
+          periodApprovedCount: stats.count
+        };
+      })
+      .sort((a, b) => b.periodPoints - a.periodPoints);
+  }, [members, selectedOrgFilter, searchQuery, memberPeriodStats]);
+
+  // Filtered & sorted class organizations for leaderboard
+  const sortedOrganizations = useMemo(() => {
+    return [...activeOrganizations]
+      .filter(o => {
+        // Filter by organization if specific organization selected
+        if (selectedOrgFilter !== 'all' && o.id !== selectedOrgFilter) {
+          return false;
+        }
+        // Search query filter (org name, class name, leader)
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase().trim();
+        const matchName = o.name?.toLowerCase().includes(query);
+        const matchClass = o.className?.toLowerCase().includes(query);
+        const matchLeader = o.leader && o.leader.toLowerCase().includes(query);
+        return matchName || matchClass || matchLeader;
+      })
+      .map(o => {
+        const stats = orgPeriodStats.get(o.id) || { points: 0, count: 0 };
+        return {
+          ...o,
+          periodPoints: stats.points,
+          periodApprovedCount: stats.count
+        };
+      })
+      .sort((a, b) => b.periodPoints - a.periodPoints);
+  }, [activeOrganizations, selectedOrgFilter, searchQuery, orgPeriodStats]);
+
+  // Filtered awards based on period and recipient type
+  const filteredAwards = useMemo(() => {
+    return awards.filter(award => {
+      // Period filter
+      if (selectedPeriodFilter !== 'all') {
+        const awardPeriodId = getAwardPeriodId(award, competitions);
+        if (awardPeriodId !== selectedPeriodFilter) return false;
+      }
+      // Recipient type filter
+      if (awardsRecipientFilter === 'individual') return award.recipientType === 'individual';
+      if (awardsRecipientFilter === 'class_organization') return award.recipientType !== 'individual';
+      return true;
+    });
+  }, [awards, selectedPeriodFilter, awardsRecipientFilter, competitions]);
 
   // Compute student-specific achievements and awarded points for selected member
   const studentAchievements = selectedMemberForDetails
     ? achievements.filter((a) => {
         // Direct achieverId match
-        if (a.achieverId && a.achieverId === selectedMemberForDetails.id) return true;
-        // Specific student ID match within the same organization
-        if (
-          selectedMemberForDetails.studentId &&
-          a.achieverStudentId &&
-          a.achieverStudentId.trim().toLowerCase() === selectedMemberForDetails.studentId.trim().toLowerCase() &&
-          a.organizationId === selectedMemberForDetails.organizationId
-        ) {
-          return true;
+        const isMatch = (a.achieverId && a.achieverId === selectedMemberForDetails.id) ||
+          (selectedMemberForDetails.studentId &&
+            a.achieverStudentId &&
+            a.achieverStudentId.trim().toLowerCase() === selectedMemberForDetails.studentId.trim().toLowerCase() &&
+            a.organizationId === selectedMemberForDetails.organizationId) ||
+          (a.organizationId === selectedMemberForDetails.organizationId &&
+            a.achieverName &&
+            a.achieverName.trim().toLowerCase() === selectedMemberForDetails.name.trim().toLowerCase());
+        
+        if (!isMatch) return false;
+
+        // Apply period filter if selected
+        if (selectedPeriodFilter !== 'all') {
+          const aPeriodId = getAchievementPeriodId(a, competitions);
+          if (aPeriodId !== selectedPeriodFilter) return false;
         }
-        // Fallback matching: name match within the same organization
-        if (
-          a.organizationId === selectedMemberForDetails.organizationId &&
-          a.achieverName &&
-          a.achieverName.trim().toLowerCase() === selectedMemberForDetails.name.trim().toLowerCase()
-        ) {
-          return true;
-        }
-        return false;
+
+        return true;
       })
     : [];
 
@@ -346,8 +514,9 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   </div>
 
                   {/* Scope Switcher: Achievers vs Organizations */}
-                  <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                  <div className="flex items-center bg-slate-100 p-1 rounded-xl shrink-0">
                     <button
+                      type="button"
                       onClick={() => setLeaderboardScope('achievers')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         leaderboardScope === 'achievers'
@@ -359,6 +528,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       <span>Student Achievers</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => setLeaderboardScope('organizations')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         leaderboardScope === 'organizations'
@@ -372,24 +542,103 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   </div>
                 </div>
 
+                {/* Filter & Search Toolbar (Period Filter + Organization Filter + Search Bar) */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5 pt-1">
+                  {/* Evaluation Period Filter Dropdown */}
+                  <div className="relative w-full md:w-56 shrink-0">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-700">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <select
+                      id="live-standings-period-filter"
+                      value={selectedPeriodFilter}
+                      onChange={(e) => {
+                        setSelectedPeriodFilter(e.target.value);
+                        setPeriodUserSelected(true);
+                      }}
+                      className="w-full appearance-none pl-9 pr-8 py-2 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer"
+                      aria-label="Filter leaderboard by evaluation period"
+                    >
+                      {activeCompetition && (
+                        <option value={activeCompetition.id}>
+                          Active: {activeCompetition.name}
+                        </option>
+                      )}
+                      <option value="all">All Periods (Lifetime / Cumulative)</option>
+                      {dropdownCompetitions
+                        .filter(c => c.id !== activeCompetition?.id)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.status === 'completed' ? '(Concluded)' : ''}
+                          </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Organization Filter Dropdown */}
+                  <div className="relative w-full md:w-48 shrink-0">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <select
+                      id="live-standings-org-filter"
+                      value={selectedOrgFilter}
+                      onChange={(e) => setSelectedOrgFilter(e.target.value)}
+                      className="w-full appearance-none pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer"
+                      aria-label="Filter leaderboard by organization"
+                    >
+                      <option value="all">All Organizations</option>
+                      {dropdownOrganizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder={
+                        leaderboardScope === 'achievers'
+                          ? "Search achiever name or student ID..."
+                          : "Search organization name or leader..."
+                      }
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* ACHIEVERS LEADERBOARD */}
                 {leaderboardScope === 'achievers' && (
-                  <div className="space-y-3">
-                    {/* Search Bar */}
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search achiever name or student ID..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
-                      />
-                    </div>
-
+                  <div className="space-y-3 pt-1">
                     {sortedMembers.length === 0 ? (
-                      <div className="text-center py-12 text-slate-500 text-sm">
-                        {searchQuery ? 'No student achievers match your search.' : 'No registered student achievers yet.'}
+                      <div className="text-center py-12 px-4 text-slate-500 text-sm bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                        {searchQuery
+                          ? 'No student achievers match your search query.'
+                          : selectedOrgFilter !== 'all'
+                          ? 'No student achievers found in the selected organization.'
+                          : 'No registered student achievers yet.'}
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
@@ -442,15 +691,17 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                                       </span>
                                     )}
                                     <span>{getOrgName(member.organizationId)}</span>
-                                    <span>• {member.approvedAchievementsCount || 0} achievements</span>
+                                    <span>• {member.periodApprovedCount || 0} approved achievements</span>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Score */}
                               <div className="text-right shrink-0 pl-2">
-                                <span className="text-base font-black text-emerald-800">{member.totalPoints || 0}</span>
-                                <span className="text-[10px] text-slate-500 block font-semibold">POINTS</span>
+                                <span className="text-base font-black text-emerald-800">{member.periodPoints || 0}</span>
+                                <span className="text-[10px] text-slate-500 block font-semibold">
+                                  {selectedPeriodFilter === 'all' ? 'LIFETIME PTS' : 'PERIOD PTS'}
+                                </span>
                               </div>
                             </div>
                           );
@@ -462,14 +713,18 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                 {/* ORGANIZATIONS LEADERBOARD */}
                 {leaderboardScope === 'organizations' && (
-                  <>
-                    {organizations.length === 0 ? (
-                      <div className="text-center py-12 text-slate-500 text-sm">
-                        No organizations created yet. Check back soon!
+                  <div className="space-y-3 pt-1">
+                    {sortedOrganizations.length === 0 ? (
+                      <div className="text-center py-12 px-4 text-slate-500 text-sm bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                        {searchQuery
+                          ? 'No class organizations match your search query.'
+                          : selectedOrgFilter !== 'all'
+                          ? 'No organization matches the selected filter.'
+                          : 'No organizations created yet. Check back soon!'}
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
-                        {organizations.map((org, index) => {
+                        {sortedOrganizations.map((org, index) => {
                           const rank = index + 1;
                           return (
                             <div key={org.id} className="flex items-center justify-between py-3.5 hover:bg-slate-50/50 px-2 rounded-2xl transition-colors">
@@ -511,15 +766,17 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                               {/* Score */}
                               <div className="text-right">
-                                <span className="text-base font-black text-emerald-800">{org.totalPoints || 0}</span>
-                                <span className="text-[10px] text-slate-500 block font-semibold">POINTS</span>
+                                <span className="text-base font-black text-emerald-800">{org.periodPoints || 0}</span>
+                                <span className="text-[10px] text-slate-500 block font-semibold">
+                                  {selectedPeriodFilter === 'all' ? 'LIFETIME PTS' : 'PERIOD PTS'}
+                                </span>
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -530,20 +787,43 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Star className="w-4 h-4 text-emerald-600" />
-                Active Evaluation Period
+                <span>Evaluation Period Status</span>
               </h3>
-              {competitions.filter(c => c.status === 'active').length === 0 ? (
-                <p className="text-xs text-slate-500 leading-normal">There is no active evaluation period currently running. Ranks are based on lifetime points accumulated.</p>
-              ) : (
-                competitions.filter(c => c.status === 'active').map(comp => (
-                  <div key={comp.id} className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl space-y-2">
-                    <p className="font-bold text-emerald-900 text-xs">{comp.name}</p>
-                    <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {formatDate(comp.startDate)} - {formatDate(comp.endDate)}
-                    </p>
+              
+              {/* Active Period Card */}
+              {activeCompetition ? (
+                <div className="bg-emerald-50/70 border border-emerald-200/80 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md uppercase tracking-wider">
+                      Active Period
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
-                ))
+                  <p className="font-extrabold text-emerald-950 text-sm">{activeCompetition.name}</p>
+                  <p className="text-[11px] text-slate-600 flex items-center gap-1.5 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                    {formatDate(activeCompetition.startDate)} – {formatDate(activeCompetition.endDate)}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                  <p className="text-xs font-bold text-slate-700">No Active Period Running</p>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    There is currently no ongoing evaluation period. Use the period filter above to inspect historical period standings.
+                  </p>
+                </div>
+              )}
+
+              {/* Selected Filter Note if different from active */}
+              {selectedPeriodFilter !== 'all' && currentSelectedComp && currentSelectedComp.id !== activeCompetition?.id && (
+                <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Viewing Concluded Period</p>
+                  <p className="text-xs font-extrabold text-slate-800">{currentSelectedComp.name}</p>
+                  <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-amber-700" />
+                    {formatDate(currentSelectedComp.startDate)} – {formatDate(currentSelectedComp.endDate)}
+                  </p>
+                </div>
               )}
             </div>
 
@@ -554,9 +834,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
               {awards.length === 0 ? (
                 <p className="text-xs text-slate-500 leading-normal">No awards conferred yet in this portal workspace.</p>
               ) : (
-                  <div className="border border-slate-100 p-4 rounded-2xl space-y-2 text-center bg-slate-50/50">
+                <div className="border border-slate-100 p-4 rounded-2xl space-y-2 text-center bg-slate-50/50">
                   <span className="text-3xl">🏅</span>
                   <p className="font-bold text-slate-900 text-xs">{awards[0].name}</p>
+                  {awards[0].evaluationPeriod && (
+                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                      {awards[0].evaluationPeriod}
+                    </span>
+                  )}
                   <div className="space-y-1 text-left pt-1 border-t border-slate-200/50">
                     {getAwardWinners(awards[0]).map((w, idx) => (
                       <p key={w.achieverId || w.organizationId || idx} className="text-[11px] text-emerald-900 font-bold truncate flex items-center gap-1">
@@ -576,20 +861,12 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
       {/* Awards Section */}
       {viewTab === 'awards' && (() => {
-        const filteredAwards = awards.filter(award => {
-          if (awardsRecipientFilter === 'all') return true;
-          const isIndividual = award.recipientType === 'individual';
-          if (awardsRecipientFilter === 'individual') return isIndividual;
-          if (awardsRecipientFilter === 'class_organization') return !isIndividual;
-          return true;
-        });
-
-        const classOrgsCount = awards.filter(a => a.recipientType !== 'individual').length;
-        const individualsCount = awards.filter(a => a.recipientType === 'individual').length;
+        const classOrgsCount = filteredAwards.filter(a => a.recipientType !== 'individual').length;
+        const individualsCount = filteredAwards.filter(a => a.recipientType === 'individual').length;
 
         return (
           <div className="space-y-4" id="awards-gallery-section">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 font-heading">Awards & Certifications Gallery</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -597,67 +874,104 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                 </p>
               </div>
 
-              {/* Recipient Type Filter Control */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto overflow-x-auto max-w-full no-scrollbar">
-                <button
-                  type="button"
-                  id="award-filter-all"
-                  onClick={() => setAwardsRecipientFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    awardsRecipientFilter === 'all'
-                      ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <span>All</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                    awardsRecipientFilter === 'all'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-slate-200/80 text-slate-600'
-                  }`}>
-                    {awards.length}
-                  </span>
-                </button>
+              {/* Toolbar: Period Filter + Recipient Type Filter */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Period Selector in Awards */}
+                <div className="relative w-full sm:w-56 shrink-0">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-700">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <select
+                    id="awards-period-filter"
+                    value={selectedPeriodFilter}
+                    onChange={(e) => {
+                      setSelectedPeriodFilter(e.target.value);
+                      setPeriodUserSelected(true);
+                    }}
+                    className="w-full appearance-none pl-9 pr-8 py-2 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer"
+                    aria-label="Filter awards by evaluation period"
+                  >
+                    {activeCompetition && (
+                      <option value={activeCompetition.id}>
+                        Active: {activeCompetition.name}
+                      </option>
+                    )}
+                    <option value="all">All Periods (Historical Awards)</option>
+                    {dropdownCompetitions
+                      .filter(c => c.id !== activeCompetition?.id)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.status === 'completed' ? '(Concluded)' : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  id="award-filter-class-orgs"
-                  onClick={() => setAwardsRecipientFilter('class_organization')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    awardsRecipientFilter === 'class_organization'
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <span>Class Organizations</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                    awardsRecipientFilter === 'class_organization'
-                      ? 'bg-emerald-950/60 text-emerald-100'
-                      : 'bg-slate-200/80 text-slate-600'
-                  }`}>
-                    {classOrgsCount}
-                  </span>
-                </button>
+                {/* Recipient Type Filter Control */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto overflow-x-auto max-w-full no-scrollbar">
+                  <button
+                    type="button"
+                    id="award-filter-all"
+                    onClick={() => setAwardsRecipientFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      awardsRecipientFilter === 'all'
+                        ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/60'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>All</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      awardsRecipientFilter === 'all'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200/80 text-slate-600'
+                    }`}>
+                      {filteredAwards.length}
+                    </span>
+                  </button>
 
-                <button
-                  type="button"
-                  id="award-filter-individual"
-                  onClick={() => setAwardsRecipientFilter('individual')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    awardsRecipientFilter === 'individual'
-                      ? 'bg-purple-700 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <span>Individual Achievers</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                    awardsRecipientFilter === 'individual'
-                      ? 'bg-purple-950/60 text-purple-100'
-                      : 'bg-slate-200/80 text-slate-600'
-                  }`}>
-                    {individualsCount}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    id="award-filter-class-orgs"
+                    onClick={() => setAwardsRecipientFilter('class_organization')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      awardsRecipientFilter === 'class_organization'
+                        ? 'bg-emerald-800 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>Class Orgs</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      awardsRecipientFilter === 'class_organization'
+                        ? 'bg-emerald-950/60 text-emerald-100'
+                        : 'bg-slate-200/80 text-slate-600'
+                    }`}>
+                      {classOrgsCount}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="award-filter-individual"
+                    onClick={() => setAwardsRecipientFilter('individual')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      awardsRecipientFilter === 'individual'
+                        ? 'bg-purple-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>Individual Achievers</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      awardsRecipientFilter === 'individual'
+                        ? 'bg-purple-950/60 text-purple-100'
+                        : 'bg-slate-200/80 text-slate-600'
+                    }`}>
+                      {individualsCount}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -825,10 +1139,17 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                         <p className="text-xs text-slate-500 leading-relaxed italic line-clamp-2">{award.description}</p>
                       )}
                       
-                      {/* Date */}
-                      <div className="mt-auto pt-4 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        <Calendar className="w-3 h-3 text-amber-500" />
-                        Conferred on {formatDate(award.awardDate)}
+                      {/* Evaluation Period and Date */}
+                      <div className="mt-auto pt-4 border-t border-slate-100 w-full flex flex-col items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                        {award.evaluationPeriod && (
+                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full font-bold text-[10px]">
+                            Period: {award.evaluationPeriod}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1 text-slate-400 font-semibold uppercase tracking-wider">
+                          <Calendar className="w-3 h-3 text-amber-500" />
+                          Conferred on {formatDate(award.awardDate)}
+                        </span>
                       </div>
                     </div>
                   );

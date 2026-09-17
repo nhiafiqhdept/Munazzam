@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, GraduationCap, Upload, Trash2, Check, Sparkles, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
+import { Building2, GraduationCap, Upload, Trash2, Check, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { fileToDataUrl, uploadFile } from '../utils/helpers';
 
@@ -56,34 +56,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
-  const handleApplyPresetOrg = (type: 'fiqh' | 'union' | 'clean') => {
-    if (type === 'fiqh') {
-      setName('Department of Fiqh and Usul al-Fiqh');
-      setCollegeName('Darul Huda Islamic Academy');
-      setTagline('Fostering Scholarly Inquiry and Juristic Excellence');
-      setEstablishedYear('2012');
-      setDescription('Academic department steering jurisprudential workshops, research symposiums, and legal colloquiums.');
-      setEmail('fiqhdept@dhiu.edu');
-      setLogo('');
-    } else if (type === 'union') {
-      setName('Noorul Huda Students Union');
-      setCollegeName('Noorul Huda Academic Campus');
-      setTagline('Empowering Student Voices, Leadership, and Creativity');
-      setEstablishedYear('2008');
-      setDescription('Central student representative union conducting annual arts festivals, campus debates, and community welfare programs.');
-      setEmail('union@noorulhuda.edu');
-      setLogo('');
-    } else {
-      setName('');
-      setCollegeName('');
-      setTagline('');
-      setEstablishedYear(new Date().getFullYear().toString());
-      setDescription('');
-      setEmail('');
-      setLogo('');
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -117,7 +89,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto"
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 sm:p-8 pb-8">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-2.5">
             <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
               <School className="w-6 h-6" />
@@ -127,41 +99,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {isInitialSetup ? 'Welcome to Academic Org Manager' : 'New Organization'}
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-100">
-                {isInitialSetup ? 'Set Up Organization Profile' : 'Add Another Organization'}
+                {isInitialSetup ? 'Set Up Organization Profile' : 'Add Organization'}
               </h2>
             </div>
           </div>
           <p className="text-sm text-slate-300 max-w-lg mt-2 leading-relaxed">
             Configure your student union, academic department, or student council profile to document programs and activities.
           </p>
-
-          {/* Quick presets helper */}
-          <div className="mt-6 pt-5 pb-1 border-t border-slate-700/70 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mr-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Quick Starters:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleApplyPresetOrg('fiqh')}
-              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-emerald-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
-            >
-              Dept of Fiqh
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyPresetOrg('union')}
-              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-sky-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
-            >
-              Noorul Huda Students Union
-            </button>
-            <button
-              type="button"
-              onClick={() => handleApplyPresetOrg('clean')}
-              className="text-xs px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition-colors font-medium cursor-pointer active:scale-95"
-            >
-              Fresh Blank Form
-            </button>
-          </div>
         </div>
 
         {/* Form Body */}

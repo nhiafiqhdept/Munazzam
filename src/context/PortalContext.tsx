@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   collection, 
   doc, 
@@ -195,6 +195,8 @@ export interface SP_Achievement {
   baseAwardedPoints?: number;
   bonusPoints?: number;
   deductionPoints?: number;
+  evaluationPeriodId?: string;
+  evaluationPeriod?: string;
 }
 
 export interface SP_Media {
@@ -224,6 +226,8 @@ export interface SP_Transaction {
   reason: string;
   awardedBy: string;
   status: 'active' | 'locked';
+  evaluationPeriodId?: string;
+  evaluationPeriod?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -254,6 +258,7 @@ export interface SP_Award {
   portalId: string;
   name: string;
   description: string;
+  evaluationPeriodId?: string;
   evaluationPeriod?: string;
   recipientType?: 'class_organization' | 'individual';
   winnerOrganizationId?: string;
@@ -263,6 +268,61 @@ export interface SP_Award {
   certificateUrl?: string;
   notes?: string;
   createdAt: string;
+}
+
+/**
+ * Robust helper to resolve an achievement's evaluation period ID.
+ * Matches explicit evaluationPeriodId, period name, or dates against evaluation periods.
+ */
+export function getAchievementPeriodId(achievement: SP_Achievement, comps: SP_Competition[]): string | null {
+  if (achievement.evaluationPeriodId) return achievement.evaluationPeriodId;
+  if (achievement.evaluationPeriod) {
+    const matched = comps.find(c => c.id === achievement.evaluationPeriod || c.name.toLowerCase().trim() === achievement.evaluationPeriod?.toLowerCase().trim());
+    if (matched) return matched.id;
+  }
+  // Date range fallback
+  const achDateStr = achievement.date || achievement.createdAt || achievement.submittedAt;
+  if (achDateStr && comps.length > 0) {
+    const achTime = new Date(achDateStr).getTime();
+    if (!isNaN(achTime)) {
+      const match = comps.find(c => {
+        const startTime = new Date(c.startDate).getTime();
+        const endTime = new Date(c.endDate).getTime();
+        if (!isNaN(startTime) && !isNaN(endTime)) {
+          return achTime >= startTime && achTime <= endTime + (24 * 60 * 60 * 1000);
+        }
+        return false;
+      });
+      if (match) return match.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Robust helper to resolve an award's evaluation period ID.
+ */
+export function getAwardPeriodId(award: SP_Award, comps: SP_Competition[]): string | null {
+  if (award.evaluationPeriodId) return award.evaluationPeriodId;
+  if (award.evaluationPeriod) {
+    const matched = comps.find(c => c.id === award.evaluationPeriod || c.name.toLowerCase().trim() === award.evaluationPeriod?.toLowerCase().trim());
+    if (matched) return matched.id;
+  }
+  if (award.awardDate && comps.length > 0) {
+    const awardTime = new Date(award.awardDate).getTime();
+    if (!isNaN(awardTime)) {
+      const match = comps.find(c => {
+        const startTime = new Date(c.startDate).getTime();
+        const endTime = new Date(c.endDate).getTime();
+        if (!isNaN(startTime) && !isNaN(endTime)) {
+          return awardTime >= startTime && awardTime <= endTime + (24 * 60 * 60 * 1000);
+        }
+        return false;
+      });
+      if (match) return match.id;
+    }
+  }
+  return null;
 }
 
 export function getAwardWinners(award: SP_Award): AwardWinner[] {
@@ -744,8 +804,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           submissionsAllowed: allowed,
         });
 
-        // If logged in as master user, also set portalUser as the nsu_admin
-        if (isAuthenticated) {
+        // If logged in as master user, set portalUser as nsu_admin ONLY if not explicitly logged out and no sub-org user cached
+        const isExplicitLoggedOut = sessionStorage.getItem('sp_explicit_logout') === 'true';
+        const hasCachedSubOrgUser = !!localStorage.getItem('sp_portal_user');
+
+        if (isAuthenticated && !isExplicitLoggedOut && !hasCachedSubOrgUser) {
           const adminUser: PortalUser = {
             id: masterAccountId,
             portalId: masterAccountId,
@@ -973,6 +1036,106 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubRegs();
     };
   }, [masterAccountId, isAuthenticated, user?.id, portalUser?.role, portalUser?.organizationId, portalUser?.email]);
+
+  // Auto-reconciliation routine to purge existing orphaned/rejected organization records from Firestore
+  useEffect(() => {
+    if (!masterAccountId) return;
+    if (organizations.length === 0 && members.length === 0) return;
+
+    const activeOrgIds = new Set(
+      organizations
+        .filter(o => o.status === 'active' || (o.status as string) === 'approved')
+        .map(o => o.id)
+    );
+
+    const rejectedOrgIds = new Set(
+      organizations
+        .filter(o => (o.status as string) === 'rejected')
+        .map(o => o.id)
+    );
+
+    // Collect rejections table entries
+    rejections.forEach(r => {
+      if (r.organizationId) rejectedOrgIds.add(r.organizationId);
+    });
+
+    // Identify members belonging to rejected or deleted/non-existent organizations
+    const orphanedMembers = members.filter(m => {
+      if (!m.organizationId) return true;
+      const isRejected = rejectedOrgIds.has(m.organizationId);
+      const isApproved = activeOrgIds.has(m.organizationId);
+      return isRejected || !isApproved;
+    });
+
+    if (orphanedMembers.length > 0) {
+      const invalidOrgIds = Array.from(new Set(
+        members
+          .filter(m => !activeOrgIds.has(m.organizationId))
+          .map(m => m.organizationId)
+          .filter(Boolean)
+      ));
+
+      if (invalidOrgIds.length > 0) {
+        (async () => {
+          const scopedCollections = [
+            'sp_members',
+            'sp_achievements',
+            'sp_media',
+            'sp_transactions',
+            'sp_notifications',
+            'sp_announcements',
+            'sp_registration_links',
+            'sp_users'
+          ];
+
+          const refsToDelete: any[] = [];
+
+          for (const orgId of invalidOrgIds) {
+            for (const colName of scopedCollections) {
+              try {
+                const q = query(collection(db, colName), where('organizationId', '==', orgId));
+                const snap = await getDocs(q);
+                snap.docs.forEach(d => {
+                  if (!refsToDelete.some(r => r.path === d.ref.path)) {
+                    refsToDelete.push(d.ref);
+                  }
+                });
+              } catch (err) {
+                console.warn(`Error querying ${colName} for orphaned org ${orgId}:`, err);
+              }
+            }
+          }
+
+          if (refsToDelete.length > 0) {
+            const CHUNK_SIZE = 400;
+            for (let i = 0; i < refsToDelete.length; i += CHUNK_SIZE) {
+              const chunk = refsToDelete.slice(i, i + CHUNK_SIZE);
+              const batch = writeBatch(db);
+              chunk.forEach(ref => batch.delete(ref));
+              await batch.commit().catch(e => console.warn('Error purging orphaned records:', e));
+            }
+          }
+
+          const invalidSet = new Set(invalidOrgIds);
+          setMembers(prev => prev.filter(m => !invalidSet.has(m.organizationId)));
+          setAchievements(prev => prev.filter(a => !invalidSet.has(a.organizationId)));
+          setTransactions(prev => prev.filter(t => !invalidSet.has(t.organizationId)));
+          setMediaAttachments(prev => prev.filter(m => !invalidSet.has(m.organizationId)));
+        })();
+      }
+    }
+  }, [masterAccountId, organizations, members, rejections]);
+
+  // Compute active members belonging ONLY to active/approved class organizations
+  const activeMembers = useMemo(() => {
+    const activeOrgIds = new Set(
+      organizations
+        .filter(o => o.status === 'active' || (o.status as string) === 'approved')
+        .map(o => o.id)
+    );
+
+    return members.filter(m => activeOrgIds.has(m.organizationId));
+  }, [members, organizations]);
 
   // Achiever & Member Management Methods
   const addMember = async (organizationId: string, name: string, studentId?: string, contactDetails?: string): Promise<SP_Member> => {
@@ -1331,6 +1494,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setPortalUser(loggedUser);
     localStorage.setItem('sp_portal_user', JSON.stringify(loggedUser));
+    try {
+      sessionStorage.removeItem('sp_explicit_logout');
+    } catch {}
     if (userData.portalId) {
       setActivePortalId(userData.portalId);
     }
@@ -1343,7 +1509,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       logPortalAction('USER_LOGOUT', `Logged out: ${portalUser.email}`).catch(() => {});
     }
     setPortalUser(null);
-    localStorage.removeItem('sp_portal_user');
+    try {
+      localStorage.removeItem('sp_portal_user');
+      sessionStorage.removeItem('sp_portal_user');
+      sessionStorage.setItem('sp_explicit_logout', 'true');
+    } catch (e) {
+      console.warn('Error clearing session on logout:', e);
+    }
   };
 
   const setPortalUserDirectly = (user: PortalUser | null) => {
@@ -1514,7 +1686,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // 2. Fetch all achievement IDs belonging to this org so we can also clear their media attachments
     const qAchs = query(
       collection(db, 'sp_achievements'),
-      where('portalId', '==', masterAccountId),
       where('organizationId', '==', id)
     );
     const achsSnap = await getDocs(qAchs);
@@ -1542,7 +1713,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         const q = query(
           collection(db, colName),
-          where('portalId', '==', masterAccountId),
           where('organizationId', '==', id)
         );
         const snap = await getDocs(q);
@@ -1668,7 +1838,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // 5. Collect and delete all organization-owned private data
     const qAchs = query(
       collection(db, 'sp_achievements'),
-      where('portalId', '==', targetPortalId),
       where('organizationId', '==', id)
     );
     const achsSnap = await getDocs(qAchs);
@@ -1683,6 +1852,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       'sp_transactions',
       'sp_notifications',
       'sp_announcements',
+      'sp_awards',
       'sp_registration_links',
       'sp_users'
     ];
@@ -1691,7 +1861,6 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         const q = query(
           collection(db, colName),
-          where('portalId', '==', targetPortalId),
           where('organizationId', '==', id)
         );
         const snap = await getDocs(q);
@@ -1872,11 +2041,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
+    const activeComp = competitions.find(c => c.status === 'active');
+    if (!activeComp) {
+      throw new Error('Achievement submissions are unavailable: No active Evaluation Period is currently running.');
+    }
+
     const achObj: SP_Achievement = {
       ...achievement,
       achieverId: finalAchieverId,
       achieverName: finalAchieverName,
       achieverStudentId: finalAchieverStudentId,
+      evaluationPeriodId: activeComp.id,
+      evaluationPeriod: activeComp.name,
       id: achId,
       portalId: masterAccountId,
       organizationId: portalUser.organizationId,
@@ -2185,6 +2361,20 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const compId = generateId('sp_comp');
     const now = new Date().toISOString();
 
+    // Prevent overlapping active periods: conclude any existing active periods in Firestore
+    const qActiveComp = query(
+      collection(db, 'sp_competitions'),
+      where('portalId', '==', masterAccountId),
+      where('status', '==', 'active')
+    );
+    const snapActive = await getDocs(qActiveComp);
+    for (const d of snapActive.docs) {
+      await updateDoc(d.ref, cleanFirestorePayload({
+        status: 'completed',
+        updatedAt: now
+      }));
+    }
+
     await setDoc(doc(db, 'sp_competitions', compId), cleanFirestorePayload({
       id: compId,
       portalId: masterAccountId,
@@ -2196,7 +2386,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: now
     }));
 
-    await logPortalAction('ADD_COMPETITION', `Started new evaluation period: "${name}" (${start} to ${end})`);
+    await logPortalAction('ADD_COMPETITION', `Started new active evaluation period: "${name}" (${start} to ${end}) and concluded previous active period(s)`);
   };
 
   const completeCompetition = async (id: string) => {
@@ -2262,6 +2452,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const now = new Date().toISOString();
     const recipientType = award.recipientType || 'class_organization';
 
+    const activeComp = competitions.find(c => c.status === 'active');
+    const resolvedPeriodId = award.evaluationPeriodId || (award.evaluationPeriod ? competitions.find(c => c.id === award.evaluationPeriod || c.name.toLowerCase().trim() === award.evaluationPeriod?.toLowerCase().trim())?.id : undefined) || activeComp?.id;
+    const resolvedPeriodName = award.evaluationPeriod || (resolvedPeriodId ? competitions.find(c => c.id === resolvedPeriodId)?.name : undefined) || activeComp?.name;
+
     const winnersList = award.winners && award.winners.length > 0
       ? award.winners
       : (award.winnerOrganizationId && award.winnerOrganizationName 
@@ -2277,6 +2471,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       portalId: masterAccountId,
       createdAt: now,
       ...award,
+      evaluationPeriodId: resolvedPeriodId,
+      evaluationPeriod: resolvedPeriodName,
       recipientType,
       winnerOrganizationId: winnerOrgId,
       winnerOrganizationName: winnerOrgName,
@@ -2674,7 +2870,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notifications,
       auditLogs,
       registrationLinks,
-      members,
+      members: activeMembers,
       rejections,
       rejectionInfo,
       loading,

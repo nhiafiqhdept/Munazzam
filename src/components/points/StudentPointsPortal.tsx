@@ -627,9 +627,14 @@ const StudentPointsInner: React.FC = () => {
     try {
       const ok = await loginPortalUser(loginFormEmail, loginFormPassword);
       if (ok) {
+        setExplicitLogout(false);
+        setShowLogin(false);
         setLoginFormEmail('');
         setLoginFormPassword('');
         setLoginError('');
+        try {
+          sessionStorage.removeItem('sp_explicit_logout');
+        } catch {}
       } else {
         setLoginError('Incorrect email or password. Please verify your credentials.');
       }
@@ -658,9 +663,10 @@ const StudentPointsInner: React.FC = () => {
     }
   }, []);
 
-  // Auto-login as Admin on load ONLY if user is authenticated in the main Munazzam app
+  // Auto-login as Admin on load ONLY if user is authenticated in the main Munazzam app AND hasn't explicitly logged out
   useEffect(() => {
-    if (isAuthenticated && user?.id && !portalUser && !explicitLogout) {
+    const isExplicitLoggedOut = sessionStorage.getItem('sp_explicit_logout') === 'true';
+    if (isAuthenticated && user?.id && !portalUser && !explicitLogout && !isExplicitLoggedOut) {
       const adminUser: any = {
         id: user.id,
         portalId: user.id,
@@ -675,10 +681,12 @@ const StudentPointsInner: React.FC = () => {
   }, [isAuthenticated, user?.id, user?.email, user?.name, portalUser, explicitLogout, setPortalUserDirectly]);
 
   const handleExit = () => {
-    if (portalUser) {
-      logoutPortalUser();
-      setExplicitLogout(true);
-    }
+    logoutPortalUser();
+    setExplicitLogout(true);
+    setShowLogin(false);
+    try {
+      sessionStorage.setItem('sp_explicit_logout', 'true');
+    } catch {}
   };
 
   const handleBackToLogin = () => {
@@ -828,17 +836,27 @@ const StudentPointsInner: React.FC = () => {
                   )}
                 </button>
 
-                <div className="border-t border-slate-100 pt-4 text-center">
-                  <p className="text-xs text-slate-500 mb-2">Don't have an account yet?</p>
+                <div className="border-t border-slate-100 pt-4 text-center space-y-3">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-2">Don't have an account yet?</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSuborgViewMode('register');
+                        setRegError('');
+                      }}
+                      className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-emerald-800 text-xs font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                    >
+                      Create New Sub-Organization
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setSuborgViewMode('register');
-                      setRegError('');
-                    }}
-                    className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-emerald-800 text-xs font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                    onClick={() => setShowLogin(false)}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer inline-block"
                   >
-                    Create New Sub-Organization
+                    ← Return to Public Portal
                   </button>
                 </div>
               </form>
@@ -975,7 +993,7 @@ const StudentPointsInner: React.FC = () => {
       );
     }
 
-    return <PortalLogin />;
+    return <PortalLogin onJoinAsViewer={() => setShowLogin(false)} />;
   }
 
   // Public Mode Default: Show clean responsive header with [ Login as Sub-Org ] button, and render the ViewerDashboard directly
