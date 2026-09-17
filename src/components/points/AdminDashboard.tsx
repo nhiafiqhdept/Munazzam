@@ -93,21 +93,29 @@ export const AdminDashboard: React.FC = () => {
 
   // Submissions allowance toggle
   const [togglingSubmissions, setTogglingSubmissions] = useState(false);
+  const [submissionsFeedback, setSubmissionsFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleToggleSubmissions = async () => {
     const currentlyAllowed = portal?.submissionsAllowed !== false;
     const nextState = !currentlyAllowed;
-    if (!window.confirm(nextState 
-      ? 'Are you sure you want to OPEN achievement submissions for all class organizations?' 
-      : 'Are you sure you want to PAUSE achievement submissions? Class organizations will not be able to submit new achievements until reopened.'
-    )) {
-      return;
-    }
     setTogglingSubmissions(true);
+    setSubmissionsFeedback(null);
     try {
       await toggleSubmissionsAllowed(nextState);
+      setSubmissionsFeedback({
+        type: 'success',
+        message: nextState 
+          ? 'Achievement submissions are now OPEN. Sub-Organizations can submit new achievements.' 
+          : 'Achievement submissions are now CLOSED. New submissions are blocked for all Sub-Organizations.'
+      });
+      setTimeout(() => setSubmissionsFeedback(null), 4500);
     } catch (err: any) {
-      alert(err?.message || 'Failed to update submissions status');
+      console.error('Failed to toggle submissions:', err);
+      setSubmissionsFeedback({
+        type: 'error',
+        message: err?.message || 'Failed to update submissions status. Please try again.'
+      });
+      setTimeout(() => setSubmissionsFeedback(null), 5000);
     } finally {
       setTogglingSubmissions(false);
     }
@@ -1654,11 +1662,26 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'competitions' && (
         <div className="space-y-6">
           {/* Main Munazzam / Admin Master Achievement Submissions Control */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-5">
+            {submissionsFeedback && (
+              <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 border transition-all ${
+                submissionsFeedback.type === 'success' 
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200' 
+                  : 'bg-rose-50 text-rose-900 border-rose-200'
+              }`}>
+                {submissionsFeedback.type === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span className="leading-relaxed">{submissionsFeedback.message}</span>
+              </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                     <Sliders className="w-4 h-4" />
                   </div>
                   <div>
@@ -1673,17 +1696,17 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
-              {/* Master ON/OFF Toggle Control */}
-              <div className="flex items-center gap-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 sm:px-5 shrink-0">
-                <div className="text-left sm:text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              {/* Master ON/OFF Toggle Control: full-width and touch-friendly on mobile, compact on desktop */}
+              <div className="w-full md:w-auto flex items-center justify-between gap-3 sm:gap-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 md:px-5 shrink-0">
+                <div className="text-left md:text-right min-w-0">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider truncate">
                     Portal Submission Access
                   </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${
+                  <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                       portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                     }`} />
-                    <span className={`text-xs font-black ${
+                    <span className={`text-xs sm:text-sm font-black truncate ${
                       portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
                     }`}>
                       {portal?.submissionsAllowed !== false ? 'Achievement Submissions Open' : 'Achievement Submissions Closed'}
@@ -1691,12 +1714,12 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Clear ON / OFF Toggle Button */}
+                {/* Clear ON / OFF Toggle Button with large touch target */}
                 <button
                   type="button"
                   onClick={handleToggleSubmissions}
                   disabled={togglingSubmissions}
-                  className={`relative inline-flex items-center h-10 w-24 rounded-full p-1 transition-all duration-300 ease-in-out cursor-pointer focus:outline-none shadow-inner border ${
+                  className={`relative inline-flex items-center h-10 w-24 rounded-full p-1 transition-all duration-300 ease-in-out cursor-pointer focus:outline-none shadow-inner border shrink-0 ${
                     portal?.submissionsAllowed !== false
                       ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white'
                       : 'bg-slate-300 hover:bg-slate-400 border-slate-400 text-slate-700'
@@ -1734,47 +1757,47 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Clear Rules and Active Evaluation Period Connection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+              <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-start gap-3 text-xs transition-all ${
                 portal?.submissionsAllowed !== false
-                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 font-medium'
+                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-medium ring-1 ring-emerald-500/20'
                   : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}>
                 <div className={`p-1.5 rounded-xl shrink-0 ${
-                  portal?.submissionsAllowed !== false ? 'bg-emerald-200/70 text-emerald-800' : 'bg-slate-200 text-slate-500'
+                  portal?.submissionsAllowed !== false ? 'bg-emerald-200/80 text-emerald-800' : 'bg-slate-200 text-slate-500'
                 }`}>
-                  <Check className="w-4 h-4" />
+                  <Check className="w-4 h-4 stroke-[2.5]" />
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">State: ON</span>
+                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">STATE: ON</span>
                     {portal?.submissionsAllowed !== false && (
                       <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] font-bold">CURRENT</span>
                     )}
                   </div>
-                  <p className="font-bold text-slate-800 text-xs">Sub-Organizations can submit achievements.</p>
-                  <p className="text-[11px] text-slate-500">The "+ Add Achievement" button is active and accessible to all class organizations.</p>
+                  <p className="font-bold text-slate-900 text-xs">Sub-Organizations can submit achievements.</p>
+                  <p className="text-[11px] text-slate-500 leading-snug">The "+ Add Achievement" button is active and accessible to all class organizations.</p>
                 </div>
               </div>
 
-              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+              <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-start gap-3 text-xs transition-all ${
                 portal?.submissionsAllowed === false
-                  ? 'bg-rose-50/70 border-rose-200 text-rose-950 font-medium'
+                  ? 'bg-rose-50/80 border-rose-300 text-rose-950 font-medium ring-1 ring-rose-500/20'
                   : 'bg-slate-50 border-slate-200 text-slate-600'
               }`}>
                 <div className={`p-1.5 rounded-xl shrink-0 ${
-                  portal?.submissionsAllowed === false ? 'bg-rose-200/70 text-rose-800' : 'bg-slate-200 text-slate-500'
+                  portal?.submissionsAllowed === false ? 'bg-rose-200/80 text-rose-800' : 'bg-slate-200 text-slate-500'
                 }`}>
-                  <Lock className="w-4 h-4" />
+                  <Lock className="w-4 h-4 stroke-[2.5]" />
                 </div>
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">State: OFF</span>
+                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">STATE: OFF</span>
                     {portal?.submissionsAllowed === false && (
                       <span className="px-2 py-0.5 bg-rose-600 text-white rounded-md text-[9px] font-bold">CURRENT</span>
                     )}
                   </div>
-                  <p className="font-bold text-slate-800 text-xs">Sub-Organizations cannot submit achievements.</p>
-                  <p className="text-[11px] text-slate-500">The button is hidden, forms are blocked, and submission creation is locked.</p>
+                  <p className="font-bold text-slate-900 text-xs">Sub-Organizations cannot submit achievements.</p>
+                  <p className="text-[11px] text-slate-500 leading-snug">The button is hidden, forms are blocked, and submission creation is locked.</p>
                 </div>
               </div>
             </div>
@@ -1783,26 +1806,40 @@ export const AdminDashboard: React.FC = () => {
             {(() => {
               const activeComp = competitions.find(c => c.status === 'active');
               return (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-600">
+                  <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-emerald-100/80 text-emerald-800 shrink-0 mt-0.5 sm:mt-0">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Active Evaluation Period
+                      </span>
                       {activeComp ? (
-                        <>
-                          Active Evaluation Period: <strong className="text-slate-900">{activeComp.name}</strong> ({formatDate(activeComp.startDate)} – {formatDate(activeComp.endDate)})
-                        </>
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-900 block text-xs sm:text-sm truncate">{activeComp.name}</span>
+                          <span className="text-[11px] text-slate-500 font-medium block">
+                            {formatDate(activeComp.startDate)} – {formatDate(activeComp.endDate)}
+                          </span>
+                        </div>
                       ) : (
-                        <span className="italic text-slate-500">No active evaluation period is currently running.</span>
+                        <span className="italic text-slate-500 text-xs">No active evaluation period is currently running.</span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500">Current Status:</span>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+
+                  <div className="flex items-center justify-between md:justify-end gap-2 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-200/70 shrink-0">
+                    <span className="text-[10px] sm:text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                      Current Status:
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black ${
                       portal?.submissionsAllowed !== false
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                         : 'bg-rose-100 text-rose-800 border border-rose-200'
                     }`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${
+                        portal?.submissionsAllowed !== false ? 'bg-emerald-500' : 'bg-rose-500'
+                      }`} />
                       {portal?.submissionsAllowed !== false ? 'Achievement Submissions Open' : 'Achievement Submissions Closed'}
                     </span>
                   </div>

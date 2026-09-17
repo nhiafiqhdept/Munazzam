@@ -438,14 +438,39 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [portalStatus, setPortalStatus] = useState<'active' | 'not_generated' | 'disabled' | 'invalid' | 'missing' | 'loading'>('loading');
   const [portalErrorMessage, setPortalErrorMessage] = useState<string | null>(null);
 
-  // Active portal ID resolution (isolated per account or URL token)
+  // Portal user session (NSU Admin or Sub-Org Admin)
+  const [portalUser, setPortalUser] = useState<PortalUser | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('sp_portal_user');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
+  // Active portal ID resolution (isolated per account or URL token or cached sub-org user)
   const [activePortalId, setActivePortalId] = useState<string>(() => {
     if (user?.id) return user.id;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('sp_portal_user');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.portalId) return parsed.portalId;
+        }
+      } catch {}
+    }
     return '';
   });
 
-  // Master account ID is strictly the resolved activePortalId or user.id
-  const masterAccountId = user?.id || activePortalId;
+  // Master account ID is strictly the resolved activePortalId or user.id or portalUser's parent portalId
+  const masterAccountId = user?.id || activePortalId || portalUser?.portalId || (typeof window !== 'undefined' ? (() => {
+    try {
+      const c = localStorage.getItem('sp_portal_user');
+      return c ? JSON.parse(c).portalId : '';
+    } catch { return ''; }
+  })() : '');
 
   // Resolve portal access and account link
   useEffect(() => {
@@ -523,13 +548,34 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // 2. If unauthenticated public or sub-org visitor: check token from URL
+      // 2. If unauthenticated public or sub-org visitor: check token from URL or existing portalUser session
       setPortalLinkLoading(false);
       const token = extractPortalToken();
       const params = new URLSearchParams(window.location.search);
       const regParam = params.get('reg');
 
       if (!token && !regParam) {
+        let savedPortalId = portalUser?.portalId;
+        if (!savedPortalId && typeof window !== 'undefined') {
+          try {
+            const cached = localStorage.getItem('sp_portal_user');
+            if (cached) {
+              const p = JSON.parse(cached);
+              savedPortalId = p?.portalId;
+            }
+          } catch {}
+        }
+
+        if (savedPortalId) {
+          if (!isCancelled) {
+            setActivePortalId(savedPortalId);
+            setPortalStatus('active');
+            setPortalErrorMessage(null);
+            setLoading(false);
+          }
+          return;
+        }
+
         if (!isCancelled) {
           setActivePortalId('');
           setPortalStatus('missing');
@@ -612,8 +658,27 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [user?.id, user?.email]);
   
-  const [portal, setPortal] = useState<SP_Portal | null>(null);
-  const [portalUser, setPortalUser] = useState<PortalUser | null>(null);
+  const [portal, setPortal] = useState<SP_Portal | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedUser = localStorage.getItem('sp_portal_user');
+        const pId = user?.id || (cachedUser ? JSON.parse(cachedUser).portalId : '');
+        if (pId) {
+          const cachedSub = localStorage.getItem(`sp_submissions_allowed_${pId}`);
+          if (cachedSub !== null) {
+            return {
+              id: pId,
+              name: 'Student Points Management',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              submissionsAllowed: cachedSub !== 'false',
+            };
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [organizations, setOrganizations] = useState<SP_Organization[]>([]);
   const [categories, setCategories] = useState<SP_Category[]>([]);
   const [achievements, setAchievements] = useState<SP_Achievement[]>([]);
@@ -640,7 +705,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const cached = localStorage.getItem('sp_portal_user');
       if (cached) {
-        setPortalUser(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setPortalUser(parsed);
+        if (parsed?.portalId) {
+          setActivePortalId(prev => prev || parsed.portalId);
+          setPortalStatus('active');
+          setPortalErrorMessage(null);
+        }
       }
     } catch (e) {
       console.warn('Could not load cached portal user', e);
@@ -661,12 +732,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const unsubPortal = onSnapshot(doc(db, 'sp_portals', masterAccountId), async (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
+        const allowed = data.submissionsAllowed !== false;
+        try {
+          localStorage.setItem(`sp_submissions_allowed_${masterAccountId}`, String(allowed));
+        } catch {}
         setPortal({
           id: masterAccountId,
           name: data.name || 'NSU Portal',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
-          submissionsAllowed: data.submissionsAllowed !== false,
+          submissionsAllowed: allowed,
         });
 
         // If logged in as master user, also set portalUser as the nsu_admin
@@ -683,13 +758,27 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setPortalUser(adminUser);
         }
       } else {
+        const now = new Date().toISOString();
+        const allowed = true;
+        try {
+          localStorage.setItem(`sp_submissions_allowed_${masterAccountId}`, 'true');
+        } catch {}
         setPortal({
           id: masterAccountId,
           name: 'NSU Student Points Management',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          submissionsAllowed: true,
+          createdAt: now,
+          updatedAt: now,
+          submissionsAllowed: allowed,
         });
+        if (user?.id && user.id === masterAccountId) {
+          setDoc(doc(db, 'sp_portals', masterAccountId), cleanFirestorePayload({
+            id: masterAccountId,
+            name: 'NSU Student Points Management',
+            submissionsAllowed: true,
+            createdAt: now,
+            updatedAt: now
+          }), { merge: true }).catch(() => {});
+        }
       }
       setLoading(false);
     }, (error) => {
@@ -2126,22 +2215,41 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleSubmissionsAllowed = async (allowed: boolean) => {
-    if (!masterAccountId) return;
+    if (!masterAccountId) {
+      console.error('toggleSubmissionsAllowed: masterAccountId is missing!');
+      throw new Error('Points Portal master account identifier is missing.');
+    }
     if (!isAdminAuthorized()) {
       throw new Error('Forbidden: Administrative privileges required to change submission settings.');
     }
 
-    await setDoc(doc(db, 'sp_portals', masterAccountId), cleanFirestorePayload({
+    const now = new Date().toISOString();
+    const portalRef = doc(db, 'sp_portals', masterAccountId);
+
+    await setDoc(portalRef, cleanFirestorePayload({
+      id: masterAccountId,
+      name: portal?.name || 'NSU Student Points Management',
       submissionsAllowed: allowed,
-      updatedAt: new Date().toISOString()
+      updatedAt: now
     }), { merge: true });
 
-    setPortal(prev => prev ? { ...prev, submissionsAllowed: allowed } : null);
+    // Instantly update local state optimistically
+    setPortal(prev => prev ? { ...prev, submissionsAllowed: allowed } : {
+      id: masterAccountId,
+      name: 'NSU Student Points Management',
+      submissionsAllowed: allowed,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    try {
+      localStorage.setItem(`sp_submissions_allowed_${masterAccountId}`, String(allowed));
+    } catch {}
 
     await logPortalAction(
       'TOGGLE_SUBMISSIONS',
       `Achievement submissions turned ${allowed ? 'ON' : 'OFF'} by administrator`
-    );
+    ).catch(() => {});
   };
 
   // 11. Awards
