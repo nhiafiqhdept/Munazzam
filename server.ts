@@ -293,7 +293,7 @@ app.post('/api/migration/sync-local', async (req: Request, res: Response) => {
 });
 
 // ==================== FILE UPLOAD ROUTE ====================
-app.post('/api/upload', authenticateToken, upload.single('file'), (req: Request, res: Response) => {
+app.post('/api/upload', authenticateToken, upload.single('file') as any, (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
@@ -501,6 +501,15 @@ setupEntityEndpoints(app, 'audit_logs');
 
 // ==================== VITE / STATIC SERVING ====================
 async function startServer() {
+  // Ensure unhandled /api/* endpoints return structured JSON 404
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({
+      success: false,
+      error: 'API_ENDPOINT_NOT_FOUND',
+      message: `API endpoint ${req.method} ${req.path} was not found.`,
+    });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -514,15 +523,6 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
-
-  // Ensure unhandled /api/* endpoints return structured JSON 404
-  app.all('/api/*', (req: Request, res: Response) => {
-    res.status(404).json({
-      success: false,
-      error: 'API_ENDPOINT_NOT_FOUND',
-      message: `API endpoint ${req.method} ${req.path} was not found.`,
-    });
-  });
 
   // Express global error handler for API requests
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {

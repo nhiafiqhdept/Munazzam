@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { usePortal, SP_Organization, SP_Achievement } from '../../context/PortalContext';
+import { usePortal, SP_Organization, SP_Achievement, SP_Category, AwardWinner, getAwardWinners } from '../../context/PortalContext';
 import { useApp } from '../../context/AppContext';
 import { 
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
   Building, ChevronLeft, ChevronRight, Search, ArrowUpDown, Download, Play,
-  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy, User, UserCheck, Edit3
+  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy, User, UserCheck, Edit3, Trash2, MoreVertical
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId } from '../../utils/helpers';
@@ -14,7 +14,7 @@ export const AdminDashboard: React.FC = () => {
   const { user } = useApp();
   const { 
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
-    members, createClassOrganization, updateClassOrganization, reviewAchievement, addCategory, deleteCategory,
+    members, createClassOrganization, updateClassOrganization, deleteClassOrganization, rejectClassOrganization, approveClassOrganization, reviewAchievement, addCategory, deleteCategory,
     addCompetition, completeCompetition, addAward, addAnnouncement,
     registrationLinks, generateRegistrationLink,
     updateAchievementAchiever, recalculateLeaderboardTotals, addMember,
@@ -124,14 +124,16 @@ export const AdminDashboard: React.FC = () => {
 
   // Stats
   const pendingAchievements = achievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review');
-  const totalPointsAwarded = transactions.filter(t => t.status === 'active').reduce((acc, curr) => acc + curr.points, 0);
+  const totalPointsAwarded = achievements
+    .filter(a => a.status === 'Approved')
+    .reduce((acc, curr) => acc + (Number(curr.awardedPoints) || 0), 0);
 
   // Forms states
   const [reviewPoints, setReviewPoints] = useState<number>(10);
   const [reviewNotes, setReviewNotes] = useState<string>('');
   const [reviewLoading, setReviewLoading] = useState<boolean>(false);
 
-  // 1. Org form state
+  // 1. Org form state & deletion state
   const [orgName, setOrgName] = useState('');
   const [orgClass, setOrgClass] = useState('');
   const [orgLeader, setOrgLeader] = useState('');
@@ -142,10 +144,21 @@ export const AdminDashboard: React.FC = () => {
   const [orgError, setOrgError] = useState('');
   const [orgSuccess, setOrgSuccess] = useState('');
   const [orgLoading, setOrgLoading] = useState(false);
+  const [orgToDelete, setOrgToDelete] = useState<SP_Organization | null>(null);
+  const [orgToApprove, setOrgToApprove] = useState<SP_Organization | null>(null);
+  const [isDeletingOrg, setIsDeletingOrg] = useState<boolean>(false);
+  const [isApprovingOrg, setIsApprovingOrg] = useState<boolean>(false);
+  const [activeOrgMenuId, setActiveOrgMenuId] = useState<string | null>(null);
+  const [orgActionError, setOrgActionError] = useState<string>('');
+  const [orgActionSuccess, setOrgActionSuccess] = useState<string>('');
 
   // 2. Category form
   const [catName, setCatName] = useState('');
   const [catPoints, setCatPoints] = useState<number>(15);
+  const [catError, setCatError] = useState('');
+  const [catSuccess, setCatSuccess] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<SP_Category | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState<boolean>(false);
 
   // 3. Competition form
   const [compName, setCompName] = useState('');
@@ -155,7 +168,9 @@ export const AdminDashboard: React.FC = () => {
   // 4. Award form
   const [awName, setAwName] = useState('');
   const [awDesc, setAwDesc] = useState('');
-  const [awOrgId, setAwOrgId] = useState('');
+  const [awOrgId1, setAwOrgId1] = useState('');
+  const [awOrgId2, setAwOrgId2] = useState('');
+  const [awOrgId3, setAwOrgId3] = useState('');
   const [awPeriod, setAwPeriod] = useState('');
 
   // 5. Announcement form
@@ -181,10 +196,10 @@ export const AdminDashboard: React.FC = () => {
     setOrgError('');
     setOrgSuccess('');
 
-    if (organizations.length >= 10) {
-      setOrgError('You can manage a maximum of 10 class sub-organizations under NSU.');
-      return;
-    }
+    // if (organizations.length >= 10) {
+    //   setOrgError('You can manage a maximum of 10 class sub-organizations under NSU.');
+    //   return;
+    // }
 
     if (!orgName || !orgClass || !orgEmail || !orgPass) {
       setOrgError('Please fill in Name, Class, Login Email, and Password.');
@@ -249,7 +264,7 @@ export const AdminDashboard: React.FC = () => {
           <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Sub-Organizations</p>
           <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
             <span className="text-2xl sm:text-3xl font-black text-slate-800">{organizations.length}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">TOTAL</span>
           </div>
         </div>
 
@@ -277,6 +292,84 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Pending Sub-Organizations Alert Banner */}
+      {organizations.filter(o => o.status === 'pending').length > 0 && (
+        <div className="space-y-3" id="admin-pending-orgs-alerts">
+          {organizations.filter(o => o.status === 'pending').map((pendingOrg) => (
+            <div 
+              key={pendingOrg.id}
+              className="bg-amber-50/90 border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-800 flex-shrink-0">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-slate-900 font-heading">
+                      New Class Organization Pending Approval
+                    </h3>
+                    <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      Pending Approval
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    <span className="font-bold text-slate-800">{pendingOrg.name}</span> has registered using the shared registration code and is waiting for confirmation.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block font-semibold">Organization:</span>
+                      <span className="font-bold text-slate-800 truncate">{pendingOrg.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold">Leader:</span>
+                      <span className="font-bold text-slate-800 truncate">{pendingOrg.leader || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold">Registered:</span>
+                      <span className="font-bold text-slate-800">{new Date(pendingOrg.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block font-semibold">Status:</span>
+                      <span className="font-bold text-amber-800">Pending Approval</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Approve / Reject Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0 self-end md:self-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrgActionError('');
+                    setOrgActionSuccess('');
+                    setOrgToApprove(pendingOrg);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Approve</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrgActionError('');
+                    setOrgActionSuccess('');
+                    setOrgToDelete(pendingOrg);
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reject</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Admin tabs menu */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button
@@ -289,11 +382,16 @@ export const AdminDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('organizations')}
-          className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+          className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'organizations' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          Class Organizations
+          <span>Class Organizations</span>
+          {organizations.filter(o => o.status === 'pending').length > 0 && (
+            <span className="px-1.5 py-0.5 text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300 rounded-full">
+              {organizations.filter(o => o.status === 'pending').length} Pending
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('categories')}
@@ -363,66 +461,70 @@ export const AdminDashboard: React.FC = () => {
                     const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
                     const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
                     
-                    // Compute total points from approved point transactions
-                    const pointsAwarded = transactions
-                      .filter(t => t.organizationId === org.id && t.status === 'active')
-                      .reduce((sum, t) => sum + t.points, 0);
+                    // Compute total points from approved achievements
+                    const pointsAwarded = orgAchievements
+                      .filter(a => a.status === 'Approved')
+                      .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
 
                     return (
                       <div 
                         key={org.id} 
-                        className="bg-white rounded-3xl border border-slate-200 p-5 hover:border-emerald-600/40 transition-all shadow-xs flex flex-col justify-between space-y-4 group"
+                        className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 hover:border-emerald-600/40 transition-all shadow-xs flex flex-col justify-between space-y-3 group"
                         id={`org-card-${org.id}`}
                       >
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-black text-emerald-800 text-base shadow-2xs flex-shrink-0">
+                        {/* Organization Header */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-black text-emerald-800 text-xs shadow-2xs flex-shrink-0">
                             {org.logo ? (
-                              <img src={org.logo} alt={org.name} className="w-full h-full rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                              <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
                             ) : (
                               org.name.substring(0, 2).toUpperCase()
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-800 transition-colors">{org.name}</h3>
-                            <p className="text-xs text-slate-500 font-semibold">{org.className}</p>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-800 transition-colors leading-tight">{org.name}</h3>
+                            <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                              {org.membersCount || 0} members {org.className ? `• ${org.className}` : ''}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Summary Metrics */}
-                        <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-center">
+                        {/* Primary Statistics (Submitted / Pending / Approved) */}
+                        <div className="grid grid-cols-3 gap-1 py-2 border-y border-slate-100 text-center">
                           <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Submitted</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Submitted</p>
                             <p className="text-sm font-black text-slate-800">{totalSubmitted}</p>
                           </div>
-                          <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
+                          <div className="space-y-0.5 border-x border-slate-100/80">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pending</p>
                             <p className={`text-sm font-black ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
                               {pendingCount}
                             </p>
                           </div>
                           <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Approved</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Approved</p>
                             <p className="text-sm font-black text-emerald-600">{approvedCount}</p>
                           </div>
                         </div>
 
-                        {/* Extra Status Rows */}
-                        <div className="flex items-center justify-between text-xs pt-1">
+                        {/* Secondary Statistics (Rejected / Awarded Points) */}
+                        <div className="flex items-center justify-between text-xs px-0.5">
                           <div className="space-y-0.5 text-left">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Rejected Submissions</p>
-                            <p className="font-bold text-rose-600">{rejectedCount}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Rejected Submissions</p>
+                            <p className="text-xs font-bold text-rose-600">{rejectedCount}</p>
                           </div>
                           <div className="space-y-0.5 text-right">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Awarded Points</p>
-                            <p className="font-black text-emerald-800 text-sm">+{pointsAwarded} pts</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Awarded Points</p>
+                            <p className="text-xs font-black text-emerald-800">+{pointsAwarded} pts</p>
                           </div>
                         </div>
 
+                        {/* Action Button */}
                         <button
                           onClick={() => {
                             setSelectedOrgId(org.id);
                           }}
-                          className="w-full py-2.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-200 text-slate-700 font-bold rounded-2xl text-xs border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                          className="w-full py-2 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
                         >
                           <Building className="w-3.5 h-3.5" />
                           Review Programs
@@ -454,9 +556,9 @@ export const AdminDashboard: React.FC = () => {
               const pendingCount = orgAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
               const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
               const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
-              const pointsAwarded = transactions
-                .filter(t => t.organizationId === selectedOrg.id && t.status === 'active')
-                .reduce((sum, t) => sum + t.points, 0);
+              const pointsAwarded = orgAchievements
+                .filter(a => a.status === 'Approved')
+                .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
 
               // Apply Search Query & Filter by Status
               const searchedAchs = orgAchievements.filter(a => {
@@ -770,84 +872,163 @@ export const AdminDashboard: React.FC = () => {
       {/* Organizations management Tab */}
       {activeTab === 'organizations' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Class Organizations Listing ({organizations.length}/10)</h2>
-            <div className="divide-y divide-slate-100">
-              {organizations.map((org) => (
-                <div key={org.id} className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center font-bold text-slate-700 text-sm">
-                      {org.name.substring(0,2).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">{org.name}</p>
-                      <p className="text-xs text-slate-500">{org.className} • Leader: {org.leader || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex items-center gap-3">
-                    <span className="text-sm font-extrabold text-emerald-800">{org.totalPoints} pts</span>
-                  </div>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-heading">Class Organizations Listing</h2>
+                  <p className="text-xs text-slate-500">Manage all registered sub-organizations and classes</p>
                 </div>
-              ))}
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">{organizations.length} organizations</span>
+              </div>
+
+              {orgActionError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{orgActionError}</span>
+                </div>
+              )}
+
+              {orgActionSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{orgActionSuccess}</span>
+                </div>
+              )}
+
+              <div className="divide-y divide-slate-100">
+                {organizations.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    No class organizations found. Register or create one using the sidebar form.
+                  </div>
+                ) : (
+                  organizations.map((org) => (
+                    <div key={org.id} className="flex items-center justify-between py-3.5 group hover:bg-slate-50/60 px-2.5 rounded-2xl transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 ${org.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-100'} border rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs`}>
+                          {org.logo ? (
+                            <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            org.name.substring(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 text-sm flex items-center gap-2 truncate">
+                            <span className="truncate">{org.name}</span>
+                            {org.status === 'pending' && (
+                              <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                Pending
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                            {org.className || 'Class'} • Leader: {org.leader || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {org.status === 'pending' ? (
+                          <div className="flex items-center gap-1.5">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setOrgActionError('');
+                                setOrgActionSuccess('');
+                                setOrgToApprove(org);
+                              }}
+                              className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-700 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Approve</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setOrgActionError('');
+                                setOrgActionSuccess('');
+                                setOrgToDelete(org);
+                              }}
+                              className="px-2.5 py-1 bg-rose-600 text-white rounded-lg text-[10px] font-bold hover:bg-rose-700 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Reject</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Approved</span>
+                          </span>
+                        )}
+
+                        <span className="text-xs sm:text-sm font-extrabold text-emerald-800 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-100">
+                          {org.totalPoints || 0} pts
+                        </span>
+
+                        {/* Action Menu (⋮) & Delete Button */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            title="Organization options"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveOrgMenuId(activeOrgMenuId === org.id ? null : org.id);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {activeOrgMenuId === org.id && (
+                            <div 
+                              className="absolute right-0 top-full mt-1 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl py-1.5 z-30 animate-scale-up"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveOrgMenuId(null);
+                                  setOrgActionError('');
+                                  setOrgActionSuccess('');
+                                  setOrgToDelete(org);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                <span>Delete Organization</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Account-Specific Points Portal Link Card */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4" id="account-points-portal-link-card">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <LinkIcon className="w-4 h-4 text-emerald-600" />
-                  <span>Account Points Portal Link</span>
+                  <span>Account Points Portal</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
-                  Dedicated, private portal link for: <span className="font-semibold text-slate-800">{user?.email || 'Authenticated Account'}</span>
+                  Share the official access link for the Student Points Management portal.
                 </p>
               </div>
 
               {/* Status Indicator */}
-              <div className="flex items-center">
-                {portalLinkLoading ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Loading status...</span>
-                  </span>
-                ) : !portalLink || portalLink.status === 'not_generated' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>Not generated</span>
-                  </span>
-                ) : portalLink.status === 'active' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Active</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span>Disabled</span>
-                  </span>
-                )}
-              </div>
+              {!portalLinkLoading && portalLink && portalLink.status === 'active' && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>Active</span>
+                </div>
+              )}
             </div>
-
-            {/* Action Feedback Banner */}
-            {portalActionMessage && (
-              <div 
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  portalActionMessage.type === 'success' 
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {portalActionMessage.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span>{portalActionMessage.text}</span>
-              </div>
-            )}
 
             {/* Content Body */}
             {portalLinkLoading ? (
@@ -887,18 +1068,13 @@ export const AdminDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Active or Disabled Link View */}
+                {/* Active Link View */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-slate-700">Account Points Portal Link</span>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      Token: <span className="font-mono text-slate-700">{portalLink.secureToken}</span>
-                    </span>
-                  </div>
+                  <span className="text-[11px] font-bold text-slate-700">Portal Link</span>
 
                   <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                    <div className="flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                      <span className="text-[11px] text-slate-700 font-mono truncate select-all">
+                    <div className="flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 overflow-x-auto">
+                      <span className="text-[11px] text-slate-700 font-mono whitespace-nowrap select-all">
                         {portalLink.pointsPortalUrl}
                       </span>
                     </div>
@@ -919,78 +1095,323 @@ export const AdminDashboard: React.FC = () => {
                       {copiedLinkId === 'account_portal_link' ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
-                          <span>Copied Link!</span>
+                          <span>Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Points Portal Link</span>
+                          <span>Copy Portal Link</span>
                         </>
                       )}
                     </button>
                   </div>
                 </div>
-
-                {/* Disabled status warning banner */}
-                {portalLink.status === 'disabled' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>
-                      <strong>Portal Link Disabled:</strong> External users and sub-organizations who visit this link will see a "Portal Unavailable" screen until you re-enable it.
-                    </span>
-                  </div>
-                )}
-
-                {/* Action Controls Toolbar */}
-                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
-                  <a
-                    href={portalLink.pointsPortalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="py-1.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Open in New Tab</span>
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={handleTogglePortalStatus}
-                    disabled={portalActionLoading}
-                    className={`py-1.5 px-3 border rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 ${
-                      portalLink.status === 'active'
-                        ? 'bg-white border-rose-200 text-rose-700 hover:bg-rose-50'
-                        : 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                    }`}
-                  >
-                    <Power className="w-3.5 h-3.5" />
-                    <span>{portalLink.status === 'active' ? 'Disable Link' : 'Enable Link'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRegeneratePortalLink}
-                    disabled={portalActionLoading}
-                    className="py-1.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Regenerate Link</span>
-                  </button>
-                </div>
-
-                {window.location.origin.includes('ais-dev-') && (
-                  <div className="p-3 bg-blue-50 border border-blue-200/70 rounded-xl text-[11px] text-blue-900 space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-bold text-blue-900">
-                      <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span>Opening link across different devices or Google accounts:</span>
-                    </div>
-                    <p className="text-[10px] text-blue-800 leading-relaxed">
-                      The generated link is automatically formatted with the public preview domain (<code className="bg-blue-100/70 px-1 py-0.5 rounded text-blue-900">ais-pre-...</code>). If you have updated the code, make sure to click the <strong className="font-semibold text-blue-950">"Share"</strong> button in the top-right header of Google AI Studio so other accounts and phones can load the latest build.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Right Column: Add Class Organization & Registration Links */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 font-heading">Add Class Organization</h3>
+              <p className="text-xs text-slate-500">Create a new sub-organization with dedicated credentials.</p>
+            </div>
+
+            {orgError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{orgError}</span>
+              </div>
+            )}
+            {orgSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{orgSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateOrgSubmit} className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Organization Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Science Club or Class 10A"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Grade / Class / Batch *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Grade 11 - Section B"
+                  value={orgClass}
+                  onChange={(e) => setOrgClass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Leader / Rep</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Alex Johnson"
+                    value={orgLeader}
+                    onChange={(e) => setOrgLeader(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Contact Details</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. +1 555-0199"
+                    value={orgContact}
+                    onChange={(e) => setOrgContact(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Sub-Org Login Email *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="leader@school.org"
+                  value={orgEmail}
+                  onChange={(e) => setOrgEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={orgPass}
+                  onChange={(e) => setOrgPass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Optional notes or details about this organization..."
+                  value={orgDesc}
+                  onChange={(e) => setOrgDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={orgLoading}
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {orgLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Creating Organization...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>Create Organization</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Class Organization Approval Confirmation Modal */}
+      {orgToApprove && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 space-y-5 shadow-2xl animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 font-heading">Approve Class Organization?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Approve <span className="font-bold text-slate-800">'{orgToApprove.name}'</span> as a Class Organization?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-xs text-slate-600 space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-semibold">Class / Section:</span>
+                <span className="font-bold text-slate-800">{orgToApprove.className || 'General'}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-semibold">Leader:</span>
+                <span className="font-bold text-slate-800">{orgToApprove.leader || 'N/A'}</span>
+              </div>
+              <p className="text-[11px] text-emerald-800 pt-1 border-t border-emerald-100/60">
+                Approving will mark this organization as active and confirm its participation. All existing submissions and points remain intact.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isApprovingOrg}
+                onClick={() => setOrgToApprove(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isApprovingOrg}
+                onClick={async () => {
+                  if (!orgToApprove) return;
+                  setIsApprovingOrg(true);
+                  setOrgActionError('');
+                  setOrgActionSuccess('');
+                  try {
+                    const target = orgToApprove;
+                    await approveClassOrganization(target.id);
+                    setOrgToApprove(null);
+                    setOrgActionSuccess(`Class organization '${target.name}' approved successfully.`);
+                    setTimeout(() => setOrgActionSuccess(''), 5000);
+                  } catch (err: any) {
+                    console.error('Failed to approve organization:', err);
+                    setOrgActionError(err?.message || 'Failed to approve organization. Please try again.');
+                    setTimeout(() => setOrgActionError(''), 6000);
+                  } finally {
+                    setIsApprovingOrg(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {isApprovingOrg ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Approving Organization...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Approve</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Class Organization Deletion / Rejection Confirmation Modal */}
+      {orgToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 space-y-5 shadow-2xl animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 font-heading">
+                  {orgToDelete.status === 'pending' ? 'Reject Class Organization?' : 'Delete Class Organization?'}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {orgToDelete.status === 'pending'
+                    ? 'Rejecting this organization will permanently remove the organization and all data submitted by it.'
+                    : <>You are about to permanently delete <span className="font-bold text-slate-800">'{orgToDelete.name}'</span> and all data associated with this organization.</>}
+                </p>
+              </div>
+            </div>
+
+            {/* Impact Details Box */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-xs text-slate-600">
+              <p className="font-bold text-slate-800">
+                Organization: <span className="text-emerald-800">{orgToDelete.name}</span>
+              </p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">This action will remove:</p>
+              <ul className="space-y-1 text-slate-600 list-disc list-inside text-[11px] pl-1">
+                <li>Organization profile</li>
+                <li>Sub-organization account/users</li>
+                <li>Achievement submissions</li>
+                <li>Achievement proof/media references</li>
+                <li>Point transactions</li>
+                <li>Awarded points</li>
+                <li>Notifications</li>
+                <li>Announcements related to this organization</li>
+                <li>Other organization-specific data</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeletingOrg}
+                onClick={() => setOrgToDelete(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingOrg}
+                onClick={async () => {
+                  if (!orgToDelete) return;
+                  setIsDeletingOrg(true);
+                  setOrgActionError('');
+                  setOrgActionSuccess('');
+                  try {
+                    const target = orgToDelete;
+                    const isPending = target.status === 'pending';
+                    if (isPending) {
+                      await rejectClassOrganization(target.id, `Your class organization registration request for '${target.name}' was rejected by the administrator.`);
+                    } else {
+                      await deleteClassOrganization(target.id);
+                    }
+                    setOrgToDelete(null);
+                    setOrgActionSuccess(
+                      isPending
+                        ? `Class organization '${target.name}' was rejected and portal access revoked.`
+                        : `Class organization '${target.name}' deleted successfully.`
+                    );
+                    setTimeout(() => setOrgActionSuccess(''), 5000);
+                  } catch (err: any) {
+                    console.error('Failed to reject/delete organization:', err);
+                    setOrgActionError(err?.message || 'Failed to remove organization. Please try again.');
+                    setTimeout(() => setOrgActionError(''), 6000);
+                  } finally {
+                    setIsDeletingOrg(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {isDeletingOrg ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{orgToDelete.status === 'pending' ? 'Rejecting Organization...' : 'Deleting Organization...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{orgToDelete.status === 'pending' ? 'Reject & Delete' : 'Delete Organization'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -999,29 +1420,51 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'categories' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 font-heading">Custom point categories</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-base font-bold text-slate-900 font-heading">Custom point categories</h2>
+              <span className="text-xs font-semibold text-slate-500">{categories.length} categories</span>
+            </div>
+            {catError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{catError}</span>
+              </div>
+            )}
+            {catSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{catSuccess}</span>
+              </div>
+            )}
             <div className="divide-y divide-slate-100">
-              {categories.map(cat => (
-                <div key={cat.id} className="flex justify-between items-center py-3">
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">{cat.name}</p>
-                    <p className="text-[10px] text-slate-400">Created: {formatDate(cat.createdAt)}</p>
+              {categories.length === 0 ? (
+                <p className="py-6 text-center text-xs text-slate-400 font-medium">No custom point categories found. Add your first one using the form.</p>
+              ) : (
+                categories.map(cat => (
+                  <div key={cat.id} className="flex justify-between items-center py-3 group hover:bg-slate-50/50 px-2 rounded-xl transition-colors">
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{cat.name}</p>
+                      <p className="text-[10px] text-slate-400">Created: {formatDate(cat.createdAt)}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="font-extrabold text-sm text-emerald-800">+{cat.defaultPoints} pts</span>
+                      <button
+                        type="button"
+                        title={`Delete ${cat.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCatError('');
+                          setCatSuccess('');
+                          setCategoryToDelete(cat);
+                        }}
+                        className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-extrabold text-sm text-emerald-800">+{cat.defaultPoints} pts</span>
-                    <button
-                      onClick={async () => {
-                        if (confirm('Delete point category?')) {
-                          await deleteCategory(cat.id);
-                        }
-                      }}
-                      className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -1049,14 +1492,87 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
               <button
+                type="button"
                 onClick={async () => {
                   if (!catName) return;
-                  await addCategory(catName, catPoints);
-                  setCatName('');
+                  try {
+                    setCatError('');
+                    setCatSuccess('');
+                    await addCategory(catName, catPoints);
+                    setCatName('');
+                    setCatSuccess('Point category added successfully.');
+                    setTimeout(() => setCatSuccess(''), 4000);
+                  } catch (e: any) {
+                    setCatError(e?.message || 'Failed to add category.');
+                    setTimeout(() => setCatError(''), 5000);
+                  }
                 }}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer"
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Add Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Point Category Deletion Confirmation Modal */}
+      {categoryToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 space-y-5 shadow-2xl animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 font-heading">Delete Point Category?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Are you sure you want to delete <span className="font-bold text-slate-800">'{categoryToDelete.name}'</span>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeletingCategory}
+                onClick={() => setCategoryToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingCategory}
+                onClick={async () => {
+                  if (!categoryToDelete) return;
+                  setIsDeletingCategory(true);
+                  setCatError('');
+                  setCatSuccess('');
+                  try {
+                    const targetId = categoryToDelete.id;
+                    await deleteCategory(targetId);
+                    setCategoryToDelete(null);
+                    setCatSuccess('Point category deleted successfully.');
+                    setTimeout(() => setCatSuccess(''), 4000);
+                  } catch (err: any) {
+                    console.error('Failed to delete category', err);
+                    setCatError(err?.message || 'Failed to delete category. Please try again.');
+                    setTimeout(() => setCatError(''), 5000);
+                  } finally {
+                    setIsDeletingCategory(false);
+                  }
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                {isDeletingCategory ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete</span>
+                )}
               </button>
             </div>
           </div>
@@ -1148,68 +1664,178 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'awards' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-900 font-heading">Conferred Awards</h2>
-            <div className="divide-y divide-slate-100">
-              {awards.map(aw => (
-                <div key={aw.id} className="py-3 flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">{aw.name}</p>
-                    <p className="text-xs text-slate-500">Winner: <strong>{aw.winnerOrganizationName}</strong> • {formatDate(aw.awardDate)}</p>
-                  </div>
-                  <span className="text-xl">🏆</span>
-                </div>
-              ))}
+            <div className="flex justify-between items-center">
+              <h2 className="text-base font-bold text-slate-900 font-heading">Conferred Awards</h2>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
+                Total: {awards.length}
+              </span>
             </div>
+            {awards.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                No awards conferred yet. Use the form to confer an award.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {awards.map(aw => {
+                  const winners = getAwardWinners(aw);
+                  return (
+                    <div key={aw.id} className="py-3.5 flex justify-between items-start gap-3">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-900 text-sm tracking-tight">{aw.name}</p>
+                          <span className="text-[10px] text-slate-400 font-medium">({formatDate(aw.awardDate)})</span>
+                        </div>
+                        {aw.description && (
+                          <p className="text-xs text-slate-500 italic line-clamp-1">{aw.description}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {winners.map(w => {
+                            const posBadge = w.position === 1 ? '🥇 1st' : w.position === 2 ? '🥈 2nd' : '🥉 3rd';
+                            const posBg = w.position === 1 
+                              ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                              : w.position === 2 
+                                ? 'bg-slate-100 text-slate-800 border-slate-200' 
+                                : 'bg-amber-100/50 text-amber-950 border-amber-300/50';
+                            return (
+                              <span key={w.organizationId} className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border font-semibold text-[11px] ${posBg}`}>
+                                <span>{posBadge}:</span>
+                                <strong className="font-black">{w.organizationName}</strong>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <span className="text-2xl shrink-0">🏆</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Confer Award</h3>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <span>🏆</span> Confer Award
+            </h3>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Award Title</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Award Title <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. Outstanding Cultural Lead"
                   value={awName}
                   onChange={(e) => setAwName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
+
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Award Description</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Award Description</label>
                 <input
                   type="text"
                   placeholder="e.g. Awarded for highest seminar participation"
                   value={awDesc}
                   onChange={(e) => setAwDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Winner Class Organization</label>
+
+              {/* 1st Winner — REQUIRED */}
+              <div className="space-y-1 pt-1 border-t border-slate-100">
+                <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                  <span>🥇 1st Winner</span>
+                  <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
+                </label>
                 <select
-                  value={awOrgId}
-                  onChange={(e) => setAwOrgId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                  value={awOrgId1}
+                  onChange={(e) => setAwOrgId1(e.target.value)}
+                  className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
                 >
-                  <option value="">Select organization...</option>
-                  {organizations.map(o => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
-                  ))}
+                  <option value="">Select 1st Winner Class Organization...</option>
+                  {organizations
+                    .filter(o => o.id !== awOrgId2 && o.id !== awOrgId3)
+                    .map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))
+                  }
                 </select>
               </div>
+
+              {/* 2nd Winner — OPTIONAL */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                  <span>🥈 2nd Winner</span>
+                  <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                </label>
+                <select
+                  value={awOrgId2}
+                  onChange={(e) => setAwOrgId2(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400"
+                >
+                  <option value="">None / Select 2nd Winner (Optional)...</option>
+                  {organizations
+                    .filter(o => o.id !== awOrgId1 && o.id !== awOrgId3)
+                    .map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              {/* 3rd Winner — OPTIONAL */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                  <span>🥉 3rd Winner</span>
+                  <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                </label>
+                <select
+                  value={awOrgId3}
+                  onChange={(e) => setAwOrgId3(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600/20 focus:border-amber-500"
+                >
+                  <option value="">None / Select 3rd Winner (Optional)...</option>
+                  {organizations
+                    .filter(o => o.id !== awOrgId1 && o.id !== awOrgId2)
+                    .map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
               <button
                 onClick={async () => {
-                  if (!awName || !awOrgId) return;
-                  const winner = organizations.find(o => o.id === awOrgId);
-                  if (!winner) return;
+                  if (!awName || !awOrgId1) return;
+                  const winner1 = organizations.find(o => o.id === awOrgId1);
+                  if (!winner1) return;
+
+                  const winners: AwardWinner[] = [
+                    { position: 1, organizationId: winner1.id, organizationName: winner1.name }
+                  ];
+
+                  if (awOrgId2) {
+                    const winner2 = organizations.find(o => o.id === awOrgId2);
+                    if (winner2) {
+                      winners.push({ position: 2, organizationId: winner2.id, organizationName: winner2.name });
+                    }
+                  }
+
+                  if (awOrgId3) {
+                    const winner3 = organizations.find(o => o.id === awOrgId3);
+                    if (winner3) {
+                      winners.push({ position: 3, organizationId: winner3.id, organizationName: winner3.name });
+                    }
+                  }
 
                   await addAward({
                     name: awName,
                     description: awDesc,
                     evaluationPeriod: awPeriod,
-                    winnerOrganizationId: awOrgId,
-                    winnerOrganizationName: winner.name,
+                    winnerOrganizationId: winner1.id,
+                    winnerOrganizationName: winner1.name,
+                    winners: winners,
                     awardDate: new Date().toISOString().split('T')[0],
                     certificateUrl: '',
                     notes: ''
@@ -1217,9 +1843,12 @@ export const AdminDashboard: React.FC = () => {
 
                   setAwName('');
                   setAwDesc('');
-                  setAwOrgId('');
+                  setAwOrgId1('');
+                  setAwOrgId2('');
+                  setAwOrgId3('');
                 }}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer"
+                disabled={!awName.trim() || !awOrgId1}
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Confer Award
               </button>

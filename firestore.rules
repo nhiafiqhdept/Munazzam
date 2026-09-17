@@ -91,6 +91,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /sp_rejections/{rejId} {
+      allow read, write: if true;
+    }
     match /sp_users/{userId} {
       allow read, write: if true;
     }

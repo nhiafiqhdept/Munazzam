@@ -11,6 +11,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  writeBatch,
   orderBy,
   limit
 } from 'firebase/firestore';
@@ -136,7 +137,7 @@ export interface SP_Organization {
   description: string;
   leader: string;
   contactDetails: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending';
   totalPoints: number;
   createdAt: string;
   updatedAt: string;
@@ -237,18 +238,39 @@ export interface SP_Competition {
   updatedAt: string;
 }
 
+export interface AwardWinner {
+  position: 1 | 2 | 3;
+  organizationId: string;
+  organizationName: string;
+}
+
 export interface SP_Award {
   id: string;
   portalId: string;
   name: string;
   description: string;
-  evaluationPeriod: string;
-  winnerOrganizationId: string;
-  winnerOrganizationName: string;
+  evaluationPeriod?: string;
+  winnerOrganizationId?: string;
+  winnerOrganizationName?: string;
+  winners?: AwardWinner[];
   awardDate: string;
-  certificateUrl: string;
-  notes: string;
+  certificateUrl?: string;
+  notes?: string;
   createdAt: string;
+}
+
+export function getAwardWinners(award: SP_Award): AwardWinner[] {
+  if (award.winners && Array.isArray(award.winners) && award.winners.length > 0) {
+    return [...award.winners].sort((a, b) => a.position - b.position);
+  }
+  if (award.winnerOrganizationId && award.winnerOrganizationName) {
+    return [{
+      position: 1,
+      organizationId: award.winnerOrganizationId,
+      organizationName: award.winnerOrganizationName
+    }];
+  }
+  return [];
 }
 
 export interface SP_Announcement {
@@ -269,6 +291,7 @@ export interface SP_Notification {
   message: string;
   isRead: boolean;
   createdAt: string;
+  metadata?: Record<string, any>;
 }
 
 export interface SP_AuditLog {
@@ -279,6 +302,26 @@ export interface SP_AuditLog {
   action: string;
   details: string;
   timestamp: string;
+}
+
+export interface SP_Rejection {
+  id: string;
+  portalId: string;
+  organizationId: string;
+  organizationName: string;
+  userEmail: string;
+  userId?: string;
+  status: 'rejected';
+  title: string;
+  message: string;
+  rejectedAt: string;
+}
+
+export interface RejectionInfo {
+  isRejected: boolean;
+  organizationName: string;
+  title: string;
+  message: string;
 }
 
 interface PortalContextType {
@@ -296,8 +339,11 @@ interface PortalContextType {
   auditLogs: SP_AuditLog[];
   registrationLinks: SP_RegistrationLink[];
   members: SP_Member[];
+  rejections: SP_Rejection[];
+  rejectionInfo: RejectionInfo | null;
   loading: boolean;
   
+  clearRejectionInfo: () => void;
   initializePortal: (name: string) => Promise<void>;
   loginPortalUser: (email: string, password: string) => Promise<boolean>;
   logoutPortalUser: () => void;
@@ -305,6 +351,9 @@ interface PortalContextType {
   
   createClassOrganization: (org: Omit<SP_Organization, 'id' | 'portalId' | 'totalPoints' | 'createdAt' | 'updatedAt'>, loginEmail: string, loginPass: string) => Promise<void>;
   updateClassOrganization: (id: string, updates: Partial<SP_Organization>, newPass?: string) => Promise<void>;
+  deleteClassOrganization: (id: string) => Promise<void>;
+  rejectClassOrganization: (id: string, reason?: string) => Promise<void>;
+  approveClassOrganization: (id: string) => Promise<void>;
   
   addMember: (organizationId: string, name: string, studentId?: string, contactDetails?: string) => Promise<SP_Member>;
   updateMember: (id: string, updates: Partial<SP_Member>) => Promise<void>;
@@ -552,7 +601,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [auditLogs, setAuditLogs] = useState<SP_AuditLog[]>([]);
   const [registrationLinks, setRegistrationLinks] = useState<SP_RegistrationLink[]>([]);
   const [members, setMembers] = useState<SP_Member[]>([]);
+  const [rejections, setRejections] = useState<SP_Rejection[]>([]);
+  const [rejectionInfo, setRejectionInfo] = useState<RejectionInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const clearRejectionInfo = () => {
+    setRejectionInfo(null);
+    logoutPortalUser();
+  };
 
   // Load Saved Sub-Org Admin session if present
   useEffect(() => {
@@ -614,17 +670,64 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setLoading(false);
     });
 
-    // 2. Real-time Subscriptions for Portal Data
+    // 2. Real-time Subscriptions for Portal Data & Organization Isolation
+    const isSubOrg = portalUser?.role === 'sub_org_admin' && portalUser?.organizationId;
+    const orgConstraint = isSubOrg ? [where('organizationId', '==', portalUser.organizationId)] : [];
+
+    // Rejections snapshot listener & security enforcer
+    const qRej = query(collection(db, 'sp_rejections'), where('portalId', '==', masterAccountId));
+    const unsubRej = onSnapshot(qRej, (snap) => {
+      const list: SP_Rejection[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Rejection));
+      setRejections(list);
+
+      // Security Check: If current session belongs to a rejected org/user, revoke access immediately
+      if (portalUser) {
+        const matchingRej = list.find(r =>
+          (portalUser.organizationId && r.organizationId === portalUser.organizationId) ||
+          (portalUser.email && r.userEmail && r.userEmail.toLowerCase() === portalUser.email.toLowerCase())
+        );
+        if (matchingRej) {
+          setPortalUser(null);
+          localStorage.removeItem('sp_portal_user');
+          sessionStorage.clear();
+          setRejectionInfo({
+            isRejected: true,
+            organizationName: matchingRej.organizationName,
+            title: matchingRej.title || 'Admin Rejected Your Class Organization',
+            message: matchingRej.message || `Your class organization '${matchingRej.organizationName}' has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`
+          });
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sp_rejections');
+    });
+
     const qOrgs = query(collection(db, 'sp_organizations'), where('portalId', '==', masterAccountId));
     const unsubOrgs = onSnapshot(qOrgs, (snap) => {
       const list: SP_Organization[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Organization));
       setOrganizations(list.sort((a, b) => b.totalPoints - a.totalPoints));
+
+      if (portalUser?.organizationId) {
+        const currentOrg = list.find(o => o.id === portalUser.organizationId);
+        if (currentOrg && (currentOrg.status as string) === 'rejected') {
+          setPortalUser(null);
+          localStorage.removeItem('sp_portal_user');
+          sessionStorage.clear();
+          setRejectionInfo({
+            isRejected: true,
+            organizationName: currentOrg.name || 'Organization',
+            title: 'Admin Rejected Your Class Organization',
+            message: `Your class organization '${currentOrg.name}' has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`
+          });
+        }
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'sp_organizations');
     });
 
-    const qMembers = query(collection(db, 'sp_members'), where('portalId', '==', masterAccountId));
+    const qMembers = query(collection(db, 'sp_members'), where('portalId', '==', masterAccountId), ...orgConstraint);
     const unsubMembers = onSnapshot(qMembers, (snap) => {
       const list: SP_Member[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Member));
@@ -642,7 +745,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_categories');
     });
 
-    const qAchs = query(collection(db, 'sp_achievements'), where('portalId', '==', masterAccountId));
+    const qAchs = query(collection(db, 'sp_achievements'), where('portalId', '==', masterAccountId), ...orgConstraint);
     const unsubAchs = onSnapshot(qAchs, (snap) => {
       const list: SP_Achievement[] = [];
       snap.forEach((d) => {
@@ -660,7 +763,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_achievements');
     });
 
-    const qMed = query(collection(db, 'sp_media'), where('portalId', '==', masterAccountId));
+    const qMed = query(collection(db, 'sp_media'), where('portalId', '==', masterAccountId), ...orgConstraint);
     const unsubMed = onSnapshot(qMed, (snap) => {
       const list: SP_Media[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Media));
@@ -669,7 +772,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_media');
     });
 
-    const qTx = query(collection(db, 'sp_transactions'), where('portalId', '==', masterAccountId));
+    const qTx = query(collection(db, 'sp_transactions'), where('portalId', '==', masterAccountId), ...orgConstraint);
     const unsubTx = onSnapshot(qTx, (snap) => {
       const list: SP_Transaction[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as SP_Transaction));
@@ -732,9 +835,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_registration_links');
     });
 
+    // Auto-reconcile totals once masterAccountId is connected
+    if (masterAccountId) {
+      recalculateLeaderboardTotals().catch((err) => console.warn('Auto reconciliation error', err));
+    }
+
     return () => {
       unsubPortal();
       unsubOrgs();
+      unsubRej();
       unsubCats();
       unsubAchs();
       unsubMed();
@@ -747,7 +856,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubLogs();
       unsubRegs();
     };
-  }, [masterAccountId, isAuthenticated, user]);
+  }, [masterAccountId, isAuthenticated, user?.id, portalUser?.role, portalUser?.organizationId, portalUser?.email]);
 
   // Achiever & Member Management Methods
   const addMember = async (organizationId: string, name: string, studentId?: string, contactDetails?: string): Promise<SP_Member> => {
@@ -810,11 +919,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       const memberTotals: { [memberId: string]: { points: number; count: number } } = {};
       const orgTotals: { [orgId: string]: { points: number; count: number } } = {};
+      const approvedAchs: SP_Achievement[] = [];
+      const approvedAchMap: { [achId: string]: SP_Achievement } = {};
 
       snapAchs.forEach((d) => {
-        const data = d.data() as SP_Achievement;
+        const data = { id: d.id, ...d.data() } as SP_Achievement;
         if (data.status === 'Approved') {
           const pts = Number(data.awardedPoints) || 0;
+          approvedAchs.push(data);
+          approvedAchMap[data.id] = data;
+
           if (data.achieverId && data.achieverId !== 'unassigned') {
             if (!memberTotals[data.achieverId]) memberTotals[data.achieverId] = { points: 0, count: 0 };
             memberTotals[data.achieverId].points += pts;
@@ -828,16 +942,79 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       });
 
+      // Synchronize transactions with approved achievements
+      const qTx = query(collection(db, 'sp_transactions'), where('portalId', '==', masterAccountId));
+      const snapTx = await getDocs(qTx);
+      const txByAchId: { [achId: string]: string[] } = {};
+
+      for (const tDoc of snapTx.docs) {
+        const tData = tDoc.data() as SP_Transaction;
+        const achId = tData.achievementId;
+        if (!achId || !approvedAchMap[achId]) {
+          // If transaction has no valid approved achievement, remove it
+          await deleteDoc(tDoc.ref);
+        } else {
+          if (!txByAchId[achId]) {
+            txByAchId[achId] = [];
+          }
+          txByAchId[achId].push(tDoc.id);
+
+          const matchingAch = approvedAchMap[achId];
+          const expectedPts = Number(matchingAch.awardedPoints) || 0;
+          // If there are duplicate transactions for the same achievement, keep only the first one
+          if (txByAchId[achId].length > 1) {
+            await deleteDoc(tDoc.ref);
+          } else if (tData.points !== expectedPts || tData.status !== 'active') {
+            await updateDoc(tDoc.ref, {
+              points: expectedPts,
+              status: 'active',
+              organizationId: matchingAch.organizationId,
+              achieverId: matchingAch.achieverId,
+              achieverName: matchingAch.achieverName || 'Achiever',
+              updatedAt: now
+            });
+          }
+        }
+      }
+
+      // If an approved achievement has awardedPoints > 0 and no transaction, create one
+      for (const ach of approvedAchs) {
+        const pts = Number(ach.awardedPoints) || 0;
+        if (pts > 0 && (!txByAchId[ach.id] || txByAchId[ach.id].length === 0)) {
+          const txId = generateId('sp_tx');
+          const txObj: SP_Transaction = {
+            id: txId,
+            portalId: masterAccountId,
+            organizationId: ach.organizationId,
+            achieverId: ach.achieverId || 'unassigned',
+            achieverName: ach.achieverName || 'Achiever',
+            achievementId: ach.id,
+            categoryId: ach.categoryId,
+            points: pts,
+            type: 'award',
+            reason: `Approved achievement: "${ach.title}" for ${ach.achieverName || 'Achiever'}`,
+            awardedBy: portalUser?.id || 'admin',
+            status: 'active',
+            createdAt: ach.updatedAt || now,
+            updatedAt: now
+          };
+          await setDoc(doc(db, 'sp_transactions', txId), cleanFirestorePayload(txObj));
+        }
+      }
+
       // Update members in Firestore
       const qMembers = query(collection(db, 'sp_members'), where('portalId', '==', masterAccountId));
       const snapMembers = await getDocs(qMembers);
       for (const mDoc of snapMembers.docs) {
         const totals = memberTotals[mDoc.id] || { points: 0, count: 0 };
-        await updateDoc(mDoc.ref, {
-          totalPoints: totals.points,
-          approvedAchievementsCount: totals.count,
-          updatedAt: now
-        });
+        const currentData = mDoc.data();
+        if (currentData.totalPoints !== totals.points || currentData.approvedAchievementsCount !== totals.count) {
+          await updateDoc(mDoc.ref, {
+            totalPoints: totals.points,
+            approvedAchievementsCount: totals.count,
+            updatedAt: now
+          });
+        }
       }
 
       // Update organizations in Firestore
@@ -845,10 +1022,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const snapOrgs = await getDocs(qOrgs);
       for (const oDoc of snapOrgs.docs) {
         const totals = orgTotals[oDoc.id] || { points: 0, count: 0 };
-        await updateDoc(oDoc.ref, {
-          totalPoints: totals.points,
-          updatedAt: now
-        });
+        const currentData = oDoc.data();
+        if (currentData.totalPoints !== totals.points) {
+          await updateDoc(oDoc.ref, {
+            totalPoints: totals.points,
+            updatedAt: now
+          });
+        }
       }
     } catch (e) {
       console.error('Error recalculating totals', e);
@@ -928,6 +1108,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }));
   };
 
+  // Helper to check if current session has Admin authorization
+  const isAdminAuthorized = useCallback(() => {
+    if (user?.id && masterAccountId && user.id === masterAccountId) return true;
+    if (portalUser?.role === 'super_admin' || portalUser?.role === 'nsu_admin') return true;
+    return false;
+  }, [user?.id, masterAccountId, portalUser?.role]);
+
   // 2. Portal User Authentication
   const loginPortalUser = async (email: string, password: string): Promise<boolean> => {
     const targetPortalId = masterAccountId || activePortalId;
@@ -949,6 +1136,27 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     }
 
+    // Check if account/email or org has been rejected
+    try {
+      const qRej = query(collection(db, 'sp_rejections'), where('userEmail', '==', cleanEmail));
+      const rejSnap = await getDocs(qRej);
+      if (!rejSnap.empty) {
+        const rejData = rejSnap.docs[0].data();
+        setPortalUser(null);
+        localStorage.removeItem('sp_portal_user');
+        sessionStorage.clear();
+        setRejectionInfo({
+          isRejected: true,
+          organizationName: rejData.organizationName || 'Class Organization',
+          title: rejData.title || 'Admin Rejected Your Class Organization',
+          message: rejData.message || `Your class organization '${rejData.organizationName}' has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`
+        });
+        return false;
+      }
+    } catch (e) {
+      console.warn('Error checking rejection record on login:', e);
+    }
+
     // Check sp_users collection (support case-insensitive match and exact match)
     let snap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
     if (snap.empty) {
@@ -961,6 +1169,28 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     if (userData.status === 'inactive') {
       throw new Error('This account has been disabled.');
+    }
+
+    if (userData.organizationId) {
+      try {
+        const qRejOrg = query(collection(db, 'sp_rejections'), where('organizationId', '==', userData.organizationId));
+        const rejOrgSnap = await getDocs(qRejOrg);
+        if (!rejOrgSnap.empty) {
+          const rejData = rejOrgSnap.docs[0].data();
+          setPortalUser(null);
+          localStorage.removeItem('sp_portal_user');
+          sessionStorage.clear();
+          setRejectionInfo({
+            isRejected: true,
+            organizationName: rejData.organizationName || 'Class Organization',
+            title: rejData.title || 'Admin Rejected Your Class Organization',
+            message: rejData.message || `Your class organization '${rejData.organizationName}' has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`
+          });
+          return false;
+        }
+      } catch (e) {
+        console.warn('Error checking org rejection on login:', e);
+      }
     }
 
     // Verify Password using bcrypt
@@ -1077,6 +1307,30 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: now
     }));
 
+    // If pending, notify admin
+    if (orgObj.status === 'pending') {
+      const adminNotId = generateId('sp_not');
+      const adminNotDoc = {
+        id: adminNotId,
+        portalId: targetPortalId,
+        organizationId: 'master_admin',
+        title: 'New Class Organization Pending Approval',
+        message: `${org.name} has registered and is waiting for confirmation.`,
+        isRead: false,
+        createdAt: now,
+        metadata: {
+          type: 'pending_organization',
+          orgId: orgId,
+          orgName: org.name,
+          leader: org.leader || '',
+          className: org.className || '',
+          registeredAt: now
+        }
+      };
+      await setDoc(doc(db, 'sp_notifications', adminNotId), cleanFirestorePayload(adminNotDoc)).catch(() => {});
+      setNotifications(prev => [adminNotDoc as any, ...prev]);
+    }
+
     // Optimistically update local organizations state so UI updates immediately
     setOrganizations(prev => {
       if (prev.some(o => o.id === orgId)) return prev;
@@ -1084,13 +1338,27 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     // Log Action
-    await logPortalAction('CREATE_ORGANIZATION', `Created class organization "${org.name}" with login "${cleanEmail}"`).catch(() => {});
+    await logPortalAction('CREATE_ORGANIZATION', `Created class organization "${org.name}" with login "${cleanEmail}" (Status: ${orgObj.status})`).catch(() => {});
   };
 
   // 4. Update Class Org details or password
   const updateClassOrganization = async (id: string, updates: Partial<SP_Organization>, newPass?: string) => {
     if (!masterAccountId) return;
     const now = new Date().toISOString();
+
+    const authorizedAsAdmin = isAdminAuthorized();
+    if (!authorizedAsAdmin) {
+      if (!portalUser || portalUser.organizationId !== id) {
+        throw new Error('Forbidden: You can only update your own organization profile.');
+      }
+      // Strip privileged fields that non-admins cannot touch
+      const sanitizedUpdates = { ...updates };
+      delete (sanitizedUpdates as any).status;
+      delete (sanitizedUpdates as any).totalPoints;
+      delete (sanitizedUpdates as any).portalId;
+      delete (sanitizedUpdates as any).id;
+      updates = sanitizedUpdates;
+    }
 
     await updateDoc(doc(db, 'sp_organizations', id), cleanFirestorePayload({
       ...updates,
@@ -1112,6 +1380,337 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     await logPortalAction('UPDATE_ORGANIZATION', `Updated details for organization: ${updates.name || id}`);
+  };
+
+  const deleteClassOrganization = async (id: string) => {
+    if (!masterAccountId) {
+      throw new Error('No master account connected.');
+    }
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to delete a class organization.');
+    }
+    
+    // 1. Fetch organization details for audit logging
+    const orgDocRef = doc(db, 'sp_organizations', id);
+    const orgSnap = await getDoc(orgDocRef);
+    const orgName = orgSnap.exists() ? (orgSnap.data()?.name || id) : id;
+
+    // 2. Fetch all achievement IDs belonging to this org so we can also clear their media attachments
+    const qAchs = query(
+      collection(db, 'sp_achievements'),
+      where('portalId', '==', masterAccountId),
+      where('organizationId', '==', id)
+    );
+    const achsSnap = await getDocs(qAchs);
+    const achievementIds = achsSnap.docs.map(d => d.id);
+
+    // 3. Collect all document references across all organization-scoped collections
+    const refsToDelete: any[] = [];
+
+    // Add achievements
+    achsSnap.docs.forEach(d => refsToDelete.push(d.ref));
+
+    // Scoped collections by organizationId
+    const scopedCollections = [
+      'sp_members',
+      'sp_media',
+      'sp_transactions',
+      'sp_notifications',
+      'sp_announcements',
+      'sp_awards',
+      'sp_registration_links',
+      'sp_users'
+    ];
+
+    for (const colName of scopedCollections) {
+      try {
+        const q = query(
+          collection(db, colName),
+          where('portalId', '==', masterAccountId),
+          where('organizationId', '==', id)
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+          if (!refsToDelete.some(r => r.path === d.ref.path)) {
+            refsToDelete.push(d.ref);
+          }
+        });
+      } catch (err) {
+        console.warn(`Error collecting from ${colName} for org ${id}:`, err);
+      }
+    }
+
+    // Also delete any media linked via achievementId if not already captured
+    if (achievementIds.length > 0) {
+      for (let i = 0; i < achievementIds.length; i += 10) {
+        const achIdChunk = achievementIds.slice(i, i + 10);
+        try {
+          const qMed = query(
+            collection(db, 'sp_media'),
+            where('portalId', '==', masterAccountId),
+            where('achievementId', 'in', achIdChunk)
+          );
+          const medSnap = await getDocs(qMed);
+          medSnap.docs.forEach(d => {
+            if (!refsToDelete.some(r => r.path === d.ref.path)) {
+              refsToDelete.push(d.ref);
+            }
+          });
+        } catch (e) {
+          console.warn('Error querying media for achievements:', e);
+        }
+      }
+    }
+
+    // Add the organization document itself
+    refsToDelete.push(orgDocRef);
+
+    // 4. Batch delete in safe chunks of 400 (Firestore limit is 500)
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < refsToDelete.length; i += CHUNK_SIZE) {
+      const chunk = refsToDelete.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    // 5. Update local context state optimistically
+    setOrganizations(prev => prev.filter(o => o.id !== id));
+    setAchievements(prev => prev.filter(a => a.organizationId !== id));
+    setMembers(prev => prev.filter(m => m.organizationId !== id));
+    setTransactions(prev => prev.filter(t => t.organizationId !== id));
+    setMediaAttachments(prev => prev.filter(m => m.organizationId !== id));
+    setNotifications(prev => prev.filter(n => n.organizationId !== id));
+    setAnnouncements(prev => prev.filter(a => a.organizationId !== id));
+
+    // 6. Recalculate leaderboard totals and balances
+    await recalculateLeaderboardTotals();
+
+    // 7. Log audit trail
+    await logPortalAction('DELETE_ORGANIZATION', `Permanently deleted class organization "${orgName}" and all associated data.`);
+  };
+
+  const rejectClassOrganization = async (id: string, reason?: string) => {
+    const targetPortalId = masterAccountId || activePortalId;
+    if (!targetPortalId) {
+      throw new Error('No active Points Portal connected.');
+    }
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to reject a class organization.');
+    }
+
+    const now = new Date().toISOString();
+
+    // 1. Fetch organization document to get details
+    const orgDocRef = doc(db, 'sp_organizations', id);
+    const orgSnap = await getDoc(orgDocRef);
+    const orgData = orgSnap.exists() ? orgSnap.data() : null;
+    const orgName = orgData?.name || id;
+
+    // 2. Fetch associated user account in sp_users
+    let userEmail = '';
+    let userId = '';
+    try {
+      const qUsers = query(
+        collection(db, 'sp_users'),
+        where('portalId', '==', targetPortalId),
+        where('organizationId', '==', id)
+      );
+      const userSnap = await getDocs(qUsers);
+      if (!userSnap.empty) {
+        userEmail = (userSnap.docs[0].data().email || '').trim().toLowerCase();
+        userId = userSnap.docs[0].id;
+      }
+    } catch (e) {
+      console.warn('Error fetching user for org rejection:', e);
+    }
+
+    // 3. Create persistent rejection access record in sp_rejections
+    const rejectionId = `sp_rej_${id}`;
+    const rejectionRecord: SP_Rejection = {
+      id: rejectionId,
+      portalId: targetPortalId,
+      organizationId: id,
+      organizationName: orgName,
+      userEmail: userEmail,
+      userId: userId,
+      status: 'rejected',
+      title: 'Admin Rejected Your Class Organization',
+      message: reason || `Your class organization '${orgName}' has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`,
+      rejectedAt: now
+    };
+    await setDoc(doc(db, 'sp_rejections', rejectionId), cleanFirestorePayload(rejectionRecord));
+
+    // 4. Update status in sp_organizations to 'rejected'
+    if (orgSnap.exists()) {
+      await updateDoc(orgDocRef, {
+        status: 'rejected',
+        updatedAt: now
+      });
+    }
+
+    // 5. Collect and delete all organization-owned private data
+    const qAchs = query(
+      collection(db, 'sp_achievements'),
+      where('portalId', '==', targetPortalId),
+      where('organizationId', '==', id)
+    );
+    const achsSnap = await getDocs(qAchs);
+    const achievementIds = achsSnap.docs.map(d => d.id);
+
+    const refsToDelete: any[] = [];
+    achsSnap.docs.forEach(d => refsToDelete.push(d.ref));
+
+    const scopedCollections = [
+      'sp_members',
+      'sp_media',
+      'sp_transactions',
+      'sp_notifications',
+      'sp_announcements',
+      'sp_registration_links',
+      'sp_users'
+    ];
+
+    for (const colName of scopedCollections) {
+      try {
+        const q = query(
+          collection(db, colName),
+          where('portalId', '==', targetPortalId),
+          where('organizationId', '==', id)
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+          if (!refsToDelete.some(r => r.path === d.ref.path)) {
+            refsToDelete.push(d.ref);
+          }
+        });
+      } catch (err) {
+        console.warn(`Error collecting from ${colName} for org ${id}:`, err);
+      }
+    }
+
+    if (achievementIds.length > 0) {
+      for (let i = 0; i < achievementIds.length; i += 10) {
+        const achIdChunk = achievementIds.slice(i, i + 10);
+        try {
+          const qMed = query(
+            collection(db, 'sp_media'),
+            where('portalId', '==', targetPortalId),
+            where('achievementId', 'in', achIdChunk)
+          );
+          const medSnap = await getDocs(qMed);
+          medSnap.docs.forEach(d => {
+            if (!refsToDelete.some(r => r.path === d.ref.path)) {
+              refsToDelete.push(d.ref);
+            }
+          });
+        } catch (e) {
+          console.warn('Error querying media for achievements:', e);
+        }
+      }
+    }
+
+    // Delete collected refs in chunks of 400
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < refsToDelete.length; i += CHUNK_SIZE) {
+      const chunk = refsToDelete.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    // 6. Revoke active session if matching
+    if (portalUser) {
+      const matchesOrg = portalUser.organizationId === id;
+      const matchesEmail = userEmail && portalUser.email && portalUser.email.toLowerCase() === userEmail.toLowerCase();
+      if (matchesOrg || matchesEmail) {
+        setPortalUser(null);
+        localStorage.removeItem('sp_portal_user');
+        sessionStorage.clear();
+        setRejectionInfo({
+          isRejected: true,
+          organizationName: orgName,
+          title: rejectionRecord.title,
+          message: rejectionRecord.message
+        });
+      }
+    }
+
+    // 7. Optimistically update local context states
+    setOrganizations(prev => prev.map(o => o.id === id ? { ...o, status: 'rejected' as any } : o));
+    setRejections(prev => [...prev.filter(r => r.id !== rejectionId), rejectionRecord]);
+    setAchievements(prev => prev.filter(a => a.organizationId !== id));
+    setMembers(prev => prev.filter(m => m.organizationId !== id));
+    setTransactions(prev => prev.filter(t => t.organizationId !== id));
+    setMediaAttachments(prev => prev.filter(m => m.organizationId !== id));
+    setNotifications(prev => prev.filter(n => n.organizationId !== id));
+
+    await recalculateLeaderboardTotals();
+    await logPortalAction('REJECT_ORGANIZATION', `Rejected class organization "${orgName}" and revoked all portal access.`);
+  };
+
+  const approveClassOrganization = async (id: string) => {
+    if (!masterAccountId) {
+      throw new Error('No master account connected.');
+    }
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to approve a class organization.');
+    }
+    const now = new Date().toISOString();
+
+    // 1. Fetch organization details
+    const orgDocRef = doc(db, 'sp_organizations', id);
+    const orgSnap = await getDoc(orgDocRef);
+    const orgName = orgSnap.exists() ? (orgSnap.data()?.name || id) : id;
+
+    // 2. Update status in Firestore
+    await updateDoc(orgDocRef, { 
+      status: 'active',
+      updatedAt: now
+    });
+
+    // 3. Clear/resolve pending notification for admin
+    try {
+      const qNot = query(
+        collection(db, 'sp_notifications'),
+        where('portalId', '==', masterAccountId),
+        where('organizationId', '==', 'master_admin')
+      );
+      const notSnap = await getDocs(qNot);
+      const batch = writeBatch(db);
+      let hasDeletions = false;
+      notSnap.docs.forEach(d => {
+        const dData = d.data();
+        if (dData.metadata?.orgId === id || dData.message?.includes(orgName)) {
+          batch.delete(d.ref);
+          hasDeletions = true;
+        }
+      });
+      if (hasDeletions) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn('Error clearing admin notification:', err);
+    }
+
+    // 4. Send welcome/approval notification to the sub-org
+    const notId = generateId('sp_not');
+    await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
+      id: notId,
+      portalId: masterAccountId,
+      organizationId: id,
+      title: 'Organization Approved!',
+      message: `Your class organization "${orgName}" has been approved by the Admin. You can continue submitting achievements and tracking your points!`,
+      isRead: false,
+      createdAt: now
+    })).catch(() => {});
+
+    // 5. Update local state
+    setOrganizations(prev => prev.map(o => o.id === id ? { ...o, status: 'active', updatedAt: now } : o));
+    setNotifications(prev => prev.filter(n => !(n.organizationId === 'master_admin' && (n.metadata?.orgId === id || n.message?.includes(orgName)))));
+
+    // 6. Log audit action
+    await logPortalAction('APPROVE_ORGANIZATION', `Approved class organization "${orgName}" (ID: ${id})`);
   };
 
   // 5. Sub Org Admin Submit Achievement
@@ -1204,6 +1803,23 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!masterAccountId || !portalUser) return;
     const now = new Date().toISOString();
 
+    if (!isAdminAuthorized()) {
+      const existing = achievements.find(a => a.id === id);
+      if (!existing || existing.organizationId !== portalUser.organizationId) {
+        throw new Error('Forbidden: You cannot modify achievements belonging to another organization.');
+      }
+      if (existing.status === 'Approved') {
+        throw new Error('Forbidden: Approved achievements cannot be modified.');
+      }
+      const safeUpdates = { ...updates };
+      delete (safeUpdates as any).status;
+      delete (safeUpdates as any).awardedPoints;
+      delete (safeUpdates as any).reviewerId;
+      delete (safeUpdates as any).organizationId;
+      delete (safeUpdates as any).portalId;
+      updates = safeUpdates;
+    }
+
     // Update main fields
     await updateDoc(doc(db, 'sp_achievements', id), cleanFirestorePayload({
       ...updates,
@@ -1244,6 +1860,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // 7. Delete Achievement (DRAFTS or returned only)
   const deleteAchievement = async (id: string) => {
     if (!masterAccountId) return;
+
+    if (!isAdminAuthorized()) {
+      const existing = achievements.find(a => a.id === id);
+      if (!existing || existing.organizationId !== portalUser?.organizationId) {
+        throw new Error('Forbidden: You cannot delete achievements belonging to another organization.');
+      }
+      if (existing.status === 'Approved') {
+        throw new Error('Forbidden: Approved achievements cannot be deleted.');
+      }
+    }
     
     // Delete Achievement Doc
     await deleteDoc(doc(db, 'sp_achievements', id));
@@ -1255,7 +1881,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await deleteDoc(doc(db, 'sp_media', d.id));
     }
 
+    // Delete associated Transactions
+    const qTx = query(collection(db, 'sp_transactions'), where('achievementId', '==', id));
+    const snapTx = await getDocs(qTx);
+    for (const d of snapTx.docs) {
+      await deleteDoc(doc(db, 'sp_transactions', d.id));
+    }
+
     await logPortalAction('DELETE_ACHIEVEMENT', `Deleted achievement and associated media of ID: ${id}`);
+    await recalculateLeaderboardTotals();
   };
 
   // 8. Super Admin Point Award / Reject / Correction Review
@@ -1269,6 +1903,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     deductionPoints?: number
   ) => {
     if (!masterAccountId || !portalUser) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to review achievements and award points.');
+    }
     const now = new Date().toISOString();
 
     // 1. Get original achievement to fetch organization and achiever info
@@ -1280,11 +1917,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const orgId = ach.organizationId;
     const achieverId = ach.achieverId;
     const achieverName = ach.achieverName || 'Achiever';
+    const finalAwardedPoints = status === 'Approved' ? Math.max(0, Number(points) || 0) : 0;
 
     // 2. Update Achievement Status and awarded points
     await updateDoc(achRef, cleanFirestorePayload({
       status,
-      awardedPoints: status === 'Approved' ? points : 0,
+      awardedPoints: finalAwardedPoints,
       reviewerId: portalUser.id,
       reviewNotes: notes,
       baseAwardedPoints: baseAwardedPoints !== undefined ? baseAwardedPoints : null,
@@ -1293,55 +1931,64 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedAt: now
     }));
 
-    // 3. Handle Point Transaction
-    if (status === 'Approved') {
-      const txId = generateId('sp_tx');
-      const txObj: SP_Transaction = {
-        id: txId,
-        portalId: masterAccountId,
-        organizationId: orgId,
-        achieverId: achieverId,
-        achieverName: achieverName,
-        achievementId: id,
-        categoryId: ach.categoryId,
-        points: points,
-        type: 'award',
-        reason: `Approved achievement: "${ach.title}" for ${achieverName}`,
-        awardedBy: portalUser.id,
-        status: 'active',
-        createdAt: now,
-        updatedAt: now
-      };
-      await setDoc(doc(db, 'sp_transactions', txId), cleanFirestorePayload(txObj));
+    // 3. Reconcile transactions for this achievement
+    const qTx = query(
+      collection(db, 'sp_transactions'),
+      where('portalId', '==', masterAccountId),
+      where('achievementId', '==', id)
+    );
+    const snapTx = await getDocs(qTx);
 
-      // Recalculate member points
-      if (achieverId && achieverId !== 'unassigned') {
-        const memRef = doc(db, 'sp_members', achieverId);
-        const memSnap = await getDoc(memRef);
-        if (memSnap.exists()) {
-          const memData = memSnap.data();
-          await updateDoc(memRef, {
-            totalPoints: (memData.totalPoints || 0) + points,
-            approvedAchievementsCount: (memData.approvedAchievementsCount || 0) + 1,
-            updatedAt: now
-          });
-        }
-      }
-
-      // Recalculate and update the organization's total points in real-time
-      const orgRef = doc(db, 'sp_organizations', orgId);
-      const orgSnap = await getDoc(orgRef);
-      if (orgSnap.exists()) {
-        const orgData = orgSnap.data();
-        const currentTotal = orgData.totalPoints || 0;
-        await updateDoc(orgRef, {
-          totalPoints: currentTotal + points,
+    if (status === 'Approved' && finalAwardedPoints > 0) {
+      if (!snapTx.empty) {
+        // Update first transaction
+        const firstDoc = snapTx.docs[0];
+        await updateDoc(firstDoc.ref, cleanFirestorePayload({
+          points: finalAwardedPoints,
+          organizationId: orgId,
+          achieverId: achieverId,
+          achieverName: achieverName,
+          categoryId: ach.categoryId,
+          status: 'active',
+          reason: `Approved achievement: "${ach.title}" for ${achieverName}`,
+          awardedBy: portalUser.id,
           updatedAt: now
-        });
+        }));
+        // Remove any redundant duplicates
+        for (let i = 1; i < snapTx.docs.length; i++) {
+          await deleteDoc(snapTx.docs[i].ref);
+        }
+      } else {
+        const txId = generateId('sp_tx');
+        const txObj: SP_Transaction = {
+          id: txId,
+          portalId: masterAccountId,
+          organizationId: orgId,
+          achieverId: achieverId || 'unassigned',
+          achieverName: achieverName,
+          achievementId: id,
+          categoryId: ach.categoryId,
+          points: finalAwardedPoints,
+          type: 'award',
+          reason: `Approved achievement: "${ach.title}" for ${achieverName}`,
+          awardedBy: portalUser.id,
+          status: 'active',
+          createdAt: now,
+          updatedAt: now
+        };
+        await setDoc(doc(db, 'sp_transactions', txId), cleanFirestorePayload(txObj));
+      }
+    } else {
+      // Non-approved or 0-point achievement: cancel / delete existing transactions
+      for (const tDoc of snapTx.docs) {
+        await deleteDoc(tDoc.ref);
       }
     }
 
-    await logPortalAction('REVIEW_ACHIEVEMENT', `Reviewed achievement "${ach.title}" for ${achieverName} - Status: ${status}, Points: ${points}`);
+    // 4. Recalculate all member and organization totals atomically
+    await recalculateLeaderboardTotals();
+
+    await logPortalAction('REVIEW_ACHIEVEMENT', `Reviewed achievement "${ach.title}" for ${achieverName} - Status: ${status}, Points: ${finalAwardedPoints}`);
 
     // Create Notification for the class org
     const notId = generateId('sp_not');
@@ -1361,6 +2008,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // 9. Categories Management
   const addCategory = async (name: string, defaultPoints: number) => {
     if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to create point categories.');
+    }
     const catId = generateId('sp_cat');
     const now = new Date().toISOString();
 
@@ -1377,14 +2027,29 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteCategory = async (id: string) => {
-    if (!masterAccountId) return;
-    await deleteDoc(doc(db, 'sp_categories', id));
-    await logPortalAction('DELETE_CATEGORY', `Deleted category ID: ${id}`);
+    if (!masterAccountId) {
+      throw new Error('Master account is not connected.');
+    }
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to delete custom point categories.');
+    }
+    try {
+      // Optimistic update
+      setCategories(prev => prev.filter(c => c.id !== id));
+      await deleteDoc(doc(db, 'sp_categories', id));
+      await logPortalAction('DELETE_CATEGORY', `Deleted point category ID: ${id}`);
+    } catch (e) {
+      console.error('Error deleting category', e);
+      throw e;
+    }
   };
 
   // 10. Competitions / Evaluations
   const addCompetition = async (name: string, start: string, end: string) => {
     if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to add evaluation periods.');
+    }
     const compId = generateId('sp_comp');
     const now = new Date().toISOString();
 
@@ -1404,6 +2069,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const completeCompetition = async (id: string) => {
     if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to conclude evaluation periods.');
+    }
     const now = new Date().toISOString();
 
     await updateDoc(doc(db, 'sp_competitions', id), cleanFirestorePayload({
@@ -1417,34 +2085,57 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // 11. Awards
   const addAward = async (award: Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>) => {
     if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to confer awards.');
+    }
     const awardId = generateId('sp_award');
     const now = new Date().toISOString();
+
+    const winnersList = award.winners && award.winners.length > 0
+      ? award.winners
+      : (award.winnerOrganizationId && award.winnerOrganizationName 
+          ? [{ position: 1 as const, organizationId: award.winnerOrganizationId, organizationName: award.winnerOrganizationName }]
+          : []);
+
+    const primaryWinner = winnersList[0];
+    const winnerOrgId = primaryWinner?.organizationId || award.winnerOrganizationId || '';
+    const winnerOrgName = primaryWinner?.organizationName || award.winnerOrganizationName || '';
 
     await setDoc(doc(db, 'sp_awards', awardId), cleanFirestorePayload({
       id: awardId,
       portalId: masterAccountId,
       createdAt: now,
-      ...award
+      ...award,
+      winnerOrganizationId: winnerOrgId,
+      winnerOrganizationName: winnerOrgName,
+      winners: winnersList
     }));
 
-    await logPortalAction('AWARD_ORGANIZATION', `Conferred award "${award.name}" to ${award.winnerOrganizationName}`);
+    const winnersNames = winnersList.map(w => `${w.position === 1 ? '1st' : w.position === 2 ? '2nd' : '3rd'}: ${w.organizationName}`).join(', ');
+    await logPortalAction('AWARD_ORGANIZATION', `Conferred award "${award.name}" to ${winnersNames}`);
 
-    // Create alert for Winner Org
-    const notId = generateId('sp_not');
-    await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
-      id: notId,
-      portalId: masterAccountId,
-      organizationId: award.winnerOrganizationId,
-      title: 'Award Conferred! 🏆',
-      message: `Outstanding! Your class organization has won the award: "${award.name}". "${award.description}"`,
-      isRead: false,
-      createdAt: now
-    }));
+    // Create alert for each Winner Org
+    for (const w of winnersList) {
+      const notId = generateId('sp_not');
+      const posLabel = w.position === 1 ? '1st Winner 🥇' : w.position === 2 ? '2nd Winner 🥈' : '3rd Winner 🥉';
+      await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
+        id: notId,
+        portalId: masterAccountId,
+        organizationId: w.organizationId,
+        title: `Award Conferred! ${posLabel}`,
+        message: `Outstanding! Your class organization has won ${posLabel} for the award: "${award.name}". ${award.description ? `"${award.description}"` : ''}`,
+        isRead: false,
+        createdAt: now
+      }));
+    }
   };
 
   // 12. Announcements
   const addAnnouncement = async (title: string, content: string) => {
     if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to publish announcements.');
+    }
     const annId = generateId('sp_ann');
     const now = new Date().toISOString();
 
@@ -1553,7 +2244,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       totalPoints: 0,
       createdAt: now,
       updatedAt: now,
-      ...orgData
+      ...orgData,
+      status: 'pending'
     };
 
     // Save Organization
@@ -1597,6 +2289,28 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isRead: false,
       createdAt: now
     }));
+
+    // Create Admin notification for pending confirmation
+    const adminNotId = generateId('sp_not');
+    const adminNotDoc = {
+      id: adminNotId,
+      portalId: targetPortalId,
+      organizationId: 'master_admin',
+      title: 'New Class Organization Pending Approval',
+      message: `${orgData.name} has registered using the shared registration code and is waiting for confirmation.`,
+      isRead: false,
+      createdAt: now,
+      metadata: {
+        type: 'pending_organization',
+        orgId: orgId,
+        orgName: orgData.name,
+        leader: orgData.leader || '',
+        className: orgData.className || '',
+        registeredAt: now
+      }
+    };
+    await setDoc(doc(db, 'sp_notifications', adminNotId), cleanFirestorePayload(adminNotDoc)).catch(() => {});
+    setNotifications(prev => [adminNotDoc as any, ...prev]);
 
     // Optimistically update local organizations state so UI updates immediately
     setOrganizations(prev => {
@@ -1770,8 +2484,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       auditLogs,
       registrationLinks,
       members,
+      rejections,
+      rejectionInfo,
       loading,
       
+      clearRejectionInfo,
       portalLink,
       portalLinkLoading,
       portalStatus,
@@ -1787,6 +2504,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       createClassOrganization,
       updateClassOrganization,
+      deleteClassOrganization,
+      rejectClassOrganization,
+      approveClassOrganization,
       
       addMember,
       updateMember,

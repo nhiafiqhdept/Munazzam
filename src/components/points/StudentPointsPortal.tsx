@@ -72,7 +72,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
         description: `Class Sub-Org registered via invite link for ${className}`,
         leader: leader,
         contactDetails: contactDetails,
-        status: 'active'
+        status: 'pending'
       };
 
       await registerSubOrganization(regCode, orgData, loginEmail, loginPassword);
@@ -485,7 +485,9 @@ const StudentPointsInner: React.FC = () => {
     setPortalUserDirectly,
     portalStatus,
     portalErrorMessage,
-    loading
+    loading,
+    rejectionInfo,
+    clearRejectionInfo
   } = usePortal();
   const [explicitLogout, setExplicitLogout] = useState(false);
 
@@ -497,6 +499,47 @@ const StudentPointsInner: React.FC = () => {
 
   // Direct registration states
   const { createClassOrganization, loginPortalUser } = usePortal();
+
+  if (rejectionInfo?.isRejected) {
+    return (
+      <div className="w-full max-w-lg mx-auto my-8 px-4" id="org-rejection-screen">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-3xl border border-rose-200 p-8 text-center space-y-6 shadow-2xl"
+        >
+          <div className="w-16 h-16 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          
+          <div className="space-y-2">
+            <span className="inline-block px-3.5 py-1 bg-rose-50 border border-rose-200 text-rose-800 rounded-full text-xs font-bold tracking-tight">
+              ⚠️ Organization Access Rejected
+            </span>
+            <h3 className="text-xl font-bold font-heading text-slate-900">
+              {rejectionInfo.title || 'Admin Rejected Your Class Organization'}
+            </h3>
+            <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line px-2">
+              {rejectionInfo.message || `Your class organization "${rejectionInfo.organizationName}" has been rejected by the administrator.\n\nPlease contact the administrator if you believe this was a mistake.`}
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                clearRejectionInfo();
+              }}
+              className="w-full py-3 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
   const [regOrgName, setRegOrgName] = useState('');
   const [regClassName, setRegClassName] = useState('');
   const [regLeader, setRegLeader] = useState('');
@@ -528,7 +571,7 @@ const StudentPointsInner: React.FC = () => {
         description: `Class registered directly through shared portal for ${regClassName}`,
         leader: regLeader,
         contactDetails: regContactDetails,
-        status: 'active'
+        status: 'pending'
       }, regLoginEmail, regLoginPassword);
 
       // Immediately log in!

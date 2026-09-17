@@ -3,7 +3,7 @@ import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
   CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft,
-  User, UserCheck
+  User, UserCheck, Pencil
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
@@ -27,6 +27,8 @@ export const SubOrgDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<SubOrgTab>('leaderboard');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
 
   // Filter achievements for this org only
   const orgAchievements = achievements.filter(a => a.organizationId === portalUser?.organizationId);
@@ -64,6 +66,52 @@ export const SubOrgDashboard: React.FC = () => {
     if (cat) {
       setRequestedPoints(cat.defaultPoints);
     }
+  };
+
+  const handleEdit = (ach: SP_Achievement) => {
+    setEditingAchievementId(ach.id);
+    setIsEditing(true);
+    setTitle(ach.title);
+    setProgramName(ach.programName);
+    setCategoryId(ach.categoryId);
+    setDate(ach.date);
+    setPlace(ach.place);
+    setDescription(ach.description);
+    setParticipantsCount(ach.participantsCount);
+    setAchieverId(ach.achieverId);
+    setAchieverName(ach.achieverName);
+    setAchieverStudentId(ach.achieverStudentId || '');
+    setRequestedPoints(ach.requestedPoints);
+    setAdditionalNotes(ach.additionalNotes);
+    
+    // Media attachments
+    const achMedia = getMediaForAchievement(ach.id);
+    setQueuedPhotos(achMedia.filter(m => m.type === 'photo').map(m => ({ id: m.id, file: new File([], m.name), name: m.name, size: m.size, url: m.fileUrl })));
+    setQueuedVideos(achMedia.filter(m => m.type === 'video').map(m => ({ id: m.id, file: new File([], m.name), name: m.name, size: m.size, url: m.fileUrl })));
+    setQueuedDocs(achMedia.filter(m => m.type === 'document').map(m => ({ id: m.id, file: new File([], m.name), name: m.name, size: m.size, url: m.fileUrl })));
+    
+    setActiveTab('submit');
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setProgramName('');
+    setCategoryId('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setPlace('');
+    setDescription('');
+    setParticipantsCount(0);
+    setAchieverId('');
+    setAchieverName('');
+    setAchieverStudentId('');
+    setIsCustomAchiever(false);
+    setRequestedPoints(10);
+    setAdditionalNotes('');
+    setQueuedPhotos([]);
+    setQueuedVideos([]);
+    setQueuedDocs([]);
+    setIsEditing(false);
+    setEditingAchievementId(null);
   };
 
   // Multiple files handlers
@@ -146,40 +194,44 @@ export const SubOrgDashboard: React.FC = () => {
         ...queuedDocs.map(d => ({ fileUrl: d.url, name: d.name, size: d.size, type: 'document' as const }))
       ];
 
-      await submitAchievement({
-        title,
-        programName,
-        categoryId,
-        date,
-        place,
-        description,
-        participantsCount,
-        achieverId,
-        achieverName: achieverName.trim(),
-        achieverStudentId: achieverStudentId.trim(),
-        requestedPoints,
-        additionalNotes
-      }, allFiles);
+      if (isEditing && editingAchievementId) {
+        await updateAchievement(editingAchievementId, {
+          title,
+          programName,
+          categoryId,
+          date,
+          place,
+          description,
+          participantsCount,
+          achieverId,
+          achieverName: achieverName.trim(),
+          achieverStudentId: achieverStudentId.trim(),
+          requestedPoints,
+          additionalNotes,
+          status: 'Submitted'
+        });
+        setFormSuccess('Submission updated successfully.');
+      } else {
+        await submitAchievement({
+          title,
+          programName,
+          categoryId,
+          date,
+          place,
+          description,
+          participantsCount,
+          achieverId,
+          achieverName: achieverName.trim(),
+          achieverStudentId: achieverStudentId.trim(),
+          requestedPoints,
+          additionalNotes
+        }, allFiles);
+        setFormSuccess('Achievement successfully submitted to the Review Panel!');
+      }
 
       // Reset form
-      setTitle('');
-      setProgramName('');
-      setCategoryId('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setPlace('');
-      setDescription('');
-      setParticipantsCount(0);
-      setAchieverId('');
-      setAchieverName('');
-      setAchieverStudentId('');
-      setIsCustomAchiever(false);
-      setRequestedPoints(10);
-      setAdditionalNotes('');
-      setQueuedPhotos([]);
-      setQueuedVideos([]);
-      setQueuedDocs([]);
-
-      setFormSuccess('Achievement successfully submitted to the Review Panel!');
+      resetForm();
+      
       setActiveTab('overview');
     } catch (err: any) {
       setFormError(err?.message || 'Failed to submit achievement. Try again.');
@@ -313,7 +365,9 @@ export const SubOrgDashboard: React.FC = () => {
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
               <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Earned</p>
               <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-                <span className="text-2xl sm:text-3xl font-black text-emerald-800">{activeOrg?.totalPoints || 0}</span>
+                <span className="text-2xl sm:text-3xl font-black text-emerald-800">
+                  {orgAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)}
+                </span>
                 <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
               </div>
             </div>
@@ -335,7 +389,7 @@ export const SubOrgDashboard: React.FC = () => {
                 Submissions Registry
               </h2>
               <button
-                onClick={() => setActiveTab('submit')}
+                onClick={() => { resetForm(); setActiveTab('submit'); }}
                 className="py-1.5 px-3.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -400,6 +454,15 @@ export const SubOrgDashboard: React.FC = () => {
                           >
                             View
                           </button>
+                          {(ach.status === 'Submitted' || ach.status === 'Returned for Correction') && (
+                            <button
+                              onClick={() => handleEdit(ach)}
+                              className="py-1.5 px-2.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-emerald-700 font-semibold cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Edit
+                            </button>
+                          )}
                           {(ach.status === 'Draft' || ach.status === 'Returned for Correction') && (
                             <button
                               onClick={async () => {
@@ -437,13 +500,17 @@ export const SubOrgDashboard: React.FC = () => {
               <span>Back to Overview</span>
             </button>
             <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              New Achievement Form
+              {isEditing ? 'Edit Achievement Form' : 'New Achievement Form'}
             </span>
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-base sm:text-xl font-bold text-slate-900">Submit New Achievement Proof</h2>
-            <p className="text-xs text-slate-500">Attach files, fill details, and request evaluations from administrators.</p>
+            <h2 className="text-base sm:text-xl font-bold text-slate-900">
+              {isEditing ? 'Edit Achievement Submission' : 'Submit New Achievement Proof'}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {isEditing ? 'Update the details of your submitted achievement.' : 'Attach files, fill details, and request evaluations from administrators.'}
+            </p>
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-5 sm:space-y-6">
@@ -528,94 +595,60 @@ export const SubOrgDashboard: React.FC = () => {
                 />
               </div>
 
-              {/* Achiever Field - Points belong directly to this individual */}
-              <div className="space-y-2 sm:col-span-2 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5" htmlFor="ach-achiever-select">
+              {/* Student Identification - Individual Achiever Identification */}
+              <div className="space-y-3 sm:col-span-2 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <User className="w-4 h-4 text-emerald-700" />
-                    <span>Whose Achievement Is This? (Achiever) *</span>
+                    <span>Student Identification *</span>
                   </label>
-                  <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100/60 px-2.5 py-0.5 rounded-md">
+                  <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100/50 px-2 py-0.5 rounded-md">
                     Points awarded will belong directly to this individual
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Select Registered Member or Add New</label>
-                    <select
-                      id="ach-achiever-select"
-                      value={isCustomAchiever ? '__new__' : (achieverId || '')}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-sid-input">Student / Roll ID *</label>
+                    <input
+                      type="text"
+                      id="ach-sid-input"
+                      required
+                      placeholder="Enter Student / Roll ID"
+                      value={achieverStudentId}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '__new__') {
-                          setIsCustomAchiever(true);
-                          setAchieverId('new');
-                          setAchieverName('');
-                          setAchieverStudentId('');
+                        const sid = e.target.value;
+                        setAchieverStudentId(sid);
+                        // Lookup
+                        const member = orgMembers.find(m => m.studentId?.toLowerCase() === sid.toLowerCase());
+                        if (member) {
+                          setAchieverName(member.name);
+                          setAchieverId(member.id);
                         } else {
-                          setIsCustomAchiever(false);
-                          setAchieverId(val);
-                          const m = orgMembers.find(mem => mem.id === val);
-                          if (m) {
-                            setAchieverName(m.name);
-                            setAchieverStudentId(m.studentId || '');
-                          } else {
-                            setAchieverName('');
-                            setAchieverStudentId('');
-                          }
+                          setAchieverId('new');
                         }
                       }}
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                    >
-                      <option value="">-- Choose Class Member / Achiever --</option>
-                      {orgMembers.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} {m.studentId ? `(${m.studentId})` : ''} • {m.totalPoints || 0} pts
-                        </option>
-                      ))}
-                      <option value="__new__">+ Enter New Student / Achiever Name</option>
-                    </select>
+                    />
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Achiever Individual Identification</label>
-                    {(isCustomAchiever || orgMembers.length === 0 || !achieverId) ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          id="ach-name-input"
-                          required
-                          placeholder="Achiever Full Name *"
-                          value={achieverName}
-                          onChange={(e) => {
-                            setAchieverName(e.target.value);
-                            setIsCustomAchiever(true);
-                            setAchieverId('new');
-                          }}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
-                        />
-                        <input
-                          type="text"
-                          id="ach-sid-input"
-                          placeholder="Student / Roll ID"
-                          value={achieverStudentId}
-                          onChange={(e) => setAchieverStudentId(e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800">
-                        <span className="font-extrabold text-slate-900">{achieverName}</span>
-                        {achieverStudentId ? (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded font-mono text-[10px] font-bold">
-                            ID: {achieverStudentId}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 italic">No Student ID</span>
-                        )}
-                      </div>
-                    )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-name-input">Student Name *</label>
+                    <input
+                      type="text"
+                      id="ach-name-input"
+                      required
+                      placeholder="Enter Student Name"
+                      value={achieverName}
+                      onChange={(e) => {
+                        setAchieverName(e.target.value);
+                        if (!achieverId || achieverId !== 'new') {
+                          setAchieverId('new');
+                        }
+                      }}
+                      readOnly={achieverId && achieverId !== 'new'}
+                      className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800 ${achieverId && achieverId !== 'new' ? 'opacity-70' : ''}`}
+                    />
                   </div>
                 </div>
               </div>
@@ -680,9 +713,9 @@ export const SubOrgDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Image className="w-4 h-4 text-emerald-600" />
-                      Photo Proofs
+                      Photo Proofs <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-500">multiple image/*</span>
+                    <span className="text-[10px] font-semibold text-slate-500">multiple images</span>
                   </div>
                   <div className="relative">
                     <input
@@ -728,9 +761,9 @@ export const SubOrgDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Film className="w-4 h-4 text-emerald-600" />
-                      Video Proofs
+                      Video Proofs <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-500">multiple video/*</span>
+                    <span className="text-[10px] font-semibold text-slate-500">multiple videos</span>
                   </div>
                   <div className="relative">
                     <input
@@ -825,20 +858,39 @@ export const SubOrgDashboard: React.FC = () => {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Uploading files and submitting to Admin...</span>
-                </>
-              ) : (
-                'Submit Achievement to Admin'
-              )}
-            </button>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditing) {
+                    if (confirm('Discard changes?')) {
+                      setIsEditing(false);
+                      setEditingAchievementId(null);
+                      setActiveTab('overview');
+                    }
+                  } else {
+                    setActiveTab('overview');
+                  }
+                }}
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all text-sm flex items-center justify-center cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{isEditing ? 'Saving changes...' : 'Submitting...'}</span>
+                  </>
+                ) : (
+                  isEditing ? 'Save Changes' : 'Submit Achievement to Admin'
+                )}
+              </button>
+            </div>
           </form>
         </div>
       )}

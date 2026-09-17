@@ -328,6 +328,24 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["secureToken", "mainAccountId", "portalId", "status"]
+    },
+    "SP_Rejection": {
+      "title": "SP_Rejection",
+      "description": "Persistent rejection access record for sub-organizations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "organizationName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userId": { "type": "string" },
+        "status": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "rejectedAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "organizationId", "organizationName", "userEmail", "status", "rejectedAt"]
     }
   },
   "firestore": {
@@ -354,6 +372,10 @@
     "/sp_organizations/{orgId}": {
       "schema": "SP_Organization",
       "description": "Class organizations"
+    },
+    "/sp_rejections/{rejId}": {
+      "schema": "SP_Rejection",
+      "description": "Persistent rejection access control records"
     },
     "/sp_users/{userId}": {
       "schema": "SP_User",
