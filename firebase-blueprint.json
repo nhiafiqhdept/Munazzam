@@ -76,7 +76,8 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "createdAt": { "type": "string" },
-        "updatedAt": { "type": "string" }
+        "updatedAt": { "type": "string" },
+        "submissionsAllowed": { "type": "boolean" }
       },
       "required": ["id", "name"]
     },

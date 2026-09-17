@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { useApp } from '../../context/AppContext';
-import { Shield, Lock, Mail, Eye, EyeOff, Users, Award, Info, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, Mail, Eye, EyeOff, Users, Award, Info, CheckCircle2, User } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface PortalLoginProps {
@@ -121,12 +121,12 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700" htmlFor="portal-email">Email or Username</label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                <Mail className="w-4 h-4" />
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
+                <User className="w-4 h-4" />
               </span>
               <input
-                type="email"
+                type="text"
                 id="portal-email"
                 required
                 placeholder={roleMode === 'nsu_admin' ? 'admin@nsu.edu' : 'class1@nsu.edu'}
@@ -140,8 +140,8 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700" htmlFor="portal-password">Password</label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                 <Lock className="w-4 h-4" />
               </span>
               <input
@@ -157,7 +157,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none z-10 flex items-center justify-center"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

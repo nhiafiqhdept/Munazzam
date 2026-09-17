@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePortal, SP_Organization, SP_Achievement, SP_Member, getAwardWinners } from '../../context/PortalContext';
+import { usePortal, SP_Organization, SP_Achievement, SP_Member, getAwardWinners, getWinnerDisplayName, getWinnerSubtext } from '../../context/PortalContext';
 import { Award, Trophy, Star, ChevronRight, ChevronLeft, ArrowLeft, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle, User, Users, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate } from '../../utils/helpers';
@@ -553,15 +553,15 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
               {awards.length === 0 ? (
                 <p className="text-xs text-slate-500 leading-normal">No awards conferred yet in this portal workspace.</p>
               ) : (
-                <div className="border border-slate-100 p-4 rounded-2xl space-y-2 text-center bg-slate-50/50">
+                  <div className="border border-slate-100 p-4 rounded-2xl space-y-2 text-center bg-slate-50/50">
                   <span className="text-3xl">🏅</span>
                   <p className="font-bold text-slate-900 text-xs">{awards[0].name}</p>
                   <div className="space-y-1 text-left pt-1 border-t border-slate-200/50">
-                    {getAwardWinners(awards[0]).map(w => (
-                      <p key={w.organizationId} className="text-[11px] text-emerald-900 font-bold truncate flex items-center gap-1">
+                    {getAwardWinners(awards[0]).map((w, idx) => (
+                      <p key={w.achieverId || w.organizationId || idx} className="text-[11px] text-emerald-900 font-bold truncate flex items-center gap-1">
                         <span>{w.position === 1 ? '🥇' : w.position === 2 ? '🥈' : '🥉'}</span>
                         <span className="text-[10px] text-slate-500 font-semibold uppercase">{w.position === 1 ? '1st:' : w.position === 2 ? '2nd:' : '3rd:'}</span>
-                        <span className="truncate">{w.organizationName}</span>
+                        <span className="truncate">{getWinnerDisplayName(w)}</span>
                       </p>
                     ))}
                   </div>
@@ -585,11 +585,23 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {awards.map(award => {
                 const winners = getAwardWinners(award);
+                const isIndividual = award.recipientType === 'individual';
                 return (
                   <div key={award.id} className="bg-white rounded-3xl border border-slate-100 p-6 text-center space-y-5 shadow-sm relative overflow-hidden flex flex-col items-center hover:shadow-md transition-all duration-300">
                     {/* Subtle Decorative Background Element */}
                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl" />
                     
+                    {/* Recipient Type Badge */}
+                    <div className="w-full flex justify-end">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                        isIndividual 
+                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      }`}>
+                        {isIndividual ? 'Individual Achievers' : 'Class Organization'}
+                      </span>
+                    </div>
+
                     {/* Premium Badge */}
                     <div className="relative w-20 h-20 flex items-center justify-center">
                       <div className="absolute inset-0 bg-gradient-to-tr from-amber-200 to-amber-100 rounded-full blur-sm opacity-50" />
@@ -613,9 +625,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                         <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
                           <span>🥇</span> 1st Place Winner
                         </p>
-                        <p className="text-sm font-black text-emerald-950 truncate" title={winners[0]?.organizationName || award.winnerOrganizationName}>
-                          {winners[0]?.organizationName || award.winnerOrganizationName || 'Unknown Organization'}
+                        <p className="text-sm font-black text-emerald-950 truncate" title={getWinnerDisplayName(winners[0])}>
+                          {getWinnerDisplayName(winners[0])}
                         </p>
+                        {getWinnerSubtext(winners[0]) && (
+                          <p className="text-[10px] font-semibold text-emerald-700/80 truncate mt-0.5" title={getWinnerSubtext(winners[0])}>
+                            {getWinnerSubtext(winners[0])}
+                          </p>
+                        )}
                       </div>
                     ) : winners.length === 2 ? (
                       /* 2 Winners Side-by-Side */
@@ -625,20 +642,30 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                         </p>
                         <div className="grid grid-cols-2 gap-2 w-full">
                           {/* 1st Winner */}
-                          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 text-center flex flex-col items-center">
+                          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
                             <span className="text-base mb-0.5">🥇</span>
                             <span className="text-[9px] font-black text-amber-900 uppercase tracking-wider">1st Place</span>
-                            <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={winners[0].organizationName}>
-                              {winners[0].organizationName}
+                            <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[0])}>
+                              {getWinnerDisplayName(winners[0])}
                             </p>
+                            {getWinnerSubtext(winners[0]) && (
+                              <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[0])}>
+                                {getWinnerSubtext(winners[0])}
+                              </p>
+                            )}
                           </div>
                           {/* 2nd Winner */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center flex flex-col items-center">
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
                             <span className="text-base mb-0.5">🥈</span>
                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">2nd Place</span>
-                            <p className="text-xs font-black text-slate-900 truncate w-full mt-0.5" title={winners[1].organizationName}>
-                              {winners[1].organizationName}
+                            <p className="text-xs font-black text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
+                              {getWinnerDisplayName(winners[1])}
                             </p>
+                            {getWinnerSubtext(winners[1]) && (
+                              <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
+                                {getWinnerSubtext(winners[1])}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -649,30 +676,45 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                           Award Winners (3)
                         </p>
                         {/* 1st Place Top Featured */}
-                        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-2.5 text-center flex flex-col items-center shadow-xs">
+                        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-2.5 text-center flex flex-col items-center shadow-xs min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="text-base">🥇</span>
                             <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider">1st Place Winner</span>
                           </div>
-                          <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={winners[0].organizationName}>
-                            {winners[0].organizationName}
+                          <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[0])}>
+                            {getWinnerDisplayName(winners[0])}
                           </p>
+                          {getWinnerSubtext(winners[0]) && (
+                            <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[0])}>
+                              {getWinnerSubtext(winners[0])}
+                            </p>
+                          )}
                         </div>
                         {/* 2nd & 3rd Place Bottom Grid */}
                         <div className="grid grid-cols-2 gap-2 w-full">
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 text-center flex flex-col items-center">
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
                             <span className="text-sm">🥈</span>
                             <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">2nd Place</span>
-                            <p className="text-[11px] font-bold text-slate-900 truncate w-full mt-0.5" title={winners[1].organizationName}>
-                              {winners[1].organizationName}
+                            <p className="text-[11px] font-bold text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
+                              {getWinnerDisplayName(winners[1])}
                             </p>
+                            {getWinnerSubtext(winners[1]) && (
+                              <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
+                                {getWinnerSubtext(winners[1])}
+                              </p>
+                            )}
                           </div>
-                          <div className="bg-amber-100/40 border border-amber-200/80 rounded-2xl p-2 text-center flex flex-col items-center">
+                          <div className="bg-amber-100/40 border border-amber-200/80 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
                             <span className="text-sm">🥉</span>
                             <span className="text-[9px] font-bold text-amber-800/90 uppercase tracking-wider">3rd Place</span>
-                            <p className="text-[11px] font-bold text-amber-950 truncate w-full mt-0.5" title={winners[2].organizationName}>
-                              {winners[2].organizationName}
+                            <p className="text-[11px] font-bold text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[2])}>
+                              {getWinnerDisplayName(winners[2])}
                             </p>
+                            {getWinnerSubtext(winners[2]) && (
+                              <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[2])}>
+                                {getWinnerSubtext(winners[2])}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { usePortal, SP_Organization, SP_Achievement, SP_Category, AwardWinner, getAwardWinners } from '../../context/PortalContext';
+import { usePortal, SP_Organization, SP_Achievement, SP_Category, SP_Award, AwardWinner, getAwardWinners, getWinnerDisplayName, getWinnerSubtext } from '../../context/PortalContext';
 import { useApp } from '../../context/AppContext';
 import { 
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
   Building, ChevronLeft, ChevronRight, Search, ArrowUpDown, Download, Play,
-  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy, User, UserCheck, Edit3, Trash2, MoreVertical
+  Link as LinkIcon, ExternalLink, RefreshCw, Power, Copy, User, UserCheck, Edit3, Trash2, MoreVertical, Sliders, Lock
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId } from '../../utils/helpers';
@@ -13,9 +13,10 @@ import { formatDate, generateId } from '../../utils/helpers';
 export const AdminDashboard: React.FC = () => {
   const { user } = useApp();
   const { 
+    portal, toggleSubmissionsAllowed,
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
     members, createClassOrganization, updateClassOrganization, deleteClassOrganization, rejectClassOrganization, approveClassOrganization, reviewAchievement, addCategory, deleteCategory,
-    addCompetition, completeCompetition, addAward, addAnnouncement,
+    addCompetition, completeCompetition, addAward, updateAward, deleteAward, addAnnouncement,
     registrationLinks, generateRegistrationLink,
     updateAchievementAchiever, recalculateLeaderboardTotals, addMember,
     portalLink, portalLinkLoading, generateAccountPortalLink, togglePortalLinkStatus, regenerateAccountPortalLink
@@ -87,6 +88,28 @@ export const AdminDashboard: React.FC = () => {
       setPortalActionMessage({ type: 'error', text: e?.message || 'Failed to regenerate link.' });
     } finally {
       setPortalActionLoading(false);
+    }
+  };
+
+  // Submissions allowance toggle
+  const [togglingSubmissions, setTogglingSubmissions] = useState(false);
+
+  const handleToggleSubmissions = async () => {
+    const currentlyAllowed = portal?.submissionsAllowed !== false;
+    const nextState = !currentlyAllowed;
+    if (!window.confirm(nextState 
+      ? 'Are you sure you want to OPEN achievement submissions for all class organizations?' 
+      : 'Are you sure you want to PAUSE achievement submissions? Class organizations will not be able to submit new achievements until reopened.'
+    )) {
+      return;
+    }
+    setTogglingSubmissions(true);
+    try {
+      await toggleSubmissionsAllowed(nextState);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update submissions status');
+    } finally {
+      setTogglingSubmissions(false);
     }
   };
 
@@ -168,10 +191,26 @@ export const AdminDashboard: React.FC = () => {
   // 4. Award form
   const [awName, setAwName] = useState('');
   const [awDesc, setAwDesc] = useState('');
+  const [awRecipientType, setAwRecipientType] = useState<'class_organization' | 'individual'>('class_organization');
   const [awOrgId1, setAwOrgId1] = useState('');
   const [awOrgId2, setAwOrgId2] = useState('');
   const [awOrgId3, setAwOrgId3] = useState('');
+  const [awIndId1, setAwIndId1] = useState('');
+  const [awIndId2, setAwIndId2] = useState('');
+  const [awIndId3, setAwIndId3] = useState('');
   const [awPeriod, setAwPeriod] = useState('');
+
+  // Award Edit Modal state
+  const [editingAward, setEditingAward] = useState<SP_Award | null>(null);
+  const [editAwName, setEditAwName] = useState('');
+  const [editAwDesc, setEditAwDesc] = useState('');
+  const [editAwRecipientType, setEditAwRecipientType] = useState<'class_organization' | 'individual'>('class_organization');
+  const [editAwOrgId1, setEditAwOrgId1] = useState('');
+  const [editAwOrgId2, setEditAwOrgId2] = useState('');
+  const [editAwOrgId3, setEditAwOrgId3] = useState('');
+  const [editAwIndId1, setEditAwIndId1] = useState('');
+  const [editAwIndId2, setEditAwIndId2] = useState('');
+  const [editAwIndId3, setEditAwIndId3] = useState('');
 
   // 5. Announcement form
   const [annTitle, setAnnTitle] = useState('');
@@ -441,10 +480,42 @@ export const AdminDashboard: React.FC = () => {
           {!selectedOrgId ? (
             // STEP 1: Grid of Organizations
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 font-heading">Achievements Review Panel</h2>
                   <p className="text-xs text-slate-500">Select a class organization to inspect and review their submitted programs and achievements.</p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Submissions Status</span>
+                    <span className={`text-xs font-black inline-flex items-center gap-1.5 ${
+                      portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${
+                        portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                      }`} />
+                      {portal?.submissionsAllowed !== false ? 'Accepting Submissions' : 'Submissions Paused'}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleToggleSubmissions}
+                    disabled={togglingSubmissions}
+                    className={`py-2 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      portal?.submissionsAllowed !== false
+                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                        : 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700'
+                    }`}
+                    title={portal?.submissionsAllowed !== false ? 'Pause achievement submissions from class organizations' : 'Open achievement submissions'}
+                  >
+                    {togglingSubmissions ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Power className="w-3.5 h-3.5" />
+                    )}
+                    <span>{portal?.submissionsAllowed !== false ? 'Pause Submissions' : 'Open Submissions'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -1581,7 +1652,166 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Competitions */}
       {activeTab === 'competitions' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          {/* Main Munazzam / Admin Master Achievement Submissions Control */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
+                      Achievement Submissions
+                    </h2>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                  Controls whether Sub-Organizations can submit new achievements during this evaluation period.
+                  When turned OFF, the "+ Add Achievement" button is hidden and submission creation is strictly blocked.
+                </p>
+              </div>
+
+              {/* Master ON/OFF Toggle Control */}
+              <div className="flex items-center gap-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 sm:px-5 shrink-0">
+                <div className="text-left sm:text-right">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    Portal Submission Access
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${
+                      portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                    }`} />
+                    <span className={`text-xs font-black ${
+                      portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
+                    }`}>
+                      {portal?.submissionsAllowed !== false ? 'Achievement Submissions Open' : 'Achievement Submissions Closed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Clear ON / OFF Toggle Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleSubmissions}
+                  disabled={togglingSubmissions}
+                  className={`relative inline-flex items-center h-10 w-24 rounded-full p-1 transition-all duration-300 ease-in-out cursor-pointer focus:outline-none shadow-inner border ${
+                    portal?.submissionsAllowed !== false
+                      ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white'
+                      : 'bg-slate-300 hover:bg-slate-400 border-slate-400 text-slate-700'
+                  } disabled:opacity-50`}
+                  role="switch"
+                  aria-checked={portal?.submissionsAllowed !== false}
+                  title={`Achievement Submissions are currently ${portal?.submissionsAllowed !== false ? 'ON' : 'OFF'}. Click to toggle.`}
+                >
+                  <span className={`absolute left-3 text-[11px] font-black tracking-wider text-white transition-opacity ${
+                    portal?.submissionsAllowed !== false ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    ON
+                  </span>
+                  <span className={`absolute right-3 text-[11px] font-black tracking-wider text-slate-700 transition-opacity ${
+                    portal?.submissionsAllowed !== false ? 'opacity-0' : 'opacity-100'
+                  }`}>
+                    OFF
+                  </span>
+                  <span
+                    className={`inline-block h-8 w-8 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center ${
+                      portal?.submissionsAllowed !== false ? 'translate-x-14' : 'translate-x-0'
+                    }`}
+                  >
+                    {togglingSubmissions ? (
+                      <Loader2 className="w-3.5 h-3.5 text-slate-600 animate-spin" />
+                    ) : portal?.submissionsAllowed !== false ? (
+                      <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                    ) : (
+                      <Lock className="w-3.5 h-3.5 text-rose-500" />
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Clear Rules and Active Evaluation Period Connection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+                portal?.submissionsAllowed !== false
+                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 font-medium'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}>
+                <div className={`p-1.5 rounded-xl shrink-0 ${
+                  portal?.submissionsAllowed !== false ? 'bg-emerald-200/70 text-emerald-800' : 'bg-slate-200 text-slate-500'
+                }`}>
+                  <Check className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">State: ON</span>
+                    {portal?.submissionsAllowed !== false && (
+                      <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] font-bold">CURRENT</span>
+                    )}
+                  </div>
+                  <p className="font-bold text-slate-800 text-xs">Sub-Organizations can submit achievements.</p>
+                  <p className="text-[11px] text-slate-500">The "+ Add Achievement" button is active and accessible to all class organizations.</p>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+                portal?.submissionsAllowed === false
+                  ? 'bg-rose-50/70 border-rose-200 text-rose-950 font-medium'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}>
+                <div className={`p-1.5 rounded-xl shrink-0 ${
+                  portal?.submissionsAllowed === false ? 'bg-rose-200/70 text-rose-800' : 'bg-slate-200 text-slate-500'
+                }`}>
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">State: OFF</span>
+                    {portal?.submissionsAllowed === false && (
+                      <span className="px-2 py-0.5 bg-rose-600 text-white rounded-md text-[9px] font-bold">CURRENT</span>
+                    )}
+                  </div>
+                  <p className="font-bold text-slate-800 text-xs">Sub-Organizations cannot submit achievements.</p>
+                  <p className="text-[11px] text-slate-500">The button is hidden, forms are blocked, and submission creation is locked.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Evaluation Period Connection Status */}
+            {(() => {
+              const activeComp = competitions.find(c => c.status === 'active');
+              return (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>
+                      {activeComp ? (
+                        <>
+                          Active Evaluation Period: <strong className="text-slate-900">{activeComp.name}</strong> ({formatDate(activeComp.startDate)} – {formatDate(activeComp.endDate)})
+                        </>
+                      ) : (
+                        <span className="italic text-slate-500">No active evaluation period is currently running.</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500">Current Status:</span>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                      portal?.submissionsAllowed !== false
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-rose-100 text-rose-800 border border-rose-200'
+                    }`}>
+                      {portal?.submissionsAllowed !== false ? 'Achievement Submissions Open' : 'Achievement Submissions Closed'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
             <h2 className="text-base font-bold text-slate-900 font-heading">Evaluation Periods</h2>
             <div className="divide-y divide-slate-100">
@@ -1658,6 +1888,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Awards section */}
@@ -1678,34 +1909,88 @@ export const AdminDashboard: React.FC = () => {
               <div className="divide-y divide-slate-100">
                 {awards.map(aw => {
                   const winners = getAwardWinners(aw);
+                  const isInd = aw.recipientType === 'individual';
                   return (
-                    <div key={aw.id} className="py-3.5 flex justify-between items-start gap-3">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                    <div key={aw.id} className="py-4 flex justify-between items-start gap-4">
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="font-bold text-slate-900 text-sm tracking-tight">{aw.name}</p>
+                          <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            isInd 
+                              ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}>
+                            {isInd ? 'Individual Achievers' : 'Class Organization'}
+                          </span>
                           <span className="text-[10px] text-slate-400 font-medium">({formatDate(aw.awardDate)})</span>
                         </div>
                         {aw.description && (
                           <p className="text-xs text-slate-500 italic line-clamp-1">{aw.description}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          {winners.map(w => {
+                          {winners.map((w, idx) => {
                             const posBadge = w.position === 1 ? '🥇 1st' : w.position === 2 ? '🥈 2nd' : '🥉 3rd';
                             const posBg = w.position === 1 
                               ? 'bg-amber-50 text-amber-900 border-amber-200' 
                               : w.position === 2 
                                 ? 'bg-slate-100 text-slate-800 border-slate-200' 
                                 : 'bg-amber-100/50 text-amber-950 border-amber-300/50';
+                            const name = getWinnerDisplayName(w);
+                            const sub = getWinnerSubtext(w);
                             return (
-                              <span key={w.organizationId} className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border font-semibold text-[11px] ${posBg}`}>
+                              <span key={w.achieverId || w.organizationId || idx} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-semibold text-[11px] ${posBg}`}>
                                 <span>{posBadge}:</span>
-                                <strong className="font-black">{w.organizationName}</strong>
+                                <strong className="font-black">{name}</strong>
+                                {sub && <span className="opacity-75 text-[10px]">({sub})</span>}
                               </span>
                             );
                           })}
                         </div>
                       </div>
-                      <span className="text-2xl shrink-0">🏆</span>
+                      
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <button
+                          onClick={() => {
+                            setEditingAward(aw);
+                            setEditAwName(aw.name);
+                            setEditAwDesc(aw.description || '');
+                            const recType = aw.recipientType || 'class_organization';
+                            setEditAwRecipientType(recType);
+
+                            const wList = getAwardWinners(aw);
+                            if (recType === 'class_organization') {
+                              setEditAwOrgId1(wList.find(w => w.position === 1)?.organizationId || '');
+                              setEditAwOrgId2(wList.find(w => w.position === 2)?.organizationId || '');
+                              setEditAwOrgId3(wList.find(w => w.position === 3)?.organizationId || '');
+                              setEditAwIndId1('');
+                              setEditAwIndId2('');
+                              setEditAwIndId3('');
+                            } else {
+                              setEditAwIndId1(wList.find(w => w.position === 1)?.achieverId || '');
+                              setEditAwIndId2(wList.find(w => w.position === 2)?.achieverId || '');
+                              setEditAwIndId3(wList.find(w => w.position === 3)?.achieverId || '');
+                              setEditAwOrgId1('');
+                              setEditAwOrgId2('');
+                              setEditAwOrgId3('');
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Award"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Are you sure you want to delete the award "${aw.name}"?`)) {
+                              await deleteAward(aw.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Award"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1713,128 +1998,302 @@ export const AdminDashboard: React.FC = () => {
             )}
           </div>
 
+          {/* Confer Award Form */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 font-heading">
               <span>🏆</span> Confer Award
             </h3>
             <div className="space-y-4">
+              {/* Recipient Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Award Recipient <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setAwRecipientType('class_organization')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      awRecipientType === 'class_organization'
+                        ? 'bg-white text-emerald-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Class Organization
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAwRecipientType('individual')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      awRecipientType === 'individual'
+                        ? 'bg-white text-purple-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Individual Achiever
+                  </button>
+                </div>
+              </div>
+
+              {/* Award Title */}
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Award Title <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Outstanding Cultural Lead"
+                  placeholder={awRecipientType === 'individual' ? "e.g. Best Orator Award" : "e.g. NSU Best Class Award"}
                   value={awName}
                   onChange={(e) => setAwName(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
 
+              {/* Award Description */}
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Award Description</label>
                 <input
                   type="text"
-                  placeholder="e.g. Awarded for highest seminar participation"
+                  placeholder="e.g. Conferred for outstanding performance"
                   value={awDesc}
                   onChange={(e) => setAwDesc(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
 
-              {/* 1st Winner — REQUIRED */}
-              <div className="space-y-1 pt-1 border-t border-slate-100">
-                <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
-                  <span>🥇 1st Winner</span>
-                  <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
-                </label>
-                <select
-                  value={awOrgId1}
-                  onChange={(e) => setAwOrgId1(e.target.value)}
-                  className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
-                >
-                  <option value="">Select 1st Winner Class Organization...</option>
-                  {organizations
-                    .filter(o => o.id !== awOrgId2 && o.id !== awOrgId3)
-                    .map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))
-                  }
-                </select>
-              </div>
+              {/* CLASS ORGANIZATION WINNERS */}
+              {awRecipientType === 'class_organization' ? (
+                <>
+                  {/* 1st Winner — REQUIRED */}
+                  <div className="space-y-1 pt-1 border-t border-slate-100">
+                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥇 1st Winner</span>
+                      <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
+                    </label>
+                    <select
+                      value={awOrgId1}
+                      onChange={(e) => setAwOrgId1(e.target.value)}
+                      className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400"
+                    >
+                      <option value="">Select 1st Winner Class Organization...</option>
+                      {organizations
+                        .filter(o => o.id !== awOrgId2 && o.id !== awOrgId3)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
 
-              {/* 2nd Winner — OPTIONAL */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
-                  <span>🥈 2nd Winner</span>
-                  <span className="text-slate-400 text-[9px]">OPTIONAL</span>
-                </label>
-                <select
-                  value={awOrgId2}
-                  onChange={(e) => setAwOrgId2(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400"
-                >
-                  <option value="">None / Select 2nd Winner (Optional)...</option>
-                  {organizations
-                    .filter(o => o.id !== awOrgId1 && o.id !== awOrgId3)
-                    .map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))
-                  }
-                </select>
-              </div>
+                  {/* 2nd Winner — OPTIONAL */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥈 2nd Winner</span>
+                      <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                    </label>
+                    <select
+                      value={awOrgId2}
+                      onChange={(e) => setAwOrgId2(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400"
+                    >
+                      <option value="">None / Select 2nd Winner (Optional)...</option>
+                      {organizations
+                        .filter(o => o.id !== awOrgId1 && o.id !== awOrgId3)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
 
-              {/* 3rd Winner — OPTIONAL */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
-                  <span>🥉 3rd Winner</span>
-                  <span className="text-slate-400 text-[9px]">OPTIONAL</span>
-                </label>
-                <select
-                  value={awOrgId3}
-                  onChange={(e) => setAwOrgId3(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600/20 focus:border-amber-500"
-                >
-                  <option value="">None / Select 3rd Winner (Optional)...</option>
-                  {organizations
-                    .filter(o => o.id !== awOrgId1 && o.id !== awOrgId2)
-                    .map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))
-                  }
-                </select>
-              </div>
+                  {/* 3rd Winner — OPTIONAL */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥉 3rd Winner</span>
+                      <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                    </label>
+                    <select
+                      value={awOrgId3}
+                      onChange={(e) => setAwOrgId3(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600/20 focus:border-amber-500"
+                    >
+                      <option value="">None / Select 3rd Winner (Optional)...</option>
+                      {organizations
+                        .filter(o => o.id !== awOrgId1 && o.id !== awOrgId2)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </>
+              ) : (
+                /* INDIVIDUAL ACHIEVER WINNERS */
+                <>
+                  {/* 1st Winner — REQUIRED */}
+                  <div className="space-y-1 pt-1 border-t border-slate-100">
+                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥇 1st Winner</span>
+                      <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
+                    </label>
+                    <select
+                      value={awIndId1}
+                      onChange={(e) => setAwIndId1(e.target.value)}
+                      className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                    >
+                      <option value="">Select Individual Achiever...</option>
+                      {members
+                        .filter(m => m.id !== awIndId2 && m.id !== awIndId3)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+
+                  {/* 2nd Winner — OPTIONAL */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥈 2nd Winner</span>
+                      <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                    </label>
+                    <select
+                      value={awIndId2}
+                      onChange={(e) => setAwIndId2(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400"
+                    >
+                      <option value="">None / Select 2nd Winner (Optional)...</option>
+                      {members
+                        .filter(m => m.id !== awIndId1 && m.id !== awIndId3)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+
+                  {/* 3rd Winner — OPTIONAL */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
+                      <span>🥉 3rd Winner</span>
+                      <span className="text-slate-400 text-[9px]">OPTIONAL</span>
+                    </label>
+                    <select
+                      value={awIndId3}
+                      onChange={(e) => setAwIndId3(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600/20 focus:border-amber-500"
+                    >
+                      <option value="">None / Select 3rd Winner (Optional)...</option>
+                      {members
+                        .filter(m => m.id !== awIndId1 && m.id !== awIndId2)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+                </>
+              )}
 
               <button
                 onClick={async () => {
-                  if (!awName || !awOrgId1) return;
-                  const winner1 = organizations.find(o => o.id === awOrgId1);
-                  if (!winner1) return;
+                  if (!awName.trim()) return;
 
-                  const winners: AwardWinner[] = [
-                    { position: 1, organizationId: winner1.id, organizationName: winner1.name }
-                  ];
+                  let winners: AwardWinner[] = [];
+                  let primaryWinnerOrgId = '';
+                  let primaryWinnerOrgName = '';
 
-                  if (awOrgId2) {
-                    const winner2 = organizations.find(o => o.id === awOrgId2);
-                    if (winner2) {
-                      winners.push({ position: 2, organizationId: winner2.id, organizationName: winner2.name });
+                  if (awRecipientType === 'class_organization') {
+                    if (!awOrgId1) return;
+                    const w1 = organizations.find(o => o.id === awOrgId1);
+                    if (!w1) return;
+                    primaryWinnerOrgId = w1.id;
+                    primaryWinnerOrgName = w1.name;
+
+                    winners.push({ position: 1, organizationId: w1.id, organizationName: w1.name, name: w1.name });
+
+                    if (awOrgId2) {
+                      const w2 = organizations.find(o => o.id === awOrgId2);
+                      if (w2) winners.push({ position: 2, organizationId: w2.id, organizationName: w2.name, name: w2.name });
                     }
-                  }
+                    if (awOrgId3) {
+                      const w3 = organizations.find(o => o.id === awOrgId3);
+                      if (w3) winners.push({ position: 3, organizationId: w3.id, organizationName: w3.name, name: w3.name });
+                    }
+                  } else {
+                    // Individual Achiever
+                    if (!awIndId1) return;
+                    const m1 = members.find(m => m.id === awIndId1);
+                    if (!m1) return;
+                    const o1 = organizations.find(o => o.id === m1.organizationId);
+                    primaryWinnerOrgId = m1.organizationId;
+                    primaryWinnerOrgName = o1?.name || '';
 
-                  if (awOrgId3) {
-                    const winner3 = organizations.find(o => o.id === awOrgId3);
-                    if (winner3) {
-                      winners.push({ position: 3, organizationId: winner3.id, organizationName: winner3.name });
+                    winners.push({
+                      position: 1,
+                      achieverId: m1.id,
+                      studentId: m1.studentId || '',
+                      achieverName: m1.name,
+                      name: m1.name,
+                      organizationId: m1.organizationId,
+                      organizationName: o1?.name || ''
+                    });
+
+                    if (awIndId2) {
+                      const m2 = members.find(m => m.id === awIndId2);
+                      if (m2) {
+                        const o2 = organizations.find(o => o.id === m2.organizationId);
+                        winners.push({
+                          position: 2,
+                          achieverId: m2.id,
+                          studentId: m2.studentId || '',
+                          achieverName: m2.name,
+                          name: m2.name,
+                          organizationId: m2.organizationId,
+                          organizationName: o2?.name || ''
+                        });
+                      }
+                    }
+
+                    if (awIndId3) {
+                      const m3 = members.find(m => m.id === awIndId3);
+                      if (m3) {
+                        const o3 = organizations.find(o => o.id === m3.organizationId);
+                        winners.push({
+                          position: 3,
+                          achieverId: m3.id,
+                          studentId: m3.studentId || '',
+                          achieverName: m3.name,
+                          name: m3.name,
+                          organizationId: m3.organizationId,
+                          organizationName: o3?.name || ''
+                        });
+                      }
                     }
                   }
 
                   await addAward({
-                    name: awName,
-                    description: awDesc,
+                    name: awName.trim(),
+                    description: awDesc.trim(),
                     evaluationPeriod: awPeriod,
-                    winnerOrganizationId: winner1.id,
-                    winnerOrganizationName: winner1.name,
+                    recipientType: awRecipientType,
+                    winnerOrganizationId: primaryWinnerOrgId,
+                    winnerOrganizationName: primaryWinnerOrgName,
                     winners: winners,
                     awardDate: new Date().toISOString().split('T')[0],
                     certificateUrl: '',
@@ -1846,12 +2305,314 @@ export const AdminDashboard: React.FC = () => {
                   setAwOrgId1('');
                   setAwOrgId2('');
                   setAwOrgId3('');
+                  setAwIndId1('');
+                  setAwIndId2('');
+                  setAwIndId3('');
                 }}
-                disabled={!awName.trim() || !awOrgId1}
+                disabled={!awName.trim() || (awRecipientType === 'class_organization' ? !awOrgId1 : !awIndId1)}
                 className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Confer Award
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT AWARD MODAL */}
+      {editingAward && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-base font-heading flex items-center gap-2">
+                <span>🏆</span> Edit Award
+              </h3>
+              <button
+                onClick={() => setEditingAward(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Recipient Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Award Recipient
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setEditAwRecipientType('class_organization')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      editAwRecipientType === 'class_organization'
+                        ? 'bg-white text-emerald-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Class Organization
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditAwRecipientType('individual')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      editAwRecipientType === 'individual'
+                        ? 'bg-white text-purple-800 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Individual Achiever
+                  </button>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Award Title *
+                </label>
+                <input
+                  type="text"
+                  value={editAwName}
+                  onChange={(e) => setEditAwName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Award Description
+                </label>
+                <input
+                  type="text"
+                  value={editAwDesc}
+                  onChange={(e) => setEditAwDesc(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              {/* Winners selection for Edit */}
+              {editAwRecipientType === 'class_organization' ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">🥇 1st Winner *</label>
+                    <select
+                      value={editAwOrgId1}
+                      onChange={(e) => setEditAwOrgId1(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">Select 1st Winner Class Organization...</option>
+                      {organizations
+                        .filter(o => o.id !== editAwOrgId2 && o.id !== editAwOrgId3)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">🥈 2nd Winner (Optional)</label>
+                    <select
+                      value={editAwOrgId2}
+                      onChange={(e) => setEditAwOrgId2(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">None / Select 2nd Winner...</option>
+                      {organizations
+                        .filter(o => o.id !== editAwOrgId1 && o.id !== editAwOrgId3)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">🥉 3rd Winner (Optional)</label>
+                    <select
+                      value={editAwOrgId3}
+                      onChange={(e) => setEditAwOrgId3(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">None / Select 3rd Winner...</option>
+                      {organizations
+                        .filter(o => o.id !== editAwOrgId1 && o.id !== editAwOrgId2)
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">🥇 1st Winner *</label>
+                    <select
+                      value={editAwIndId1}
+                      onChange={(e) => setEditAwIndId1(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">Select Individual Achiever...</option>
+                      {members
+                        .filter(m => m.id !== editAwIndId2 && m.id !== editAwIndId3)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">🥈 2nd Winner (Optional)</label>
+                    <select
+                      value={editAwIndId2}
+                      onChange={(e) => setEditAwIndId2(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">None / Select 2nd Winner...</option>
+                      {members
+                        .filter(m => m.id !== editAwIndId1 && m.id !== editAwIndId3)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">🥉 3rd Winner (Optional)</label>
+                    <select
+                      value={editAwIndId3}
+                      onChange={(e) => setEditAwIndId3(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    >
+                      <option value="">None / Select 3rd Winner...</option>
+                      {members
+                        .filter(m => m.id !== editAwIndId1 && m.id !== editAwIndId2)
+                        .map(m => {
+                          const org = organizations.find(o => o.id === m.organizationId);
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} {m.studentId ? `(ID: ${m.studentId})` : ''} {org ? `· ${org.name}` : ''}
+                            </option>
+                          );
+                        })
+                      }
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAward(null)}
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!editAwName.trim() || (editAwRecipientType === 'class_organization' ? !editAwOrgId1 : !editAwIndId1)}
+                  onClick={async () => {
+                    if (!editingAward || !editAwName.trim()) return;
+
+                    let newWinners: AwardWinner[] = [];
+                    let pOrgId = '';
+                    let pOrgName = '';
+
+                    if (editAwRecipientType === 'class_organization') {
+                      if (!editAwOrgId1) return;
+                      const w1 = organizations.find(o => o.id === editAwOrgId1);
+                      if (!w1) return;
+                      pOrgId = w1.id;
+                      pOrgName = w1.name;
+                      newWinners.push({ position: 1, organizationId: w1.id, organizationName: w1.name, name: w1.name });
+
+                      if (editAwOrgId2) {
+                        const w2 = organizations.find(o => o.id === editAwOrgId2);
+                        if (w2) newWinners.push({ position: 2, organizationId: w2.id, organizationName: w2.name, name: w2.name });
+                      }
+                      if (editAwOrgId3) {
+                        const w3 = organizations.find(o => o.id === editAwOrgId3);
+                        if (w3) newWinners.push({ position: 3, organizationId: w3.id, organizationName: w3.name, name: w3.name });
+                      }
+                    } else {
+                      if (!editAwIndId1) return;
+                      const m1 = members.find(m => m.id === editAwIndId1);
+                      if (!m1) return;
+                      const o1 = organizations.find(o => o.id === m1.organizationId);
+                      pOrgId = m1.organizationId;
+                      pOrgName = o1?.name || '';
+                      newWinners.push({
+                        position: 1,
+                        achieverId: m1.id,
+                        studentId: m1.studentId || '',
+                        achieverName: m1.name,
+                        name: m1.name,
+                        organizationId: m1.organizationId,
+                        organizationName: o1?.name || ''
+                      });
+
+                      if (editAwIndId2) {
+                        const m2 = members.find(m => m.id === editAwIndId2);
+                        if (m2) {
+                          const o2 = organizations.find(o => o.id === m2.organizationId);
+                          newWinners.push({
+                            position: 2,
+                            achieverId: m2.id,
+                            studentId: m2.studentId || '',
+                            achieverName: m2.name,
+                            name: m2.name,
+                            organizationId: m2.organizationId,
+                            organizationName: o2?.name || ''
+                          });
+                        }
+                      }
+
+                      if (editAwIndId3) {
+                        const m3 = members.find(m => m.id === editAwIndId3);
+                        if (m3) {
+                          const o3 = organizations.find(o => o.id === m3.organizationId);
+                          newWinners.push({
+                            position: 3,
+                            achieverId: m3.id,
+                            studentId: m3.studentId || '',
+                            achieverName: m3.name,
+                            name: m3.name,
+                            organizationId: m3.organizationId,
+                            organizationName: o3?.name || ''
+                          });
+                        }
+                      }
+                    }
+
+                    await updateAward(editingAward.id, {
+                      name: editAwName.trim(),
+                      description: editAwDesc.trim(),
+                      recipientType: editAwRecipientType,
+                      winnerOrganizationId: pOrgId,
+                      winnerOrganizationName: pOrgName,
+                      winners: newWinners
+                    });
+
+                    setEditingAward(null);
+                  }}
+                  className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>

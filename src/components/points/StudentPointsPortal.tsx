@@ -6,7 +6,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { SubOrgDashboard } from './SubOrgDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
 import { PortalUnavailableScreen } from './PortalUnavailableScreen';
-import { LogOut, Shield, Users, Award, Eye, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { LogOut, Shield, Users, Award, Eye, EyeOff, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => void }> = ({ regCode, onBackToLogin }) => {
@@ -25,6 +25,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   const [contactDetails, setContactDetails] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +33,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   // Option 2 (Login) State
   const [loginFormEmail, setLoginFormEmail] = useState('');
   const [loginFormPassword, setLoginFormPassword] = useState('');
+  const [showLoginFormPassword, setShowLoginFormPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
 
@@ -328,36 +330,43 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Account Credentials</h4>
               
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Login Email *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Mail className="w-4 h-4" />
+                <label className="text-xs font-semibold text-slate-700">Login Email or Username *</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
+                    <User className="w-4 h-4" />
                   </span>
                   <input
-                    type="email"
+                    type="text"
                     required
                     placeholder="name@nsu.edu"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">Login Password *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
-                    type="password"
+                    type={showLoginPassword ? 'text' : 'password'}
                     required
                     placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none z-10 flex items-center justify-center"
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -420,8 +429,8 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700">Login Email or Username *</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                 <User className="w-4 h-4" />
               </span>
               <input
@@ -430,25 +439,32 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                 placeholder="name@nsu.edu"
                 value={loginFormEmail}
                 onChange={(e) => setLoginFormEmail(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700">Password *</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                 <Lock className="w-4 h-4" />
               </span>
               <input
-                type="password"
+                type={showLoginFormPassword ? 'text' : 'password'}
                 required
                 placeholder="••••••••"
                 value={loginFormPassword}
                 onChange={(e) => setLoginFormPassword(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowLoginFormPassword(!showLoginFormPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none z-10 flex items-center justify-center"
+              >
+                {showLoginFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -546,12 +562,14 @@ const StudentPointsInner: React.FC = () => {
   const [regContactDetails, setRegContactDetails] = useState('');
   const [regLoginEmail, setRegLoginEmail] = useState('');
   const [regLoginPassword, setRegLoginPassword] = useState('');
+  const [showRegLoginPassword, setShowRegLoginPassword] = useState(false);
   const [regError, setRegError] = useState('');
   const [regSubmitting, setRegSubmitting] = useState(false);
 
   // Direct login states
   const [loginFormEmail, setLoginFormEmail] = useState('');
   const [loginFormPassword, setLoginFormPassword] = useState('');
+  const [showLoginFormPassword, setShowLoginFormPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
 
@@ -755,8 +773,8 @@ const StudentPointsInner: React.FC = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Email or Username *</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                       <User className="w-4 h-4" />
                     </span>
                     <input
@@ -765,25 +783,32 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="name@nsu.edu"
                       value={loginFormEmail}
                       onChange={(e) => setLoginFormEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Password *</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                       <Lock className="w-4 h-4" />
                     </span>
                     <input
-                      type="password"
+                      type={showLoginFormPassword ? 'text' : 'password'}
                       required
                       placeholder="••••••••"
                       value={loginFormPassword}
                       onChange={(e) => setLoginFormPassword(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginFormPassword(!showLoginFormPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none z-10 flex items-center justify-center"
+                    >
+                      {showLoginFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -877,36 +902,43 @@ const StudentPointsInner: React.FC = () => {
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Account Credentials</h4>
                   
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Login Email *</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        <Mail className="w-4 h-4" />
+                    <label className="text-xs font-semibold text-slate-700">Login Email or Username *</label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
+                        <User className="w-4 h-4" />
                       </span>
                       <input
-                        type="email"
+                        type="text"
                         required
                         placeholder="name@nsu.edu"
                         value={regLoginEmail}
                         onChange={(e) => setRegLoginEmail(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Login Password *</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10 flex items-center justify-center">
                         <Lock className="w-4 h-4" />
                       </span>
                       <input
-                        type="password"
+                        type={showRegLoginPassword ? 'text' : 'password'}
                         required
                         placeholder="••••••••"
                         value={regLoginPassword}
                         onChange={(e) => setRegLoginPassword(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegLoginPassword(!showRegLoginPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-lg focus:outline-none z-10 flex items-center justify-center"
+                      >
+                        {showRegLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -103,7 +103,11 @@ service cloud.firestore {
     }
     match /sp_achievements/{achievementId} {
       allow read: if true;
-      allow write: if true;
+      // Creation is strictly blocked if submissions are turned off in the portal configuration
+      allow create: if request.resource.data.portalId != null &&
+        (!exists(/databases/$(database)/documents/sp_portals/$(request.resource.data.portalId)) ||
+         get(/databases/$(database)/documents/sp_portals/$(request.resource.data.portalId)).data.submissionsAllowed != false);
+      allow update, delete: if true;
     }
     match /sp_media/{mediaId} {
       allow read: if true;

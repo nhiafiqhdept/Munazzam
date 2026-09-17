@@ -49,6 +49,7 @@ export interface SP_Portal {
   name: string;
   createdAt: string;
   updatedAt: string;
+  submissionsAllowed?: boolean;
 }
 
 export interface SP_PortalLinkRecord {
@@ -240,8 +241,12 @@ export interface SP_Competition {
 
 export interface AwardWinner {
   position: 1 | 2 | 3;
-  organizationId: string;
-  organizationName: string;
+  organizationId?: string;
+  organizationName?: string;
+  achieverId?: string;
+  studentId?: string;
+  achieverName?: string;
+  name?: string;
 }
 
 export interface SP_Award {
@@ -250,6 +255,7 @@ export interface SP_Award {
   name: string;
   description: string;
   evaluationPeriod?: string;
+  recipientType?: 'class_organization' | 'individual';
   winnerOrganizationId?: string;
   winnerOrganizationName?: string;
   winners?: AwardWinner[];
@@ -267,10 +273,26 @@ export function getAwardWinners(award: SP_Award): AwardWinner[] {
     return [{
       position: 1,
       organizationId: award.winnerOrganizationId,
-      organizationName: award.winnerOrganizationName
+      organizationName: award.winnerOrganizationName,
+      name: award.winnerOrganizationName
     }];
   }
   return [];
+}
+
+export function getWinnerDisplayName(winner: AwardWinner): string {
+  return winner.achieverName || winner.name || winner.organizationName || 'Unknown Recipient';
+}
+
+export function getWinnerSubtext(winner: AwardWinner): string {
+  const parts: string[] = [];
+  if (winner.studentId) {
+    parts.push(`ID: ${winner.studentId}`);
+  }
+  if (winner.organizationName && (winner.achieverName || winner.name)) {
+    parts.push(winner.organizationName);
+  }
+  return parts.join(' · ');
 }
 
 export interface SP_Announcement {
@@ -344,6 +366,7 @@ interface PortalContextType {
   loading: boolean;
   
   clearRejectionInfo: () => void;
+  toggleSubmissionsAllowed: (allowed: boolean) => Promise<void>;
   initializePortal: (name: string) => Promise<void>;
   loginPortalUser: (email: string, password: string) => Promise<boolean>;
   logoutPortalUser: () => void;
@@ -382,6 +405,8 @@ interface PortalContextType {
   completeCompetition: (id: string) => Promise<void>;
   
   addAward: (award: Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>) => Promise<void>;
+  updateAward: (awardId: string, updates: Partial<Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>>) => Promise<void>;
+  deleteAward: (awardId: string) => Promise<void>;
   addAnnouncement: (title: string, content: string) => Promise<void>;
   markNotificationsAsRead: () => Promise<void>;
   
@@ -641,6 +666,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           name: data.name || 'NSU Portal',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
+          submissionsAllowed: data.submissionsAllowed !== false,
         });
 
         // If logged in as master user, also set portalUser as the nsu_admin
@@ -662,6 +688,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           name: 'NSU Student Points Management',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          submissionsAllowed: true,
         });
       }
       setLoading(false);
@@ -965,14 +992,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (txByAchId[achId].length > 1) {
             await deleteDoc(tDoc.ref);
           } else if (tData.points !== expectedPts || tData.status !== 'active') {
-            await updateDoc(tDoc.ref, {
+            await updateDoc(tDoc.ref, cleanFirestorePayload({
               points: expectedPts,
               status: 'active',
-              organizationId: matchingAch.organizationId,
-              achieverId: matchingAch.achieverId,
+              organizationId: matchingAch.organizationId || '',
+              achieverId: matchingAch.achieverId || 'unassigned',
               achieverName: matchingAch.achieverName || 'Achiever',
               updatedAt: now
-            });
+            }));
           }
         }
       }
@@ -1009,11 +1036,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const totals = memberTotals[mDoc.id] || { points: 0, count: 0 };
         const currentData = mDoc.data();
         if (currentData.totalPoints !== totals.points || currentData.approvedAchievementsCount !== totals.count) {
-          await updateDoc(mDoc.ref, {
+          await updateDoc(mDoc.ref, cleanFirestorePayload({
             totalPoints: totals.points,
             approvedAchievementsCount: totals.count,
             updatedAt: now
-          });
+          }));
         }
       }
 
@@ -1024,10 +1051,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const totals = orgTotals[oDoc.id] || { points: 0, count: 0 };
         const currentData = oDoc.data();
         if (currentData.totalPoints !== totals.points) {
-          await updateDoc(oDoc.ref, {
+          await updateDoc(oDoc.ref, cleanFirestorePayload({
             totalPoints: totals.points,
             updatedAt: now
-          });
+          }));
         }
       }
     } catch (e) {
@@ -1720,6 +1747,22 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ) => {
     if (!masterAccountId || !portalUser || !portalUser.organizationId) return;
 
+    if (portal?.submissionsAllowed === false) {
+      throw new Error('Achievement submissions are currently closed by the administrator.');
+    }
+
+    // Double-check live Firestore portal state to strictly prevent bypass or race conditions
+    try {
+      const livePortalSnap = await getDoc(doc(db, 'sp_portals', masterAccountId));
+      if (livePortalSnap.exists() && livePortalSnap.data().submissionsAllowed === false) {
+        throw new Error('Achievement submissions are currently closed by the administrator.');
+      }
+    } catch (err: any) {
+      if (err.message && err.message.includes('Achievement submissions are currently closed')) {
+        throw err;
+      }
+    }
+
     const achId = generateId('sp_ach');
     const now = new Date().toISOString();
 
@@ -2082,6 +2125,25 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await logPortalAction('COMPLETE_COMPETITION', `Concluded evaluation period ID: ${id}`);
   };
 
+  const toggleSubmissionsAllowed = async (allowed: boolean) => {
+    if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to change submission settings.');
+    }
+
+    await setDoc(doc(db, 'sp_portals', masterAccountId), cleanFirestorePayload({
+      submissionsAllowed: allowed,
+      updatedAt: new Date().toISOString()
+    }), { merge: true });
+
+    setPortal(prev => prev ? { ...prev, submissionsAllowed: allowed } : null);
+
+    await logPortalAction(
+      'TOGGLE_SUBMISSIONS',
+      `Achievement submissions turned ${allowed ? 'ON' : 'OFF'} by administrator`
+    );
+  };
+
   // 11. Awards
   const addAward = async (award: Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>) => {
     if (!masterAccountId) return;
@@ -2090,11 +2152,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     const awardId = generateId('sp_award');
     const now = new Date().toISOString();
+    const recipientType = award.recipientType || 'class_organization';
 
     const winnersList = award.winners && award.winners.length > 0
       ? award.winners
       : (award.winnerOrganizationId && award.winnerOrganizationName 
-          ? [{ position: 1 as const, organizationId: award.winnerOrganizationId, organizationName: award.winnerOrganizationName }]
+          ? [{ position: 1 as const, organizationId: award.winnerOrganizationId, organizationName: award.winnerOrganizationName, name: award.winnerOrganizationName }]
           : []);
 
     const primaryWinner = winnersList[0];
@@ -2106,16 +2169,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       portalId: masterAccountId,
       createdAt: now,
       ...award,
+      recipientType,
       winnerOrganizationId: winnerOrgId,
       winnerOrganizationName: winnerOrgName,
       winners: winnersList
     }));
 
-    const winnersNames = winnersList.map(w => `${w.position === 1 ? '1st' : w.position === 2 ? '2nd' : '3rd'}: ${w.organizationName}`).join(', ');
-    await logPortalAction('AWARD_ORGANIZATION', `Conferred award "${award.name}" to ${winnersNames}`);
+    const winnersNames = winnersList.map(w => `${w.position === 1 ? '1st' : w.position === 2 ? '2nd' : '3rd'}: ${getWinnerDisplayName(w)}`).join(', ');
+    await logPortalAction('AWARD_CONFERRED', `Conferred award "${award.name}" (${recipientType === 'individual' ? 'Individual' : 'Class Organization'}) to ${winnersNames}`);
 
     // Create alert for each Winner Org
     for (const w of winnersList) {
+      if (!w.organizationId) continue;
       const notId = generateId('sp_not');
       const posLabel = w.position === 1 ? '1st Winner 🥇' : w.position === 2 ? '2nd Winner 🥈' : '3rd Winner 🥉';
       await setDoc(doc(db, 'sp_notifications', notId), cleanFirestorePayload({
@@ -2123,11 +2188,29 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         portalId: masterAccountId,
         organizationId: w.organizationId,
         title: `Award Conferred! ${posLabel}`,
-        message: `Outstanding! Your class organization has won ${posLabel} for the award: "${award.name}". ${award.description ? `"${award.description}"` : ''}`,
+        message: `Outstanding! ${recipientType === 'individual' ? `${getWinnerDisplayName(w)} from your class organization` : 'Your class organization'} has won ${posLabel} for the award: "${award.name}". ${award.description ? `"${award.description}"` : ''}`,
         isRead: false,
         createdAt: now
       }));
     }
+  };
+
+  const updateAward = async (awardId: string, updates: Partial<Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>>) => {
+    if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to update awards.');
+    }
+    await updateDoc(doc(db, 'sp_awards', awardId), cleanFirestorePayload(updates));
+    await logPortalAction('UPDATE_AWARD', `Updated award ID: ${awardId}`);
+  };
+
+  const deleteAward = async (awardId: string) => {
+    if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to delete awards.');
+    }
+    await deleteDoc(doc(db, 'sp_awards', awardId));
+    await logPortalAction('DELETE_AWARD', `Deleted award ID: ${awardId}`);
   };
 
   // 12. Announcements
@@ -2489,6 +2572,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loading,
       
       clearRejectionInfo,
+      toggleSubmissionsAllowed,
       portalLink,
       portalLinkLoading,
       portalStatus,
@@ -2526,6 +2610,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       completeCompetition,
       
       addAward,
+      updateAward,
+      deleteAward,
       addAnnouncement,
       markNotificationsAsRead,
       logPortalAction,

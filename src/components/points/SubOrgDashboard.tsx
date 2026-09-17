@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext';
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
   CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft,
-  User, UserCheck, Pencil
+  User, UserCheck, Pencil, Lock
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile } from '../../utils/helpers';
@@ -13,7 +13,7 @@ export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'noti
 
 export const SubOrgDashboard: React.FC = () => {
   const { 
-    portalUser, organizations, achievements, categories, mediaAttachments, announcements, notifications,
+    portal, portalUser, organizations, achievements, categories, mediaAttachments, announcements, notifications,
     members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead
   } = usePortal();
 
@@ -29,6 +29,13 @@ export const SubOrgDashboard: React.FC = () => {
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
+
+  // Strict route/tab guard: If submissions are closed by Admin, do not allow opening the submission form for new achievements
+  useEffect(() => {
+    if (activeTab === 'submit' && !isEditing && portal?.submissionsAllowed === false) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, isEditing, portal?.submissionsAllowed]);
 
   // Filter achievements for this org only
   const orgAchievements = achievements.filter(a => a.organizationId === portalUser?.organizationId);
@@ -212,6 +219,11 @@ export const SubOrgDashboard: React.FC = () => {
         });
         setFormSuccess('Submission updated successfully.');
       } else {
+        if (portal?.submissionsAllowed === false) {
+          setFormError('Achievement submissions are currently paused by the administrator.');
+          setSubmitting(false);
+          return;
+        }
         await submitAchievement({
           title,
           programName,
@@ -388,18 +400,35 @@ export const SubOrgDashboard: React.FC = () => {
                 <History className="w-5 h-5 text-emerald-600" />
                 Submissions Registry
               </h2>
-              <button
-                onClick={() => { resetForm(); setActiveTab('submit'); }}
-                className="py-1.5 px-3.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                New Submission
-              </button>
+              {portal?.submissionsAllowed !== false ? (
+                <button
+                  onClick={() => { resetForm(); setActiveTab('submit'); }}
+                  className="py-1.5 px-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Achievement</span>
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-medium">
+                  <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>Achievement submissions are currently closed by the administrator.</span>
+                </div>
+              )}
             </div>
 
             {orgAchievements.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs italic">
-                You haven't submitted any achievements yet. Click the + button at the bottom right to submit your first achievement!
+              <div className="text-center py-12 space-y-1.5">
+                <p className="text-slate-400 text-xs italic">You haven't submitted any achievements yet.</p>
+                {portal?.submissionsAllowed === false ? (
+                  <p className="text-amber-800 text-xs font-medium inline-flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5" />
+                    Achievement submissions are currently closed by the administrator.
+                  </p>
+                ) : (
+                  <p className="text-slate-400 text-xs italic">
+                    Click the "+ Add Achievement" button to submit your first achievement!
+                  </p>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -488,6 +517,26 @@ export const SubOrgDashboard: React.FC = () => {
 
       {/* Submit Achievement full page view */}
       {activeTab === 'submit' && (
+        portal?.submissionsAllowed === false && !isEditing ? (
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm my-6">
+            <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
+              <Lock className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-slate-900 font-heading">Achievement Submissions Closed</h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Achievement submissions are currently closed by the administrator. New submissions cannot be created at this time.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className="py-2.5 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-all"
+            >
+              Back to Submissions Registry
+            </button>
+          </div>
+        ) : (
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6 shadow-sm">
           {/* Header with Back Button */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -514,6 +563,18 @@ export const SubOrgDashboard: React.FC = () => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-5 sm:space-y-6">
+            {!isEditing && portal?.submissionsAllowed === false && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm text-amber-950">Submissions Temporarily Paused</p>
+                  <p className="text-amber-800 leading-relaxed">
+                    The portal administrator has paused new achievement submissions. You cannot submit new entries at this time. You can still review past submissions and rankings.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {formError && (
               <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-2xl text-xs text-rose-700 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -878,14 +939,16 @@ export const SubOrgDashboard: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={submitting || (!isEditing && portal?.submissionsAllowed === false)}
+                className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>{isEditing ? 'Saving changes...' : 'Submitting...'}</span>
                   </>
+                ) : !isEditing && portal?.submissionsAllowed === false ? (
+                  'Submissions Paused by Admin'
                 ) : (
                   isEditing ? 'Save Changes' : 'Submit Achievement to Admin'
                 )}
@@ -893,6 +956,7 @@ export const SubOrgDashboard: React.FC = () => {
             </div>
           </form>
         </div>
+        )
       )}
 
       {/* Notifications tab */}
@@ -1040,7 +1104,7 @@ export const SubOrgDashboard: React.FC = () => {
       )}
 
       {/* Floating Action Button (+ Add Achievement) - comfortably positioned above bottom navigation bar in both app and portal viewports */}
-      {activeTab !== 'submit' && (
+      {activeTab !== 'submit' && portal?.submissionsAllowed !== false && (
         <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-[60]">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -1056,7 +1120,7 @@ export const SubOrgDashboard: React.FC = () => {
             <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center group-hover:bg-emerald-500 transition-colors shadow-inner">
               <Plus className="w-4 h-4 text-white stroke-[3]" />
             </div>
-            <span className="font-bold pr-1">Add Achievement</span>
+            <span className="font-bold pr-1">+ Add Achievement</span>
           </motion.button>
         </div>
       )}
