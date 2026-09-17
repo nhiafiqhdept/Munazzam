@@ -78,7 +78,12 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
       };
 
       await registerSubOrganization(regCode, orgData, loginEmail, loginPassword);
-      setSuccess(true);
+      const autoLoginOk = await loginPortalUser(loginEmail, loginPassword);
+      if (autoLoginOk) {
+        onBackToLogin();
+      } else {
+        setSuccess(true);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to register the organization. Please try again.');
     } finally {
@@ -304,7 +309,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Leader Name</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase">President</label>
                 <input
                   type="text"
                   placeholder="e.g. Ahmad Hasan"
@@ -376,11 +381,8 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
               disabled={submitting}
               className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {submitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                'Create Class Account'
-              )}
+              {submitting && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+              <span>Create Class Account</span>
             </button>
 
             <button
@@ -878,7 +880,7 @@ const StudentPointsInner: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Leader Name</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">President</label>
                     <input
                       type="text"
                       placeholder="e.g. Ahmad Hasan"
@@ -950,11 +952,8 @@ const StudentPointsInner: React.FC = () => {
                   disabled={regSubmitting}
                   className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {regSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    'Create Class Account'
-                  )}
+                  {regSubmitting && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+                  <span>Create Class Account</span>
                 </button>
 
                 <div className="border-t border-slate-100 pt-4 text-center">

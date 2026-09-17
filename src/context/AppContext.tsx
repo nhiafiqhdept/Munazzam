@@ -52,8 +52,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMsg = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -62,7 +63,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Operation Failed:', JSON.stringify(errInfo));
+  
+  if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exceeded')) {
+    console.warn('Firestore Operation Paused (Quota Limit Exceeded):', JSON.stringify(errInfo));
+    try {
+      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
+    } catch {}
+  } else {
+    console.error('Firestore Operation Failed:', JSON.stringify(errInfo));
+  }
 }
 
 interface AppContextType {
@@ -72,6 +81,7 @@ interface AppContextType {
   isAuthenticated: boolean;
   loginUser: (token: string, user: AuthUser) => void;
   logoutUser: () => Promise<void>;
+  isQuotaExceeded: boolean;
 
   organizations: Organization[];
   currentOrg: Organization | undefined;
@@ -162,11 +172,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState<boolean>(false);
 
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [currentOrgId, setCurrentOrgId] = useState<string>('');
+  // Set up event listener for quota exceeded
+  useEffect(() => {
+    const handleQuota = () => {
+      setIsQuotaExceeded(true);
+    };
+    window.addEventListener('firestore-quota-exceeded', handleQuota);
+    return () => {
+      window.removeEventListener('firestore-quota-exceeded', handleQuota);
+    };
+  }, []);
 
-  const [organizers, setOrganizers] = useState<Organizer[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_organizations');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentOrgId, setCurrentOrgId] = useState<string>(() => {
+    return localStorage.getItem('local_currentOrgId') || '';
+  });
+
+  const [organizers, setOrganizers] = useState<Organizer[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_organizers');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [programs, setPrograms] = useState<Program[]>(() => {
     try {
       const cached = localStorage.getItem('local_programs');
@@ -175,14 +213,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
-  const [programCategories, setProgramCategories] = useState<ProgramCategory[]>([]);
-  const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [transfers, setTransfers] = useState<AccountTransfer[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [loanRepayments, setLoanRepayments] = useState<LoanRepayment[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [programCategories, setProgramCategories] = useState<ProgramCategory[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_categories');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [accounts, setAccounts] = useState<FinancialAccount[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_accounts');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [incomes, setIncomes] = useState<Income[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_incomes');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_expenses');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [transfers, setTransfers] = useState<AccountTransfer[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_transfers');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loans, setLoans] = useState<Loan[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_loans');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loanRepayments, setLoanRepayments] = useState<LoanRepayment[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_repayments');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_auditLogs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
@@ -243,7 +337,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
           }
         } catch (err) {
-          console.error('Error handling Firebase auth state:', err);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exceeded')) {
+            console.warn('Error handling Firebase auth state (Quota Exceeded):', err);
+            try {
+              window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
+            } catch {}
+          } else {
+            console.error('Error handling Firebase auth state:', err);
+          }
         } finally {
           setAuthLoading(false);
         }
@@ -336,6 +438,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setOrganizations([orgObj]);
         setCurrentOrgId(uid);
 
+        try {
+          localStorage.setItem('local_organizations', JSON.stringify([orgObj]));
+          localStorage.setItem('local_currentOrgId', uid);
+        } catch {}
+
         if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
         if (profile.name) localStorage.setItem('last_org_name', profile.name);
       }
@@ -362,7 +469,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updated_at: d.updated_at || '',
         });
       });
-      setOrganizers(list.sort((a, b) => a.display_order - b.display_order));
+      const sortedList = list.sort((a, b) => a.display_order - b.display_order);
+      setOrganizers(sortedList);
+      try {
+        localStorage.setItem('local_organizers', JSON.stringify(sortedList));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'organizers'));
 
     // 2.5 Program Categories
@@ -381,6 +492,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
       setProgramCategories(list);
+      try {
+        localStorage.setItem('local_categories', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'program_categories'));
 
     // 3. Programs
@@ -434,6 +548,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setAccounts(list);
+      try {
+        localStorage.setItem('local_accounts', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'financial_accounts'));
 
     // 5. Incomes
@@ -460,6 +577,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setIncomes(list);
+      try {
+        localStorage.setItem('local_incomes', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'incomes'));
 
     // 6. Expenses
@@ -486,6 +606,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setExpenses(list);
+      try {
+        localStorage.setItem('local_expenses', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'expenses'));
 
     // 7. Transfers
@@ -508,6 +631,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setTransfers(list);
+      try {
+        localStorage.setItem('local_transfers', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'transfers'));
 
     // 8. Loans
@@ -536,6 +662,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setLoans(list);
+      try {
+        localStorage.setItem('local_loans', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'loans'));
 
     // 9. Repayments
@@ -559,6 +688,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       });
       setLoanRepayments(list);
+      try {
+        localStorage.setItem('local_repayments', JSON.stringify(list));
+      } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'repayments'));
 
     return () => {
@@ -575,7 +707,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [user?.id, isAuthenticated]);
 
-  const currentOrg = organizations.find((o) => o.id === currentOrgId) || organizations[0];
+  const currentOrg = organizations.find((o) => o.id === currentOrgId) || organizations[0] || {
+    id: user?.id || 'offline_org',
+    name: localStorage.getItem('last_org_name') || 'My Organization',
+    college_name: 'Main Campus',
+    logo: localStorage.getItem('last_org_logo') || '',
+    tagline: 'Excellence in Action',
+    established_year: '',
+    description: '',
+    email: user?.email || '',
+    website: '',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
   // Organization Mutations
   const addOrganization = async (orgData: Omit<Organization, 'id' | 'created_at' | 'updated_at'>): Promise<Organization> => {
@@ -630,41 +774,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addOrganizer = async (organizer: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'organizers'), {
-      accountId: user.id,
-      name: organizer.name,
-      position: organizer.position,
-      display_order: organizer.display_order ?? organizers.length + 1,
-      photo: organizer.photo || '',
-      email: organizer.email || '',
-      phone: organizer.phone || '',
-      bio: organizer.bio || '',
-      academic_year: organizer.academic_year || '',
-      created_at: now,
-      updated_at: now,
-    });
-    return {
-      id: docRef.id,
+    const generatedId = 'org_' + Date.now();
+    const newOrganizer: Organizer = {
+      id: generatedId,
       organization_id: user.id,
       ...organizer,
       created_at: now,
       updated_at: now,
     };
+
+    setOrganizers((prev) => {
+      const updated = [...prev, newOrganizer];
+      try {
+        localStorage.setItem('local_organizers', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await addDoc(collection(db, 'organizers'), {
+        accountId: user.id,
+        name: organizer.name,
+        position: organizer.position,
+        display_order: organizer.display_order ?? organizers.length + 1,
+        photo: organizer.photo || '',
+        email: organizer.email || '',
+        phone: organizer.phone || '',
+        bio: organizer.bio || '',
+        academic_year: organizer.academic_year || '',
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'organizers');
+    }
+    return newOrganizer;
   };
 
   const updateOrganizer = async (organizer: Partial<Organizer> & { id: string }) => {
     if (!user?.id) return;
     const now = new Date().toISOString();
-    const docRef = doc(db, 'organizers', organizer.id);
-    const { id, organization_id, ...updates } = organizer;
-    await updateDoc(docRef, {
-      ...updates,
-      updated_at: now,
+
+    setOrganizers((prev) => {
+      const updated = prev.map((o) => o.id === organizer.id ? { ...o, ...organizer, updated_at: now } : o);
+      try {
+        localStorage.setItem('local_organizers', JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+
+    try {
+      const docRef = doc(db, 'organizers', organizer.id);
+      const { id, organization_id, ...updates } = organizer;
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `organizers/${organizer.id}`);
+    }
   };
 
   const deleteOrganizer = async (id: string) => {
-    await deleteDoc(doc(db, 'organizers', id));
+    setOrganizers((prev) => {
+      const updated = prev.filter((o) => o.id !== id);
+      try {
+        localStorage.setItem('local_organizers', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteDoc(doc(db, 'organizers', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `organizers/${id}`);
+    }
   };
 
   const reorderOrganizers = (reordered: Organizer[]) => {
@@ -964,8 +1148,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addAccount = async (acc: Omit<FinancialAccount, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<FinancialAccount> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'financial_accounts'), {
-      accountId: user.id,
+    const generatedId = 'acc_' + Date.now();
+    const newAccount: FinancialAccount = {
+      id: generatedId,
+      organization_id: user.id,
       name: acc.name,
       type: acc.type || 'cash',
       opening_balance: Number(acc.opening_balance || 0),
@@ -973,29 +1159,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       is_active: acc.is_active !== false,
       created_at: now,
       updated_at: now,
-    });
-    return {
-      id: docRef.id,
-      organization_id: user.id,
-      ...acc,
-      created_at: now,
-      updated_at: now,
     };
+
+    setAccounts((prev) => {
+      const updated = [newAccount, ...prev];
+      try {
+        localStorage.setItem('local_accounts', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await addDoc(collection(db, 'financial_accounts'), {
+        accountId: user.id,
+        name: acc.name,
+        type: acc.type || 'cash',
+        opening_balance: Number(acc.opening_balance || 0),
+        description: acc.description || '',
+        is_active: acc.is_active !== false,
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'financial_accounts');
+    }
+    return newAccount;
   };
 
   const updateAccount = async (acc: Partial<FinancialAccount> & { id: string }) => {
     if (!user?.id) return;
     const now = new Date().toISOString();
-    const docRef = doc(db, 'financial_accounts', acc.id);
-    const { id, organization_id, ...updates } = acc;
-    await updateDoc(docRef, {
-      ...updates,
-      updated_at: now,
+
+    setAccounts((prev) => {
+      const updated = prev.map((a) => a.id === acc.id ? { ...a, ...acc, updated_at: now } : a);
+      try {
+        localStorage.setItem('local_accounts', JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+
+    try {
+      const docRef = doc(db, 'financial_accounts', acc.id);
+      const { id, organization_id, ...updates } = acc;
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `financial_accounts/${acc.id}`);
+    }
   };
 
   const deleteAccount = async (id: string): Promise<boolean> => {
-    await deleteDoc(doc(db, 'financial_accounts', id));
+    setAccounts((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem('local_accounts', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteDoc(doc(db, 'financial_accounts', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `financial_accounts/${id}`);
+    }
     return true;
   };
 
@@ -1003,8 +1231,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addIncome = async (inc: Omit<Income, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Income> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'incomes'), {
-      accountId: user.id,
+    const generatedId = 'inc_' + Date.now();
+    const newIncome: Income = {
+      id: generatedId,
+      organization_id: user.id,
       account_id: inc.account_id,
       category: inc.category,
       program_id: inc.program_id || '',
@@ -1017,37 +1247,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_by: user.email || 'admin',
       created_at: now,
       updated_at: now,
-    });
-    return {
-      id: docRef.id,
-      organization_id: user.id,
-      ...inc,
-      created_at: now,
-      updated_at: now,
     };
+
+    setIncomes((prev) => {
+      const updated = [newIncome, ...prev];
+      try {
+        localStorage.setItem('local_incomes', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await addDoc(collection(db, 'incomes'), {
+        accountId: user.id,
+        account_id: inc.account_id,
+        category: inc.category,
+        program_id: inc.program_id || '',
+        date: inc.date,
+        amount: Number(inc.amount),
+        source: inc.source,
+        description: inc.description || '',
+        receipt: inc.receipt || '',
+        reference_number: inc.reference_number || '',
+        created_by: user.email || 'admin',
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'incomes');
+    }
+    return newIncome;
   };
 
   const updateIncome = async (inc: Partial<Income> & { id: string }) => {
     if (!user?.id) return;
     const now = new Date().toISOString();
-    const docRef = doc(db, 'incomes', inc.id);
-    const { id, organization_id, ...updates } = inc;
-    await updateDoc(docRef, {
-      ...updates,
-      updated_at: now,
+
+    setIncomes((prev) => {
+      const updated = prev.map((i) => i.id === inc.id ? { ...i, ...inc, updated_at: now } : i);
+      try {
+        localStorage.setItem('local_incomes', JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+
+    try {
+      const docRef = doc(db, 'incomes', inc.id);
+      const { id, organization_id, ...updates } = inc;
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `incomes/${inc.id}`);
+    }
   };
 
   const deleteIncome = async (id: string) => {
-    await deleteDoc(doc(db, 'incomes', id));
+    setIncomes((prev) => {
+      const updated = prev.filter((i) => i.id !== id);
+      try {
+        localStorage.setItem('local_incomes', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteDoc(doc(db, 'incomes', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `incomes/${id}`);
+    }
   };
 
   // Expense Mutations
   const addExpense = async (exp: Omit<Expense, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Expense> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'expenses'), {
-      accountId: user.id,
+    const generatedId = 'exp_' + Date.now();
+    const newExpense: Expense = {
+      id: generatedId,
+      organization_id: user.id,
       account_id: exp.account_id,
       category: exp.category,
       program_id: exp.program_id || '',
@@ -1060,29 +1339,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_by: user.email || 'admin',
       created_at: now,
       updated_at: now,
-    });
-    return {
-      id: docRef.id,
-      organization_id: user.id,
-      ...exp,
-      created_at: now,
-      updated_at: now,
     };
+
+    setExpenses((prev) => {
+      const updated = [newExpense, ...prev];
+      try {
+        localStorage.setItem('local_expenses', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await addDoc(collection(db, 'expenses'), {
+        accountId: user.id,
+        account_id: exp.account_id,
+        category: exp.category,
+        program_id: exp.program_id || '',
+        date: exp.date,
+        amount: Number(exp.amount),
+        paid_to: exp.paid_to,
+        description: exp.description || '',
+        receipt: exp.receipt || '',
+        reference_number: exp.reference_number || '',
+        created_by: user.email || 'admin',
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'expenses');
+    }
+    return newExpense;
   };
 
   const updateExpense = async (exp: Partial<Expense> & { id: string }) => {
     if (!user?.id) return;
     const now = new Date().toISOString();
-    const docRef = doc(db, 'expenses', exp.id);
-    const { id, organization_id, ...updates } = exp;
-    await updateDoc(docRef, {
-      ...updates,
-      updated_at: now,
+
+    setExpenses((prev) => {
+      const updated = prev.map((e) => e.id === exp.id ? { ...e, ...exp, updated_at: now } : e);
+      try {
+        localStorage.setItem('local_expenses', JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
+
+    try {
+      const docRef = doc(db, 'expenses', exp.id);
+      const { id, organization_id, ...updates } = exp;
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: now,
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `expenses/${exp.id}`);
+    }
   };
 
   const deleteExpense = async (id: string) => {
-    await deleteDoc(doc(db, 'expenses', id));
+    setExpenses((prev) => {
+      const updated = prev.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem('local_expenses', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteDoc(doc(db, 'expenses', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `expenses/${id}`);
+    }
   };
 
   // Transfer Mutations
@@ -1326,6 +1652,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetToDemoData,
         exportDataJson,
         importDataJson,
+        isQuotaExceeded,
       }}
     >
       {children}

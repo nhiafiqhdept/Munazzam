@@ -35,6 +35,7 @@ import { RepaymentModal } from './components/treasury/RepaymentModal';
 import { Organizer, Program, FinancialAccount, Loan } from './types';
 import { LogOut } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
+import { QuotaBanner } from './components/pwa/QuotaBanner';
 
 const MainLayout: React.FC = () => {
   const { currentOrg, organizations, activeTab, logoutUser, user } = useApp();
@@ -63,10 +64,12 @@ const MainLayout: React.FC = () => {
 
   // Show onboarding automatically if no organization exists
   React.useEffect(() => {
-    if (organizations.length === 0) {
+    if (!user?.id) return;
+    const skipped = localStorage.getItem(`munazzam_skipped_onboarding_${user.id}`) === 'true';
+    if (organizations.length === 0 && !skipped) {
       setIsOnboardingOpen(true);
     }
-  }, [organizations]);
+  }, [organizations, user?.id]);
 
   const handleOpenAddOrganizer = () => {
     setOrganizerToEdit(null);
@@ -258,6 +261,7 @@ const MainLayout: React.FC = () => {
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
+        isInitialSetup={organizations.length === 0}
       />
 
       <AdminLoginModal
@@ -344,6 +348,7 @@ const AuthenticatedApp: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-2 xs:p-3 sm:p-6 lg:p-8">
         <OfflineBanner />
+        <QuotaBanner />
         <div className="w-full max-w-7xl mx-auto">
           <StudentPointsPortal />
         </div>
@@ -355,6 +360,7 @@ const AuthenticatedApp: React.FC = () => {
     return (
       <>
         <OfflineBanner />
+        <QuotaBanner />
         <AuthScreen
           onLoginSuccess={(newToken, newUser) => {
             loginUser(newToken, newUser);
@@ -367,6 +373,7 @@ const AuthenticatedApp: React.FC = () => {
   return (
     <>
       <OfflineBanner />
+      <QuotaBanner />
       <MainLayout />
     </>
   );
