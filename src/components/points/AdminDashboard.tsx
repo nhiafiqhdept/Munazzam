@@ -153,11 +153,8 @@ export const AdminDashboard: React.FC = () => {
   const [bonusPoints, setBonusPoints] = useState<number>(0);
   const [deductionPoints, setDeductionPoints] = useState<number>(0);
 
-  // Stats
+  // Submissions for review count
   const pendingAchievements = achievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review');
-  const totalPointsAwarded = achievements
-    .filter(a => a.status === 'Approved')
-    .reduce((acc, curr) => acc + (Number(curr.awardedPoints) || 0), 0);
 
   // Forms states
   const [reviewPoints, setReviewPoints] = useState<number>(10);
@@ -305,40 +302,6 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6" id="admin-portal-dashboard">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Sub-Organizations</p>
-          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">{organizations.length}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">TOTAL</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Pending Reviews</p>
-          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-            <span className="text-2xl sm:text-3xl font-black text-amber-600">{pendingAchievements.length}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">SUBMISSIONS</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Points</p>
-          <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-800">{totalPointsAwarded}</span>
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-emerald-100 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs bg-emerald-50/20">
-          <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Top Performer</p>
-          <p className="font-extrabold text-emerald-950 text-xs sm:text-base mt-2 truncate">
-            {organizations[0] ? `${organizations[0].name} (${organizations[0].totalPoints} pts)` : 'None'}
-          </p>
-        </div>
-      </div>
-
       {/* Pending Sub-Organizations Alert Banner */}
       {organizations.filter(o => o.status === 'pending').length > 0 && (
         <div className="space-y-3" id="admin-pending-orgs-alerts">
@@ -1739,16 +1702,16 @@ export const AdminDashboard: React.FC = () => {
                     OFF
                   </span>
                   <span
-                    className={`inline-block h-8 w-8 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center ${
+                    className={`flex h-8 w-8 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out items-center justify-center shrink-0 ${
                       portal?.submissionsAllowed !== false ? 'translate-x-14' : 'translate-x-0'
                     }`}
                   >
                     {togglingSubmissions ? (
-                      <Loader2 className="w-3.5 h-3.5 text-slate-600 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 text-slate-600 animate-spin shrink-0" />
                     ) : portal?.submissionsAllowed !== false ? (
-                      <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                      <Check className="w-4 h-4 text-emerald-600 stroke-[3] shrink-0" />
                     ) : (
-                      <Lock className="w-3.5 h-3.5 text-rose-500" />
+                      <Lock className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </span>
                 </button>

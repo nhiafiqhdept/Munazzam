@@ -16,6 +16,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
   const [selectedMemberForDetails, setSelectedMemberForDetails] = useState<SP_Member | null>(null);
   const [viewTab, setViewTab] = useState<'leaderboard' | 'awards'>(currentTab || 'leaderboard');
   const [leaderboardScope, setLeaderboardScope] = useState<'achievers' | 'organizations'>('achievers');
+  const [awardsRecipientFilter, setAwardsRecipientFilter] = useState<'all' | 'class_organization' | 'individual'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {
@@ -574,77 +575,212 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
       )}
 
       {/* Awards Section */}
-      {viewTab === 'awards' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Awards & Certifications Gallery</h2>
-          {awards.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 text-slate-500 text-sm">
-              No awards recorded yet.
+      {viewTab === 'awards' && (() => {
+        const filteredAwards = awards.filter(award => {
+          if (awardsRecipientFilter === 'all') return true;
+          const isIndividual = award.recipientType === 'individual';
+          if (awardsRecipientFilter === 'individual') return isIndividual;
+          if (awardsRecipientFilter === 'class_organization') return !isIndividual;
+          return true;
+        });
+
+        const classOrgsCount = awards.filter(a => a.recipientType !== 'individual').length;
+        const individualsCount = awards.filter(a => a.recipientType === 'individual').length;
+
+        return (
+          <div className="space-y-4" id="awards-gallery-section">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 font-heading">Awards & Certifications Gallery</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Conferred institutional awards and excellence recognitions ({filteredAwards.length} {filteredAwards.length === 1 ? 'award' : 'awards'})
+                </p>
+              </div>
+
+              {/* Recipient Type Filter Control */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto overflow-x-auto max-w-full no-scrollbar">
+                <button
+                  type="button"
+                  id="award-filter-all"
+                  onClick={() => setAwardsRecipientFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    awardsRecipientFilter === 'all'
+                      ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>All</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    awardsRecipientFilter === 'all'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-slate-200/80 text-slate-600'
+                  }`}>
+                    {awards.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="award-filter-class-orgs"
+                  onClick={() => setAwardsRecipientFilter('class_organization')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    awardsRecipientFilter === 'class_organization'
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Class Organizations</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    awardsRecipientFilter === 'class_organization'
+                      ? 'bg-emerald-950/60 text-emerald-100'
+                      : 'bg-slate-200/80 text-slate-600'
+                  }`}>
+                    {classOrgsCount}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="award-filter-individual"
+                  onClick={() => setAwardsRecipientFilter('individual')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    awardsRecipientFilter === 'individual'
+                      ? 'bg-purple-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Individual Achievers</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    awardsRecipientFilter === 'individual'
+                      ? 'bg-purple-950/60 text-purple-100'
+                      : 'bg-slate-200/80 text-slate-600'
+                  }`}>
+                    {individualsCount}
+                  </span>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {awards.map(award => {
-                const winners = getAwardWinners(award);
-                const isIndividual = award.recipientType === 'individual';
-                return (
-                  <div key={award.id} className="bg-white rounded-3xl border border-slate-100 p-6 text-center space-y-5 shadow-sm relative overflow-hidden flex flex-col items-center hover:shadow-md transition-all duration-300">
-                    {/* Subtle Decorative Background Element */}
-                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl" />
-                    
-                    {/* Recipient Type Badge */}
-                    <div className="w-full flex justify-end">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                        isIndividual 
-                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      }`}>
-                        {isIndividual ? 'Individual Achievers' : 'Class Organization'}
-                      </span>
-                    </div>
 
-                    {/* Premium Badge */}
-                    <div className="relative w-20 h-20 flex items-center justify-center">
-                      <div className="absolute inset-0 bg-gradient-to-tr from-amber-200 to-amber-100 rounded-full blur-sm opacity-50" />
-                      <div className="relative w-16 h-16 bg-gradient-to-b from-amber-100 to-white rounded-full flex items-center justify-center text-3xl border-2 border-amber-200 shadow-inner">
-                        🏆
+            {filteredAwards.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 text-slate-500 text-sm space-y-2">
+                <p className="font-semibold text-slate-700">No awards found in this category.</p>
+                <p className="text-xs text-slate-400">
+                  {awardsRecipientFilter === 'individual' 
+                    ? 'No Individual Achiever awards have been recorded yet.' 
+                    : awardsRecipientFilter === 'class_organization'
+                    ? 'No Class Organization awards have been recorded yet.'
+                    : 'No awards recorded yet.'}
+                </p>
+                {awardsRecipientFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setAwardsRecipientFilter('all')}
+                    className="mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                  >
+                    View all awards ({awards.length})
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAwards.map(award => {
+                  const winners = getAwardWinners(award);
+                  const isIndividual = award.recipientType === 'individual';
+                  return (
+                    <div key={award.id} className="bg-white rounded-3xl border border-slate-100 p-6 text-center space-y-5 shadow-sm relative overflow-hidden flex flex-col items-center hover:shadow-md transition-all duration-300">
+                      {/* Subtle Decorative Background Element */}
+                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl" />
+                      
+                      {/* Recipient Type Badge */}
+                      <div className="w-full flex justify-end">
+                        <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                          isIndividual 
+                            ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}>
+                          {isIndividual ? 'Individual Achievers' : 'Class Organization'}
+                        </span>
                       </div>
-                    </div>
-                    
-                    {/* Award Name */}
-                    <div className="space-y-1 w-full">
-                      <h3 className="font-black text-slate-900 text-lg tracking-tight font-heading leading-tight uppercase text-emerald-950">
-                        {award.name}
-                      </h3>
-                      <div className="h-0.5 w-16 bg-amber-400 mx-auto rounded-full" />
-                    </div>
 
-                    {/* Dynamic Winner(s) Display */}
-                    {winners.length <= 1 ? (
-                      /* 1 Winner Layout */
-                      <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 w-full text-center shadow-inner-sm">
-                        <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
-                          <span>🥇</span> 1st Place Winner
-                        </p>
-                        <p className="text-sm font-black text-emerald-950 truncate" title={getWinnerDisplayName(winners[0])}>
-                          {getWinnerDisplayName(winners[0])}
-                        </p>
-                        {getWinnerSubtext(winners[0]) && (
-                          <p className="text-[10px] font-semibold text-emerald-700/80 truncate mt-0.5" title={getWinnerSubtext(winners[0])}>
-                            {getWinnerSubtext(winners[0])}
+                      {/* Premium Badge */}
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-amber-200 to-amber-100 rounded-full blur-sm opacity-50" />
+                        <div className="relative w-16 h-16 bg-gradient-to-b from-amber-100 to-white rounded-full flex items-center justify-center text-3xl border-2 border-amber-200 shadow-inner">
+                          🏆
+                        </div>
+                      </div>
+                      
+                      {/* Award Name */}
+                      <div className="space-y-1 w-full">
+                        <h3 className="font-black text-slate-900 text-lg tracking-tight font-heading leading-tight uppercase text-emerald-950">
+                          {award.name}
+                        </h3>
+                        <div className="h-0.5 w-16 bg-amber-400 mx-auto rounded-full" />
+                      </div>
+
+                      {/* Dynamic Winner(s) Display */}
+                      {winners.length <= 1 ? (
+                        /* 1 Winner Layout */
+                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 w-full text-center shadow-inner-sm">
+                          <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
+                            <span>🥇</span> 1st Place Winner
                           </p>
-                        )}
-                      </div>
-                    ) : winners.length === 2 ? (
-                      /* 2 Winners Side-by-Side */
-                      <div className="w-full space-y-2">
-                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
-                          Award Winners (2)
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                          {/* 1st Winner */}
-                          <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
-                            <span className="text-base mb-0.5">🥇</span>
-                            <span className="text-[9px] font-black text-amber-900 uppercase tracking-wider">1st Place</span>
+                          <p className="text-sm font-black text-emerald-950 truncate" title={getWinnerDisplayName(winners[0])}>
+                            {getWinnerDisplayName(winners[0])}
+                          </p>
+                          {getWinnerSubtext(winners[0]) && (
+                            <p className="text-[10px] font-semibold text-emerald-700/80 truncate mt-0.5" title={getWinnerSubtext(winners[0])}>
+                              {getWinnerSubtext(winners[0])}
+                            </p>
+                          )}
+                        </div>
+                      ) : winners.length === 2 ? (
+                        /* 2 Winners Side-by-Side */
+                        <div className="w-full space-y-2">
+                          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
+                            Award Winners (2)
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 w-full">
+                            {/* 1st Winner */}
+                            <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
+                              <span className="text-base mb-0.5">🥇</span>
+                              <span className="text-[9px] font-black text-amber-900 uppercase tracking-wider">1st Place</span>
+                              <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[0])}>
+                                {getWinnerDisplayName(winners[0])}
+                              </p>
+                              {getWinnerSubtext(winners[0]) && (
+                                <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[0])}>
+                                  {getWinnerSubtext(winners[0])}
+                                </p>
+                              )}
+                            </div>
+                            {/* 2nd Winner */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
+                              <span className="text-base mb-0.5">🥈</span>
+                              <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">2nd Place</span>
+                              <p className="text-xs font-black text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
+                                {getWinnerDisplayName(winners[1])}
+                              </p>
+                              {getWinnerSubtext(winners[1]) && (
+                                <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
+                                  {getWinnerSubtext(winners[1])}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* 3 Winners Podium Layout */
+                        <div className="w-full space-y-2">
+                          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
+                            Award Winners (3)
+                          </p>
+                          {/* 1st Place Top Featured */}
+                          <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-2.5 text-center flex flex-col items-center shadow-xs min-w-0">
+                            <div className="flex items-center gap-1">
+                              <span className="text-base">🥇</span>
+                              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider">1st Place Winner</span>
+                            </div>
                             <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[0])}>
                               {getWinnerDisplayName(winners[0])}
                             </p>
@@ -654,89 +790,54 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                               </p>
                             )}
                           </div>
-                          {/* 2nd Winner */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center flex flex-col items-center min-w-0">
-                            <span className="text-base mb-0.5">🥈</span>
-                            <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">2nd Place</span>
-                            <p className="text-xs font-black text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
-                              {getWinnerDisplayName(winners[1])}
-                            </p>
-                            {getWinnerSubtext(winners[1]) && (
-                              <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
-                                {getWinnerSubtext(winners[1])}
+                          {/* 2nd & 3rd Place Bottom Grid */}
+                          <div className="grid grid-cols-2 gap-2 w-full">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
+                              <span className="text-sm">🥈</span>
+                              <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">2nd Place</span>
+                              <p className="text-[11px] font-bold text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
+                                {getWinnerDisplayName(winners[1])}
                               </p>
-                            )}
+                              {getWinnerSubtext(winners[1]) && (
+                                <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
+                                  {getWinnerSubtext(winners[1])}
+                                </p>
+                              )}
+                            </div>
+                            <div className="bg-amber-100/40 border border-amber-200/80 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
+                              <span className="text-sm">🥉</span>
+                              <span className="text-[9px] font-bold text-amber-800/90 uppercase tracking-wider">3rd Place</span>
+                              <p className="text-[11px] font-bold text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[2])}>
+                                {getWinnerDisplayName(winners[2])}
+                              </p>
+                              {getWinnerSubtext(winners[2]) && (
+                                <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[2])}>
+                                  {getWinnerSubtext(winners[2])}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      /* 3 Winners Podium Layout */
-                      <div className="w-full space-y-2">
-                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
-                          Award Winners (3)
-                        </p>
-                        {/* 1st Place Top Featured */}
-                        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-2.5 text-center flex flex-col items-center shadow-xs min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="text-base">🥇</span>
-                            <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider">1st Place Winner</span>
-                          </div>
-                          <p className="text-xs font-black text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[0])}>
-                            {getWinnerDisplayName(winners[0])}
-                          </p>
-                          {getWinnerSubtext(winners[0]) && (
-                            <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[0])}>
-                              {getWinnerSubtext(winners[0])}
-                            </p>
-                          )}
-                        </div>
-                        {/* 2nd & 3rd Place Bottom Grid */}
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
-                            <span className="text-sm">🥈</span>
-                            <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">2nd Place</span>
-                            <p className="text-[11px] font-bold text-slate-900 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[1])}>
-                              {getWinnerDisplayName(winners[1])}
-                            </p>
-                            {getWinnerSubtext(winners[1]) && (
-                              <p className="text-[9px] font-semibold text-slate-500 truncate w-full mt-0.5" title={getWinnerSubtext(winners[1])}>
-                                {getWinnerSubtext(winners[1])}
-                              </p>
-                            )}
-                          </div>
-                          <div className="bg-amber-100/40 border border-amber-200/80 rounded-2xl p-2 text-center flex flex-col items-center min-w-0">
-                            <span className="text-sm">🥉</span>
-                            <span className="text-[9px] font-bold text-amber-800/90 uppercase tracking-wider">3rd Place</span>
-                            <p className="text-[11px] font-bold text-amber-950 truncate w-full mt-0.5" title={getWinnerDisplayName(winners[2])}>
-                              {getWinnerDisplayName(winners[2])}
-                            </p>
-                            {getWinnerSubtext(winners[2]) && (
-                              <p className="text-[9px] font-semibold text-amber-800/80 truncate w-full mt-0.5" title={getWinnerSubtext(winners[2])}>
-                                {getWinnerSubtext(winners[2])}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Description */}
-                    {award.description && (
-                      <p className="text-xs text-slate-500 leading-relaxed italic line-clamp-2">{award.description}</p>
-                    )}
-                    
-                    {/* Date */}
-                    <div className="mt-auto pt-4 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      <Calendar className="w-3 h-3 text-amber-500" />
-                      Conferred on {formatDate(award.awardDate)}
+                      {/* Description */}
+                      {award.description && (
+                        <p className="text-xs text-slate-500 leading-relaxed italic line-clamp-2">{award.description}</p>
+                      )}
+                      
+                      {/* Date */}
+                      <div className="mt-auto pt-4 border-t border-slate-100 w-full flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <Calendar className="w-3 h-3 text-amber-500" />
+                        Conferred on {formatDate(award.awardDate)}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Detail Modal */}
       {selectedAchievement && (

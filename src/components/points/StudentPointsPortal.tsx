@@ -512,6 +512,7 @@ const StudentPointsInner: React.FC = () => {
 
   const isSuborgLink = window.location.search.includes('suborg=true') || window.location.hash.includes('suborg=true');
   const [suborgViewMode, setSuborgViewMode] = useState<'login' | 'register'>('login');
+  const [showLogin, setShowLogin] = useState(false);
 
   // Direct registration states
   const { createClassOrganization, loginPortalUser } = usePortal();
@@ -738,7 +739,8 @@ const StudentPointsInner: React.FC = () => {
 
   // If not authenticated, show login screen
   if (!portalUser) {
-    if (isSuborgLink) {
+    if (showLogin) {
+      if (isSuborgLink) {
       return (
         <div className="w-full max-w-lg mx-auto my-4 sm:my-8 px-2 sm:px-0" id="direct-suborg-portal-access">
           <motion.div
@@ -976,6 +978,40 @@ const StudentPointsInner: React.FC = () => {
 
     return <PortalLogin />;
   }
+
+  // Public Mode Default: Show clean responsive header with [ Login as Sub-Org ] button, and render the ViewerDashboard directly
+  return (
+    <div className="space-y-6" id="public-portal-dashboard-wrapper">
+      {/* Public Header with Login Button */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xs">
+        <div className="flex items-center gap-3 text-center sm:text-left">
+          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+            <Trophy className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <h2 className="text-base font-black text-slate-900 font-heading">Student Points Portal</h2>
+            <p className="text-xs text-slate-500">Public Live Standings and Conferred Honors</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setSuborgViewMode('login');
+              setShowLogin(true);
+            }}
+            className="py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Login as Sub-Org</span>
+          </button>
+        </div>
+      </div>
+
+      <ViewerDashboard />
+    </div>
+  );
+}
 
   return (
     <div className="space-y-6" id="student-points-inner-wrapper">

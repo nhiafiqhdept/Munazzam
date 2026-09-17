@@ -2,6 +2,37 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Filter benign Vite development websocket connection notices in sandboxed container preview
+      (function() {
+        var origError = console.error;
+        var origWarn = console.warn;
+        var origInfo = console.info;
+
+        function isViteHmrMessage(arg) {
+          if (!arg) return false;
+          var str = typeof arg === 'string' ? arg : (arg.message || String(arg));
+          return str.indexOf('[vite] failed to connect to websocket') !== -1 ||
+                 str.indexOf('[vite] Direct websocket connection') !== -1 ||
+                 str.indexOf('[vite] connecting...') !== -1 ||
+                 str.indexOf('WebSocket (failing)') !== -1 ||
+                 str.indexOf('vite-ping') !== -1;
+        }
+
+        console.error = function() {
+          if (isViteHmrMessage(arguments[0])) return;
+          return origError.apply(console, arguments);
+        };
+        console.warn = function() {
+          if (isViteHmrMessage(arguments[0])) return;
+          return origWarn.apply(console, arguments);
+        };
+        console.info = function() {
+          if (isViteHmrMessage(arguments[0])) return;
+          return origInfo.apply(console, arguments);
+        };
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Munazzam</title>
     <meta name="description" content="A professional organization management and recordkeeping platform." />
