@@ -78,7 +78,9 @@ interface AppContextType {
   token: string | null;
   user: AuthUser | null;
   authLoading: boolean;
+  orgLoading: boolean;
   isAuthenticated: boolean;
+  hasConfiguredOrg: boolean;
   loginUser: (token: string, user: AuthUser) => void;
   logoutUser: () => Promise<void>;
   isQuotaExceeded: boolean;
@@ -171,6 +173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [orgLoading, setOrgLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState<boolean>(false);
 
@@ -333,6 +336,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 tagline: 'Excellence in Action',
                 logo: '',
                 email: firebaseUser.email,
+                isInitialized: false,
               },
             });
           }
@@ -365,6 +369,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLoanRepayments([]);
         setAuditLogs([]);
         setAuthLoading(false);
+        setOrgLoading(false);
       }
     });
 
@@ -422,6 +427,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (snapshot.exists()) {
         const data = snapshot.data();
         const profile = data.profile || {};
+        const isInitialized = profile.isInitialized ?? (profile.name && profile.name !== 'My Organization' && profile.name !== '');
         const orgObj: Organization = {
           id: uid,
           name: profile.name || 'My Organization',
@@ -434,6 +440,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           website: profile.website || '',
           created_at: data.createdAt || new Date().toISOString(),
           updated_at: data.updatedAt || new Date().toISOString(),
+          isInitialized: isInitialized,
+          about: profile.about || '',
+          academic_year: profile.academic_year || '',
         };
         setOrganizations([orgObj]);
         setCurrentOrgId(uid);
@@ -446,7 +455,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
         if (profile.name) localStorage.setItem('last_org_name', profile.name);
       }
-    }, (err) => handleFirestoreError(err, OperationType.GET, `accounts/${uid}`));
+      setOrgLoading(false);
+    }, (err) => {
+      setOrgLoading(false);
+      handleFirestoreError(err, OperationType.GET, `accounts/${uid}`);
+    });
 
     // 2. Organizers
     const qOrganizers = query(collection(db, 'organizers'), where('accountId', '==', uid));
@@ -737,6 +750,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: orgData.description || '',
         email: orgData.email || user.email || '',
         website: orgData.website || '',
+        about: orgData.about || '',
+        academic_year: orgData.academic_year || '',
       },
     });
     return {
@@ -762,6 +777,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: orgData.description ?? currentOrg?.description,
         email: orgData.email ?? currentOrg?.email,
         website: orgData.website ?? currentOrg?.website,
+        about: orgData.about ?? currentOrg?.about ?? '',
+        academic_year: orgData.academic_year ?? currentOrg?.academic_year ?? '',
       },
     });
   };
@@ -1563,13 +1580,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   };
 
+  const hasConfiguredOrg = organizations.length > 0 && organizations.some((o) => o.isInitialized);
+
   return (
     <AppContext.Provider
       value={{
         token,
         user,
         authLoading,
+        orgLoading,
         isAuthenticated,
+        hasConfiguredOrg,
         loginUser,
         logoutUser,
 

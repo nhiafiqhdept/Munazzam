@@ -123,11 +123,11 @@ export const Header: React.FC<HeaderProps> = ({
 
               <div className="flex items-center gap-1.5 flex-wrap text-xs sm:text-sm text-slate-600 font-medium leading-snug">
                 <span className="text-emerald-800 font-semibold break-words">{currentOrg.college_name}</span>
-                {currentOrg.established_year && (
+                {currentOrg.academic_year && (
                   <>
                     <span className="text-slate-300">•</span>
-                    <span className="text-slate-500 text-xs">
-                      Est. {currentOrg.established_year}
+                    <span className="text-slate-500 text-xs sm:text-sm font-medium">
+                      {currentOrg.academic_year}
                     </span>
                   </>
                 )}

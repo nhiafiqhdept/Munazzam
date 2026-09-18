@@ -1017,7 +1017,7 @@ export const AdminDashboard: React.FC = () => {
                     No class organizations found. Register or create one using the sidebar form.
                   </div>
                 ) : (
-                  organizations.map((org) => (
+                  organizations.filter(org => org.status !== 'rejected').map((org) => (
                     <div key={org.id} className="flex items-center justify-between py-3.5 group hover:bg-slate-50/60 px-2.5 rounded-2xl transition-colors gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`w-10 h-10 ${org.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-100'} border rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs`}>

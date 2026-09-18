@@ -138,7 +138,7 @@ export interface SP_Organization {
   description: string;
   leader: string;
   contactDetails: string;
-  status: 'active' | 'inactive' | 'pending';
+  status: 'active' | 'inactive' | 'pending' | 'rejected';
   totalPoints: number;
   createdAt: string;
   updatedAt: string;
@@ -1098,7 +1098,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             'sp_notifications',
             'sp_announcements',
             'sp_registration_links',
-            'sp_users'
+            'sp_users',
+            'sp_categories',
+            'sp_competitions'
           ];
 
           const refsToDelete: any[] = [];
@@ -1719,7 +1721,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       'sp_announcements',
       'sp_awards',
       'sp_registration_links',
-      'sp_users'
+      'sp_users',
+      'sp_categories',
+      'sp_competitions'
     ];
 
     for (const colName of scopedCollections) {
@@ -1867,7 +1871,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       'sp_announcements',
       'sp_awards',
       'sp_registration_links',
-      'sp_users'
+      'sp_users',
+      'sp_categories',
+      'sp_competitions'
     ];
 
     for (const colName of scopedCollections) {

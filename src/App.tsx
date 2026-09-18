@@ -38,7 +38,7 @@ import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
 
 const MainLayout: React.FC = () => {
-  const { currentOrg, organizations, activeTab, logoutUser, user } = useApp();
+  const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg } = useApp();
 
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -62,15 +62,6 @@ const MainLayout: React.FC = () => {
   const [isRepaymentModalOpen, setIsRepaymentModalOpen] = useState(false);
   const [repaymentLoan, setRepaymentLoan] = useState<Loan | null>(null);
 
-  // Show onboarding automatically if no organization exists
-  React.useEffect(() => {
-    if (!user?.id) return;
-    const skipped = localStorage.getItem(`munazzam_skipped_onboarding_${user.id}`) === 'true';
-    if (organizations.length === 0 && !skipped) {
-      setIsOnboardingOpen(true);
-    }
-  }, [organizations, user?.id]);
-
   const handleOpenAddOrganizer = () => {
     setOrganizerToEdit(null);
     setIsOrganizerModalOpen(true);
@@ -93,6 +84,34 @@ const MainLayout: React.FC = () => {
 
   const isTreasuryTab = activeTab.startsWith('treasury');
 
+  if (!hasConfiguredOrg) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col justify-between items-center p-6 text-white relative">
+        <div className="w-full max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 p-1 border border-emerald-500/20 flex items-center justify-center">
+              <img src="/icon.svg" alt="Munazzam" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/icon-192x192.png'; }} />
+            </div>
+            <span className="font-bold tracking-tight text-white font-heading text-sm">Munazzam</span>
+          </div>
+          <button
+            onClick={logoutUser}
+            className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1.5 cursor-pointer bg-rose-500/10 border border-rose-500/20 px-3.5 py-1.5 rounded-xl active:scale-95"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Logout ({user?.username || user?.email})</span>
+          </button>
+        </div>
+
+        <OnboardingModal isOpen={true} isInitialSetup={true} />
+
+        <div className="text-center text-xs text-slate-500 max-w-sm mt-8">
+          &copy; {new Date().getFullYear()} Munazzam. All rights reserved.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans relative">
       {/* Top Header */}
@@ -109,128 +128,102 @@ const MainLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32">
-        {organizations.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 space-y-4 shadow-sm">
-            <h2 className="text-2xl font-bold font-heading text-slate-900">Welcome to Organization Manager</h2>
-            <p className="text-sm text-slate-600">
-              You haven't created any organizations yet under your account ({user?.username || user?.email}). Create your first organization to get started.
-            </p>
-            <button
-              onClick={() => setIsOnboardingOpen(true)}
-              className="py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm inline-flex items-center gap-2 cursor-pointer"
-            >
-              + Create Organization
-            </button>
-            <div className="pt-4 border-t border-slate-100 flex justify-center">
-              <button
-                onClick={logoutUser}
-                className="text-xs text-rose-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Logout ({user?.username || user?.email})</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {activeTab === 'dashboard' && (
-              <Dashboard
-                onOpenAddProgram={handleOpenAddProgram}
-                onOpenAddOrganizer={handleOpenAddOrganizer}
-              />
-            )}
-
-            {activeTab === 'organizers' && (
-              <OrganizersView
-                onOpenAddModal={handleOpenAddOrganizer}
-                onOpenEditModal={handleOpenEditOrganizer}
-              />
-            )}
-
-            {activeTab === 'programs' && (
-              <ProgramsView
-                onOpenAddModal={handleOpenAddProgram}
-                onOpenEditModal={handleOpenEditProgram}
-              />
-            )}
-
-            {(activeTab === 'program_details' || activeTab === 'program-details') && (
-              <ProgramDetailsView onOpenEditModal={handleOpenEditProgram} />
-            )}
-
-            {activeTab === 'settings' && (
-              <OrgSettingsView
-                onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
-                onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-              />
-            )}
-
-            {/* Treasury Views */}
-            {activeTab === 'treasury-dashboard' && (
-              <TreasuryDashboardView
-                onOpenAddIncome={() => setIsIncomeModalOpen(true)}
-                onOpenAddExpense={() => setIsExpenseModalOpen(true)}
-                onOpenAddTransfer={() => setIsTransferModalOpen(true)}
-                onOpenAddLoan={() => setIsLoanModalOpen(true)}
-                onOpenAddAccount={() => {
-                  setAccountToEdit(null);
-                  setIsAccountModalOpen(true);
-                }}
-              />
-            )}
-
-            {activeTab === 'treasury-accounts' && (
-              <AccountsView
-                onOpenAddModal={() => {
-                  setAccountToEdit(null);
-                  setIsAccountModalOpen(true);
-                }}
-                onOpenEditModal={(acc) => {
-                  setAccountToEdit(acc);
-                  setIsAccountModalOpen(true);
-                }}
-              />
-            )}
-
-            {activeTab === 'treasury-income' && (
-              <IncomeView
-                onOpenAddModal={() => setIsIncomeModalOpen(true)}
-                onViewTransaction={() => {}}
-              />
-            )}
-
-            {activeTab === 'treasury-expenses' && (
-              <ExpenseView
-                onOpenAddModal={() => setIsExpenseModalOpen(true)}
-                onViewTransaction={() => {}}
-              />
-            )}
-
-            {activeTab === 'treasury-loans' && (
-              <LoansView
-                onOpenAddLoan={() => setIsLoanModalOpen(true)}
-                onOpenRepayment={(loan) => {
-                  setRepaymentLoan(loan);
-                  setIsRepaymentModalOpen(true);
-                }}
-              />
-            )}
-
-            {activeTab === 'treasury-transfers' && (
-              <TransfersView onOpenAddTransfer={() => setIsTransferModalOpen(true)} />
-            )}
-
-            {activeTab === 'treasury-events' && <EventsView />}
-
-            {activeTab === 'treasury-ledger' && <LedgerView />}
-
-            {activeTab === 'treasury-cashbook' && <CashBookView />}
-
-            {activeTab === 'treasury-reports' && <ReportsView />}
-
-            {activeTab === 'student-points' && <StudentPointsPortal />}
-          </>
+        {activeTab === 'dashboard' && (
+          <Dashboard
+            onOpenAddProgram={handleOpenAddProgram}
+            onOpenAddOrganizer={handleOpenAddOrganizer}
+          />
         )}
+
+        {activeTab === 'organizers' && (
+          <OrganizersView
+            onOpenAddModal={handleOpenAddOrganizer}
+            onOpenEditModal={handleOpenEditOrganizer}
+          />
+        )}
+
+        {activeTab === 'programs' && (
+          <ProgramsView
+            onOpenAddModal={handleOpenAddProgram}
+            onOpenEditModal={handleOpenEditProgram}
+          />
+        )}
+
+        {(activeTab === 'program_details' || activeTab === 'program-details') && (
+          <ProgramDetailsView onOpenEditModal={handleOpenEditProgram} />
+        )}
+
+        {activeTab === 'settings' && (
+          <OrgSettingsView
+            onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
+            onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+          />
+        )}
+
+        {/* Treasury Views */}
+        {activeTab === 'treasury-dashboard' && (
+          <TreasuryDashboardView
+            onOpenAddIncome={() => setIsIncomeModalOpen(true)}
+            onOpenAddExpense={() => setIsExpenseModalOpen(true)}
+            onOpenAddTransfer={() => setIsTransferModalOpen(true)}
+            onOpenAddLoan={() => setIsLoanModalOpen(true)}
+            onOpenAddAccount={() => {
+              setAccountToEdit(null);
+              setIsAccountModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'treasury-accounts' && (
+          <AccountsView
+            onOpenAddModal={() => {
+              setAccountToEdit(null);
+              setIsAccountModalOpen(true);
+            }}
+            onOpenEditModal={(acc) => {
+              setAccountToEdit(acc);
+              setIsAccountModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'treasury-income' && (
+          <IncomeView
+            onOpenAddModal={() => setIsIncomeModalOpen(true)}
+            onViewTransaction={() => {}}
+          />
+        )}
+
+        {activeTab === 'treasury-expenses' && (
+          <ExpenseView
+            onOpenAddModal={() => setIsExpenseModalOpen(true)}
+            onViewTransaction={() => {}}
+          />
+        )}
+
+        {activeTab === 'treasury-loans' && (
+          <LoansView
+            onOpenAddLoan={() => setIsLoanModalOpen(true)}
+            onOpenRepayment={(loan) => {
+              setRepaymentLoan(loan);
+              setIsRepaymentModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'treasury-transfers' && (
+          <TransfersView onOpenAddTransfer={() => setIsTransferModalOpen(true)} />
+        )}
+
+        {activeTab === 'treasury-events' && <EventsView />}
+
+        {activeTab === 'treasury-ledger' && <LedgerView />}
+
+        {activeTab === 'treasury-cashbook' && <CashBookView />}
+
+        {activeTab === 'treasury-reports' && <ReportsView />}
+
+        {activeTab === 'student-points' && <StudentPointsPortal />}
       </main>
 
       {/* Institutional Academic Footer */}
@@ -313,14 +306,14 @@ const MainLayout: React.FC = () => {
 };
 
 const AuthenticatedApp: React.FC = () => {
-  const { token, user, authLoading, loginUser } = useApp();
+  const { token, user, authLoading, orgLoading, loginUser } = useApp();
 
   const isSuborgPortal = window.location.search.includes('suborg=true') || 
                          window.location.hash.includes('suborg=true') || 
                          window.location.search.includes('reg=') || 
                          window.location.hash.includes('reg=');
 
-  if (authLoading && !isSuborgPortal) {
+  if ((authLoading || orgLoading) && !isSuborgPortal) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center">

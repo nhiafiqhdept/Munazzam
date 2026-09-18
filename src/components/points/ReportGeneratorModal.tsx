@@ -35,17 +35,29 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Configuration filters
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('all');
-  const [academicYear, setAcademicYear] = useState<string>('2026–27');
-  const [reportType, setReportType] = useState<
-    'Monthly Progress Report' | 'Evaluation Period Report' | 'Organization Performance Report' | 'Student Points Report' | 'Complete Points & Achievements Report'
-  >('Monthly Progress Report');
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('all');
-  const [reportTitle, setReportTitle] = useState<string>('NSU MONTHLY PROGRESS REPORT');
-  const [reportVersion, setReportVersion] = useState<number>(1);
-  const [activeTab, setActiveTab] = useState<'preview' | 'config' | 'snapshots'>('preview');
+  // Configuration filters (empty by default)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [academicYear, setAcademicYear] = useState<string>('');
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+  const [reportTitle, setReportTitle] = useState<string>('');
+  const [reportVersion, setReportVersion] = useState<string>('');
+  const [preparedBy, setPreparedBy] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'preview' | 'config' | 'snapshots'>('config'); // Always open "Configure Report" first
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  // Check if there are unsaved changes
+  const hasChanges = useMemo(() => {
+    return (
+      selectedPeriodId !== '' ||
+      academicYear !== '' ||
+      selectedOrgId !== '' ||
+      reportTitle !== '' ||
+      reportVersion !== '' ||
+      preparedBy !== ''
+    );
+  }, [selectedPeriodId, academicYear, selectedOrgId, reportTitle, reportVersion, preparedBy]);
 
   // Saved snapshots state
   const [snapshots, setSnapshots] = useState<Array<{
@@ -68,7 +80,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
 
   // Selected period object
   const selectedPeriod = useMemo(() => {
-    if (selectedPeriodId === 'all') return null;
+    if (!selectedPeriodId || selectedPeriodId === 'all') return null;
     return competitions.find(c => c.id === selectedPeriodId) || null;
   }, [selectedPeriodId, competitions]);
 
@@ -76,7 +88,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
     setIsGeneratingPdf(true);
     try {
       const { jsPDF } = await import('jspdf');
-      const html2canvas = (await import('html2canvas')).default;
+      const html2canvas = (await import('html2canvas-pro')).default;
       const input = document.getElementById('report-document');
       if (!input) return;
       const canvas = await html2canvas(input, { scale: 2, logging: false });
@@ -94,10 +106,46 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
     }
   };
 
-  // ... (rest of the file unchanged, replace Modal Header and Action Bar)
+  const handleGeneratePreview = () => {
+    if (!selectedPeriodId) {
+      setValidationError('Please select an Evaluation Period.');
+      return;
+    }
+    if (!academicYear.trim()) {
+      setValidationError('Please enter Academic Year.');
+      return;
+    }
+    if (!selectedOrgId) {
+      setValidationError('Please select an Organization / Batch Filter.');
+      return;
+    }
+    if (!reportTitle.trim()) {
+      setValidationError('Please enter a Report Title.');
+      return;
+    }
+    if (!reportVersion.trim()) {
+      setValidationError('Please enter a Report Version.');
+      return;
+    }
+    if (!preparedBy.trim()) {
+      setValidationError('Please enter Prepared By.');
+      return;
+    }
+    setValidationError(null);
+    setActiveTab('preview');
+  };
+
+  const handleClose = () => {
+    if (hasChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   // Filtered achievements based on selected period
   const periodFilteredAchievements = useMemo(() => {
+    if (!selectedPeriodId) return [];
     return achievements.filter(ach => {
       if (selectedPeriodId !== 'all') {
         const pId = getAchievementPeriodId(ach, competitions);
@@ -114,6 +162,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
 
   // Filtered awards based on selected period
   const periodFilteredAwards = useMemo(() => {
+    if (!selectedPeriodId) return [];
     return awards.filter(award => {
       if (selectedPeriodId !== 'all') {
         const pId = getAwardPeriodId(award, competitions);
@@ -358,7 +407,8 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
   // Reference number generation
   const reportRefNo = useMemo(() => {
     const periodCode = selectedPeriod ? selectedPeriod.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase() : 'OCT26';
-    return `MUN/MPR/${periodCode}/${String(reportVersion).padStart(3, '0')}`;
+    const versionNum = String(reportVersion || '1');
+    return `MUN/MPR/${periodCode}/${versionNum.padStart(3, '0')}`;
   }, [selectedPeriod, reportVersion]);
 
   // Save snapshot handler
@@ -368,8 +418,8 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
       title: reportTitle,
       periodName: selectedPeriod ? selectedPeriod.name : 'All Evaluation Periods',
       academicYear,
-      type: reportType,
-      version: reportVersion,
+      type: '',
+      version: Number(reportVersion) || 1,
       date: new Date().toISOString(),
       summary: {
         totalPoints: summaryStats.grandTotalPoints,
@@ -391,11 +441,47 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden">
+      {/* Discard Confirmation Modal overlay */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100">
+            <h4 className="font-extrabold text-slate-900 text-sm">Discard report configuration?</h4>
+            <p className="text-xs text-slate-500">All unsaved report parameter settings and filters will be lost.</p>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={() => setShowDiscardConfirm(false)}
+                className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  onClose();
+                }}
+                className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden relative">
         
         {/* Modal Header */}
-        <div className="bg-[#1B4D3E] text-white p-6 shrink-0">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-[#1B4D3E] text-white p-6 shrink-0 relative">
+          <button 
+            onClick={handleClose}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full text-white/80 hover:text-white transition-colors cursor-pointer z-10 md:top-6 md:right-6"
+            title="Close"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 stroke-[2.5]" />
+          </button>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pr-10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-[#C5A059] border border-[#C5A059]/30">
                 <FileText className="w-5 h-5" />
@@ -416,7 +502,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                 Configure Report
               </button>
               <button
-                onClick={() => setActiveTab('preview')}
+                onClick={handleGeneratePreview}
                 className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
                   activeTab === 'preview' ? 'bg-[#C5A059] text-slate-950 border-[#C5A059] shadow-sm' : 'bg-transparent text-white border-white/20 hover:bg-white/10'
                 }`}
@@ -438,14 +524,23 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                 <p className="text-xs text-slate-500 mt-0.5">Configure the criteria for automatic report generation from verified Munazzam data.</p>
               </div>
 
+              {validationError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold p-3.5 rounded-2xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{validationError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. EVALUATION PERIOD */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Evaluation Period</label>
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Evaluation Period</label>
                   <select
                     value={selectedPeriodId}
                     onChange={(e) => setSelectedPeriodId(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   >
+                    <option value="">[ Select Evaluation Period ]</option>
                     <option value="all">All Evaluation Periods (Cumulative)</option>
                     {competitions.map(comp => (
                       <option key={comp.id} value={comp.id}>
@@ -455,8 +550,9 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   </select>
                 </div>
 
+                {/* 2. ACADEMIC YEAR */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Academic Year</label>
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Academic Year</label>
                   <input
                     type="text"
                     value={academicYear}
@@ -466,36 +562,15 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   />
                 </div>
 
+                {/* 3. ORGANIZATION / BATCH FILTER */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Report Type</label>
-                  <select
-                    value={reportType}
-                    onChange={(e) => {
-                      const val = e.target.value as any;
-                      setReportType(val);
-                      if (val === 'Monthly Progress Report') setReportTitle('NSU MONTHLY PROGRESS REPORT');
-                      else if (val === 'Evaluation Period Report') setReportTitle('NSU EVALUATION PERIOD REPORT');
-                      else if (val === 'Organization Performance Report') setReportTitle('NSU ORGANIZATION PERFORMANCE REPORT');
-                      else if (val === 'Student Points Report') setReportTitle('NSU STUDENT POINTS & LEADERBOARD REPORT');
-                      else setReportTitle('NSU COMPLETE POINTS & ACHIEVEMENTS REPORT');
-                    }}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  >
-                    <option value="Monthly Progress Report">Monthly Progress Report</option>
-                    <option value="Evaluation Period Report">Evaluation Period Report</option>
-                    <option value="Organization Performance Report">Organization Performance Report</option>
-                    <option value="Student Points Report">Student Points Report</option>
-                    <option value="Complete Points & Achievements Report">Complete Points & Achievements Report</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Organization / Batch Filter</label>
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Organization / Batch Filter</label>
                   <select
                     value={selectedOrgId}
                     onChange={(e) => setSelectedOrgId(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   >
+                    <option value="">[ Select Organization / Batch ]</option>
                     <option value="all">All Organizations & Batches</option>
                     {organizations.map(org => (
                       <option key={org.id} value={org.id}>{org.name}</option>
@@ -503,37 +578,54 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   </select>
                 </div>
 
+                {/* 4. REPORT TITLE */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Report Title</label>
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Report Title</label>
                   <input
                     type="text"
                     value={reportTitle}
                     onChange={(e) => setReportTitle(e.target.value)}
+                    placeholder="Enter Report Title"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
 
+                {/* 5. REPORT VERSION */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Report Version (Revision)</label>
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Report Version (Revision)</label>
                   <div className="flex items-center gap-2">
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
                       value={reportVersion}
-                      onChange={(e) => setReportVersion(Number(e.target.value))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      onChange={(e) => setReportVersion(e.target.value)}
+                      placeholder="e.g. 1"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 animate-none"
                     />
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-3 rounded-2xl border border-emerald-200 whitespace-nowrap">
-                      v{reportVersion} Revised
-                    </span>
+                    {reportVersion.trim() && (
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-3 rounded-2xl border border-emerald-200 whitespace-nowrap">
+                        v{reportVersion} Revised
+                      </span>
+                    )}
                   </div>
+                </div>
+
+                {/* 6. PREPARED BY */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">Prepared By</label>
+                  <input
+                    type="text"
+                    value={preparedBy}
+                    onChange={(e) => setPreparedBy(e.target.value)}
+                    placeholder="Enter name / designation"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
                 </div>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('preview')}
+                  onClick={handleGeneratePreview}
                   className="px-6 py-3 bg-[#1B4D3E] hover:bg-[#14392e] text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Eye className="w-4 h-4" />
@@ -623,18 +715,16 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-xs bg-slate-50/70 p-4 rounded-2xl border border-slate-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-xs bg-slate-50/70 p-4 rounded-2xl border border-slate-200">
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Prepared by</p>
-                      <p className="font-extrabold text-slate-800 mt-0.5">NSU Directorate of PRO</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Verified by</p>
-                      <p className="font-extrabold text-slate-800 mt-0.5">NSU Supreme Cabinet</p>
+                      <p className="font-extrabold text-slate-800 mt-0.5">{preparedBy || '—'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Dataset Scope</p>
-                      <p className="font-extrabold text-emerald-800 mt-0.5">Verified Records Only</p>
+                      <p className="font-extrabold text-emerald-800 mt-0.5">
+                        {selectedOrgId === 'all' ? 'All Batches (Verified)' : `${organizations.find(o => o.id === selectedOrgId)?.name || 'Batch'} (Verified)`}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Status</p>

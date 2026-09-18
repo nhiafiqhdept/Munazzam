@@ -20,6 +20,9 @@ export interface Organization {
   website?: string;
   created_at: string;
   updated_at: string;
+  isInitialized?: boolean;
+  about?: string;
+  academic_year?: string;
 }
 
 export interface Organizer {

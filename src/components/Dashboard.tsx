@@ -187,42 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
         </div>
       </section>
 
-      {/* 3. Optional Organization Profile / About Section */}
-      {currentOrg.description && currentOrg.description.trim().length > 0 && (
-        <section className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs">
-          <div className="flex items-center gap-2 mb-2">
-            <Building className="w-4 h-4 text-slate-500" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              About the Organization
-            </h2>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-            {currentOrg.description}
-          </p>
 
-          {(currentOrg.email || currentOrg.website) && (
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-600 flex-wrap">
-              {currentOrg.email && (
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{currentOrg.email}</span>
-                </span>
-              )}
-              {currentOrg.website && (
-                <a
-                  href={currentOrg.website.startsWith('http') ? currentOrg.website : `https://${currentOrg.website}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-emerald-700 hover:underline"
-                >
-                  <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{currentOrg.website}</span>
-                </a>
-              )}
-            </div>
-          )}
-        </section>
-      )}
 
       {/* 4. Recent Programs Section */}
       <section className="space-y-3">
@@ -331,7 +296,89 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
         )}
       </section>
 
-      {/* 5. Treasury Overview & Quick Modules Grid */}
+      {/* 5. Organization Information Card Section */}
+      {(currentOrg.tagline || currentOrg.academic_year || currentOrg.about || currentOrg.description) && (
+        <section className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+            <Building className="w-4.5 h-4.5 text-emerald-700 shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Organization Profile & Identity
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Column 1 & 2: About / Mission */}
+            {(currentOrg.about || currentOrg.description) ? (
+              <div className="md:col-span-2 space-y-2">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  About & Mission Statement
+                </h3>
+                <p className="text-sm text-slate-700 leading-relaxed text-justify whitespace-pre-line">
+                  {currentOrg.about || currentOrg.description}
+                </p>
+              </div>
+            ) : (
+              <div className="md:col-span-2 flex items-center justify-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-xs text-slate-400">
+                Configure your About/Mission statement in settings to showcase here.
+              </div>
+            )}
+
+            {/* Column 3: Identity & Motto */}
+            <div className="space-y-4">
+              {currentOrg.tagline && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Motto / Tagline
+                  </h4>
+                  <p className="text-sm font-semibold text-emerald-800 italic bg-emerald-50/50 px-3.5 py-3 rounded-xl border border-emerald-100/45 leading-relaxed">
+                    "{currentOrg.tagline}"
+                  </p>
+                </div>
+              )}
+
+              {currentOrg.academic_year && (
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Academic Year / Term
+                  </h4>
+                  <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3.5 py-2.5 rounded-xl border border-slate-100">
+                    {currentOrg.academic_year}
+                  </p>
+                </div>
+              )}
+
+              {(currentOrg.email || currentOrg.website) && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Official Contacts
+                  </h4>
+                  <div className="space-y-1.5 text-xs font-medium font-sans">
+                    {currentOrg.email && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="truncate">{currentOrg.email}</span>
+                      </div>
+                    )}
+                    {currentOrg.website && (
+                      <a
+                        href={currentOrg.website.startsWith('http') ? currentOrg.website : `https://${currentOrg.website}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-emerald-700 hover:text-emerald-800 transition-colors hover:underline"
+                      >
+                        <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="truncate">{currentOrg.website}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 6. Treasury Overview & Quick Modules Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Treasury Financial Summary Box */}
         <section className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col justify-between">
@@ -432,7 +479,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
         </section>
       </div>
 
-      {/* 6. Executive Committee / Organizers Section (If any exist) */}
+      {/* 7. Executive Committee / Organizers Section (If any exist) */}
       {organizers.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">

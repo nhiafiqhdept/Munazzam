@@ -14,7 +14,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onClose,
   isInitialSetup = false,
 }) => {
-  const { addOrganization, organizations, setShowOnboarding, user } = useApp();
+  const { addOrganization, organizations, setShowOnboarding, user, hasConfiguredOrg } = useApp();
 
   const [name, setName] = useState('');
   const [collegeName, setCollegeName] = useState('');
@@ -26,6 +26,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [logo, setLogo] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   const handleDoItLater = () => {
@@ -56,8 +57,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!name.trim()) {
       setError('Please provide an organization name.');
       return;
@@ -67,25 +69,31 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       return;
     }
 
-    addOrganization({
-      name: name.trim(),
-      college_name: collegeName.trim(),
-      logo: logo,
-      tagline: tagline.trim(),
-      established_year: establishedYear.trim(),
-      description: description.trim(),
-      email: email.trim(),
-      website: website.trim(),
-    });
-
-    setShowOnboarding(false);
-    if (onClose) onClose();
+    try {
+      setIsSaving(true);
+      await addOrganization({
+        name: name.trim(),
+        college_name: collegeName.trim(),
+        logo: logo,
+        tagline: tagline.trim(),
+        established_year: establishedYear.trim(),
+        description: description.trim(),
+        email: email.trim(),
+        website: website.trim(),
+      });
+      setShowOnboarding(false);
+      if (onClose) onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save organization.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 py-8 sm:py-12 md:py-16">
       <div
-        id="onboarding-setup-modal"
+         id="onboarding-setup-modal"
         className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto"
       >
         {/* Modal Header */}
@@ -96,10 +104,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
             <div>
               <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">
-                {isInitialSetup ? 'Welcome to Academic Org Manager' : 'New Organization'}
+                NEW ORGANIZATION
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-100">
-                {isInitialSetup ? 'Set Up Organization Profile' : 'Add Organization'}
+                Add Organization
               </h2>
             </div>
           </div>
@@ -277,22 +285,25 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           {/* Footer Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 w-full">
             <div>
-              <button
-                id="onboarding-do-it-later-btn"
-                type="button"
-                onClick={handleDoItLater}
-                className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 rounded-xl transition-all border border-transparent hover:border-slate-200 text-center cursor-pointer active:scale-95"
-              >
-                Do It Later
-              </button>
+              {hasConfiguredOrg && (
+                <button
+                  id="onboarding-do-it-later-btn"
+                  type="button"
+                  onClick={handleDoItLater}
+                  className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 rounded-xl transition-all border border-transparent hover:border-slate-200 text-center cursor-pointer active:scale-95"
+                >
+                  Do It Later
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
-              {!isInitialSetup && organizations.length > 0 && (
+              {onClose && hasConfiguredOrg && (
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer text-center"
+                  disabled={isSaving}
+                  className="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer text-center disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -300,10 +311,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <button
                 id="submit-onboarding-btn"
                 type="submit"
-                className="w-full sm:w-auto px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
+                disabled={isSaving}
+                className="w-full sm:w-auto px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-700/60 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0 disabled:cursor-not-allowed"
               >
-                <Check className="w-4 h-4" />
-                <span>{isInitialSetup ? 'Complete Setup & Launch Dashboard' : 'Save Organization'}</span>
+                {isSaving ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                <span>{isSaving ? 'Creating...' : 'Save Organization'}</span>
               </button>
             </div>
           </div>
