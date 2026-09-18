@@ -566,6 +566,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Review Tab */}
       {activeTab === 'review' && (
         <div className="space-y-6">
+          {/* Reusable sections */}
           {!selectedOrgId ? (
             // STEP 1: Grid of Organizations
             <div className="space-y-4">
@@ -583,157 +584,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">Select a class organization to inspect and review their submitted programs and achievements.</p>
                 </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right hidden sm:block">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Submissions Status</span>
-                    <span className={`text-xs font-black inline-flex items-center gap-1.5 ${
-                      portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                      }`} />
-                      {portal?.submissionsAllowed !== false ? 'Accepting Submissions' : 'Submissions Paused'}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={handleToggleSubmissions}
-                    disabled={togglingSubmissions}
-                    className={`py-2 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
-                      portal?.submissionsAllowed !== false
-                        ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
-                        : 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700'
-                    }`}
-                    title={portal?.submissionsAllowed !== false ? 'Pause achievement submissions from class organizations' : 'Open achievement submissions'}
-                  >
-                    {togglingSubmissions ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Power className="w-3.5 h-3.5" />
-                    )}
-                    <span>{portal?.submissionsAllowed !== false ? 'Pause Submissions' : 'Open Submissions'}</span>
-                  </button>
-                </div>
               </div>
-
-              {/* Standalone Evaluation Period Selector Control Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <EvaluationPeriodSelector
-                    selectedPeriod={selectedPeriodFilter}
-                    onSelectPeriod={setSelectedPeriodFilter}
-                    competitions={competitions}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setIsReportModalOpen(true)}
-                    className="px-4 py-2 bg-[#1B4D3E] hover:bg-[#14392e] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-[#C5A059]" />
-                    <span>Generate Progress Report</span>
-                  </button>
-
-                  <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-600 bg-slate-50/90 px-3 py-1.5 rounded-xl border border-slate-100 shrink-0">
-                    <span className="font-semibold text-slate-500 text-[11px]">Period Stats:</span>
-                    <span className="font-black text-slate-800">
-                      {periodFilteredAchievements.length} Total
-                    </span>
-                    <span className="text-slate-300">•</span>
-                    <span className={`font-black ${pendingAchievements.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
-                      {pendingAchievements.length} Pending
-                    </span>
-                    <span className="text-slate-300">•</span>
-                    <span className="font-black text-emerald-800">
-                      +{periodFilteredAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)} pts
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {submittingOrgsForSelectedPeriod.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center shadow-2xs">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3.5 border border-emerald-200/60 shadow-2xs">
-                    <FileText className="w-6 h-6 sm:w-7 sm:h-7" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">No Submissions Yet</h3>
-                  <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-                    No achievements or programs have been submitted by any class organization for this evaluation period. When an organization submits an achievement, it will automatically appear here.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {submittingOrgsForSelectedPeriod.map(({ org, totalSubmitted, pendingCount, approvedCount, rejectedCount, pointsAwarded }) => {
-                    return (
-                      <div 
-                        key={org.id} 
-                        className="bg-white rounded-2xl sm:rounded-3xl border-2 border-emerald-600 p-4 sm:p-5 hover:border-emerald-700 hover:shadow-md transition-all shadow-xs flex flex-col justify-between space-y-4 group"
-                        id={`org-card-${org.id}`}
-                      >
-                        {/* Organization Header */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-xs sm:text-sm shadow-2xs flex-shrink-0">
-                            {org.logo ? (
-                              <img src={org.logo} alt={org.name} className="w-full h-full rounded-2xl object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              org.name.substring(0, 2).toUpperCase()
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base truncate group-hover:text-emerald-900 transition-colors leading-tight font-heading">{org.name}</h3>
-                            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold truncate mt-0.5">
-                              {org.membersCount || 0} members {org.className ? `• ${org.className}` : ''}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Primary Statistics (Submitted / Pending / Approved) */}
-                        <div className="grid grid-cols-3 gap-1 py-2.5 bg-slate-50/70 rounded-xl border border-slate-100 text-center">
-                          <div className="space-y-0.5 px-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Submitted</p>
-                            <p className="text-sm sm:text-base font-black text-slate-900">{totalSubmitted}</p>
-                          </div>
-                          <div className="space-y-0.5 px-1 border-x border-slate-200/60">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pending</p>
-                            <p className={`text-sm sm:text-base font-black ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
-                              {pendingCount}
-                            </p>
-                          </div>
-                          <div className="space-y-0.5 px-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Approved</p>
-                            <p className="text-sm sm:text-base font-black text-emerald-600">{approvedCount}</p>
-                          </div>
-                        </div>
-
-                        {/* Secondary Statistics (Rejected / Awarded Points) */}
-                        <div className="flex items-center justify-between text-xs px-1">
-                          <div className="space-y-0.5 text-left">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Rejected Submissions</p>
-                            <p className="text-xs font-bold text-rose-600">{rejectedCount}</p>
-                          </div>
-                          <div className="space-y-0.5 text-right">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Awarded Points</p>
-                            <p className="text-xs font-black text-emerald-800">+{pointsAwarded} pts</p>
-                          </div>
-                        </div>
-
-                        {/* Action Button */}
-                        <button
-                          onClick={() => {
-                            setSelectedOrgId(org.id);
-                          }}
-                          className="w-full py-2.5 bg-slate-50 hover:bg-emerald-700 hover:text-white hover:border-emerald-700 text-slate-800 font-bold rounded-xl text-xs border border-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1 shadow-2xs"
-                        >
-                          <Building className="w-4 h-4" />
-                          <span>Review Programs</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           ) : (
             // STEP 2: Dedicated Organization's Submissions View
@@ -752,30 +603,60 @@ export const AdminDashboard: React.FC = () => {
 
               // Filter achievements for this organization strictly within selected evaluation period
               const orgAchievements = periodFilteredAchievements.filter(a => a.organizationId === selectedOrg.id || a.organizationName === selectedOrg.name);
-              const totalSubmitted = orgAchievements.length;
-              const pendingCount = orgAchievements.filter(a => a.status === 'Submitted').length;
-              const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
-              const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
-              const pointsAwarded = orgAchievements
-                .filter(a => a.status === 'Approved')
-                .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
 
-              // Apply Search Query & Filter by Status
-              const searchedAchs = orgAchievements.filter(a => {
-                const query = searchQuery.toLowerCase();
-                return (
-                  a.title.toLowerCase().includes(query) ||
-                  a.programName.toLowerCase().includes(query) ||
-                  a.description.toLowerCase().includes(query)
-                );
-              });
+              return (
+                <div className="space-y-4" id="org-review-container">
+                  {/* Breadcrumbs */}
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                    <button 
+                      onClick={() => setSelectedOrgId(null)} 
+                      className="hover:text-emerald-800 transition-colors cursor-pointer font-bold text-slate-600 hover:underline"
+                    >
+                      Achievements Review
+                    </button>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-emerald-800 font-extrabold truncate">{selectedOrg.name}</span>
+                  </div>
 
-              const filteredAchs = statusFilter === 'All' ? searchedAchs : searchedAchs.filter(a => a.status === statusFilter);
+                  {/* Compact Organization Summary Card */}
+                  <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                    {/* Org Identity */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm shadow-2xs flex-shrink-0">
+                        {selectedOrg.logo ? (
+                          <img src={selectedOrg.logo} alt={selectedOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          selectedOrg.name.substring(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight truncate">{selectedOrg.name}</h2>
+                          {selectedOrg.className && (
+                            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                              {selectedOrg.className}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
+                          Leader: <span className="font-semibold text-slate-700">{selectedOrg.leader || 'N/A'}</span>
+                          <span className="mx-1.5 text-slate-300">•</span>
+                          Contact: <span className="font-semibold text-slate-700">{selectedOrg.contactDetails || 'N/A'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )
+          }
 
-              // Apply Sort (newest submissions first by default)
-              const sortedAchs = [...filteredAchs].sort((a, b) => {
-                return new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime();
-              });
+
+
+
+
+
 
               return (
                 <div className="space-y-4" id="org-review-container">
@@ -985,8 +866,6 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               );
-            })()
-          )}
         </div>
       )}
 
@@ -1124,107 +1003,6 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-          {/* Account-Specific Points Portal Link Card */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4" id="account-points-portal-link-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <LinkIcon className="w-4 h-4 text-emerald-600" />
-                  <span>Account Points Portal</span>
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
-                  Share the official access link for the Student Points Management portal.
-                </p>
-              </div>
-
-              {/* Status Indicator */}
-              {!portalLinkLoading && portalLink && portalLink.status === 'active' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span>Active</span>
-                </div>
-              )}
-            </div>
-
-            {/* Content Body */}
-            {portalLinkLoading ? (
-              <div className="py-6 flex items-center justify-center gap-2 text-slate-400 text-xs">
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                <span>Loading your account portal settings...</span>
-              </div>
-            ) : !portalLink || portalLink.status === 'not_generated' ? (
-              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5 text-center space-y-3">
-                <div className="mx-auto w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <LinkIcon className="w-5 h-5" />
-                </div>
-                <div className="max-w-md mx-auto space-y-1">
-                  <h4 className="text-xs font-bold text-slate-800">No Portal Link Generated Yet</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Generate an account-specific link for <span className="font-semibold text-slate-700">{user?.email}</span>. This creates an isolated Points Portal where your sub-organizations and students can register and track achievements.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGeneratePortalLink}
-                  disabled={portalActionLoading}
-                  className="py-2.5 px-5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer disabled:opacity-50"
-                >
-                  {portalActionLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Generating Unique Link...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      <span>Generate Points Portal Link</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Active Link View */}
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-700">Portal Link</span>
-
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                    <div className="flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 overflow-x-auto">
-                      <span className="text-[11px] text-slate-700 font-mono whitespace-nowrap select-all">
-                        {portalLink.pointsPortalUrl}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(portalLink.pointsPortalUrl);
-                        setCopiedLinkId('account_portal_link');
-                        setTimeout(() => setCopiedLinkId(null), 2000);
-                      }}
-                      className={`py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs font-bold shrink-0 ${
-                        copiedLinkId === 'account_portal_link'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs'
-                      }`}
-                    >
-                      {copiedLinkId === 'account_portal_link' ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Portal Link</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right Column: Add Class Organization & Registration Links */}
