@@ -197,7 +197,7 @@ export const AdminDashboard: React.FC = () => {
   const [deductionPoints, setDeductionPoints] = useState<number>(0);
 
   // Submissions for review count filtered by selected Evaluation Period
-  const pendingAchievements = periodFilteredAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review');
+  const pendingAchievements = periodFilteredAchievements.filter(a => a.status === 'Submitted');
 
   // Organizations that have submitted at least 1 achievement in the currently selected evaluation period, sorted with latest submitters first
   const submittingOrgsForSelectedPeriod = useMemo(() => {
@@ -222,7 +222,7 @@ export const AdminDashboard: React.FC = () => {
       }, 0);
 
       const totalSubmitted = orgAchs.length;
-      const pendingCount = orgAchs.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
+      const pendingCount = orgAchs.filter(a => a.status === 'Submitted').length;
       const approvedCount = orgAchs.filter(a => a.status === 'Approved').length;
       const rejectedCount = orgAchs.filter(a => a.status === 'Rejected').length;
       const pointsAwarded = orgAchs
@@ -714,7 +714,7 @@ export const AdminDashboard: React.FC = () => {
               // Filter achievements for this organization strictly within selected evaluation period
               const orgAchievements = periodFilteredAchievements.filter(a => a.organizationId === selectedOrg.id || a.organizationName === selectedOrg.name);
               const totalSubmitted = orgAchievements.length;
-              const pendingCount = orgAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
+              const pendingCount = orgAchievements.filter(a => a.status === 'Submitted').length;
               const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
               const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
               const pointsAwarded = orgAchievements
