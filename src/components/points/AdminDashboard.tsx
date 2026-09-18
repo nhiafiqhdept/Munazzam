@@ -18,7 +18,7 @@ export const AdminDashboard: React.FC = () => {
     portal, toggleSubmissionsAllowed,
     organizations, achievements, categories, mediaAttachments, awards, announcements, competitions, auditLogs, transactions,
     members, createClassOrganization, updateClassOrganization, deleteClassOrganization, rejectClassOrganization, approveClassOrganization, reviewAchievement, addCategory, deleteCategory,
-    addCompetition, completeCompetition, addAward, updateAward, deleteAward, addAnnouncement,
+    addCompetition, updateCompetition, completeCompetition, addAward, updateAward, deleteAward, addAnnouncement,
     registrationLinks, generateRegistrationLink,
     updateAchievementAchiever, recalculateLeaderboardTotals, addMember,
     portalLink, portalLinkLoading, generateAccountPortalLink, togglePortalLinkStatus, regenerateAccountPortalLink
@@ -39,6 +39,12 @@ export const AdminDashboard: React.FC = () => {
   const [inviteLabel, setInviteLabel] = useState('');
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+
+  // Edit competition state
+  const [editingComp, setEditingComp] = useState<any | null>(null);
+  const [editCompName, setEditCompName] = useState('');
+  const [editCompStart, setEditCompStart] = useState('');
+  const [editCompEnd, setEditCompEnd] = useState('');
 
   // Account-specific portal link state & actions
   const [portalActionLoading, setPortalActionLoading] = useState(false);
@@ -1965,21 +1971,37 @@ export const AdminDashboard: React.FC = () => {
                   <div>
                     <p className="font-bold text-slate-800 text-sm">{comp.name}</p>
                     <p className="text-xs text-slate-400">{formatDate(comp.startDate)} to {formatDate(comp.endDate)}</p>
+                    <p className="text-[10px] font-bold mt-1">
+                      {comp.status === 'active' ? (
+                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">🟢 Active Period</span>
+                      ) : (
+                        <span className="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">⚪ Concluded</span>
+                      )}
+                    </p>
                   </div>
-                  <div>
-                    {comp.status === 'active' ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingComp(comp);
+                        setEditCompName(comp.name);
+                        setEditCompStart(comp.startDate);
+                        setEditCompEnd(comp.endDate);
+                      }}
+                      className="py-1 px-3 bg-slate-100 text-slate-700 font-bold rounded-lg text-[10px] cursor-pointer hover:bg-slate-200"
+                    >
+                      Edit
+                    </button>
+                    {comp.status === 'active' && (
                       <button
                         onClick={async () => {
                           if (confirm('Conclude this evaluation period?')) {
                             await completeCompetition(comp.id);
                           }
                         }}
-                        className="py-1 px-3 bg-emerald-50 text-emerald-800 font-bold rounded-lg text-[10px] cursor-pointer"
+                        className="py-1 px-3 bg-emerald-50 text-emerald-800 font-bold rounded-lg text-[10px] cursor-pointer hover:bg-emerald-100"
                       >
                         Conclude
                       </button>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold">Completed</span>
                     )}
                   </div>
                 </div>
@@ -3475,6 +3497,61 @@ export const AdminDashboard: React.FC = () => {
         competitions={competitions}
         auditLogs={auditLogs}
       />
+      {/* Edit Competition Modal */}
+      {editingComp && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 w-full max-w-sm shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900">Edit Evaluation Period</h3>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Period Name</label>
+                <input
+                  type="text"
+                  value={editCompName}
+                  onChange={(e) => setEditCompName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Start Date</label>
+                <input
+                  type="date"
+                  value={editCompStart}
+                  onChange={(e) => setEditCompStart(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">End Date</label>
+                <input
+                  type="date"
+                  value={editCompEnd}
+                  onChange={(e) => setEditCompEnd(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setEditingComp(null)}
+                  className="flex-1 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs cursor-pointer hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!editCompName || !editCompStart || !editCompEnd) return;
+                    await updateCompetition(editingComp.id, editCompName, editCompStart, editCompEnd);
+                    setEditingComp(null);
+                  }}
+                  className="flex-1 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs cursor-pointer hover:bg-emerald-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

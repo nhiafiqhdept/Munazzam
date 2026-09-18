@@ -475,6 +475,7 @@ interface PortalContextType {
   deleteCategory: (id: string) => Promise<void>;
   
   addCompetition: (name: string, start: string, end: string) => Promise<void>;
+  updateCompetition: (id: string, name: string, start: string, end: string) => Promise<void>;
   completeCompetition: (id: string) => Promise<void>;
   
   addAward: (award: Omit<SP_Award, 'id' | 'portalId' | 'createdAt'>) => Promise<void>;
@@ -2420,6 +2421,23 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await logPortalAction('ADD_COMPETITION', `Started new active evaluation period: "${name}" (${start} to ${end}) and concluded previous active period(s)`);
   };
 
+  const updateCompetition = async (id: string, name: string, startDate: string, endDate: string) => {
+    if (!masterAccountId) return;
+    if (!isAdminAuthorized()) {
+      throw new Error('Forbidden: Administrative privileges required to update evaluation periods.');
+    }
+    const now = new Date().toISOString();
+
+    await updateDoc(doc(db, 'sp_competitions', id), cleanFirestorePayload({
+      name,
+      startDate,
+      endDate,
+      updatedAt: now
+    }));
+
+    await logPortalAction('UPDATE_COMPETITION', `Updated evaluation period ID: ${id}`);
+  };
+
   const completeCompetition = async (id: string) => {
     if (!masterAccountId) return;
     if (!isAdminAuthorized()) {
@@ -2942,6 +2960,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deleteCategory,
       
       addCompetition,
+      updateCompetition,
       completeCompetition,
       
       addAward,
