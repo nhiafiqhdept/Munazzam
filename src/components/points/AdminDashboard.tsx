@@ -584,7 +584,85 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">Select a class organization to inspect and review their submitted programs and achievements.</p>
                 </div>
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <EvaluationPeriodSelector
+                    compact={true}
+                    selectedPeriod={selectedPeriodFilter}
+                    onSelectPeriod={setSelectedPeriodFilter}
+                    competitions={competitions}
+                  />
+                  <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-xl">
+                    {submittingOrgsForSelectedPeriod.length} Active Submitting Org{submittingOrgsForSelectedPeriod.length === 1 ? '' : 's'}
+                  </span>
+                </div>
               </div>
+
+              {submittingOrgsForSelectedPeriod.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400 text-xs">
+                  <p className="font-semibold text-slate-600 text-sm mb-1">No Achievement Submissions Found</p>
+                  <p>There are no submissions from class organizations for the selected evaluation period.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {submittingOrgsForSelectedPeriod.map(({ org, totalSubmitted, pendingCount, approvedCount, rejectedCount, pointsAwarded }) => (
+                    <div
+                      key={org.id}
+                      onClick={() => setSelectedOrgId(org.id)}
+                      className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm flex-shrink-0">
+                              {org.logo ? (
+                                <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                org.name.substring(0, 2).toUpperCase()
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors truncate">
+                                {org.name}
+                              </h3>
+                              {org.className && (
+                                <span className="text-[10px] font-semibold text-slate-500 truncate block">
+                                  {org.className}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {pendingCount > 0 && (
+                            <span className="px-2 py-0.5 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 rounded-full flex-shrink-0 animate-pulse">
+                              {pendingCount} Pending
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-2 rounded-xl text-center text-xs">
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Total</span>
+                            <span className="font-bold text-slate-800">{totalSubmitted}</span>
+                          </div>
+                          <div className="border-x border-slate-200/60">
+                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Approved</span>
+                            <span className="font-bold text-emerald-600">{approvedCount}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase block">Points</span>
+                            <span className="font-bold text-emerald-800">+{pointsAwarded}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+                        <span>Review Submissions</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             // STEP 2: Dedicated Organization's Submissions View
@@ -604,53 +682,27 @@ export const AdminDashboard: React.FC = () => {
               // Filter achievements for this organization strictly within selected evaluation period
               const orgAchievements = periodFilteredAchievements.filter(a => a.organizationId === selectedOrg.id || a.organizationName === selectedOrg.name);
 
-              return (
-                <div className="space-y-4" id="org-review-container">
-                  {/* Breadcrumbs */}
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                    <button 
-                      onClick={() => setSelectedOrgId(null)} 
-                      className="hover:text-emerald-800 transition-colors cursor-pointer font-bold text-slate-600 hover:underline"
-                    >
-                      Achievements Review
-                    </button>
-                    <span className="text-slate-400">/</span>
-                    <span className="text-emerald-800 font-extrabold truncate">{selectedOrg.name}</span>
-                  </div>
+              const pointsAwarded = orgAchievements
+                .filter(a => a.status === 'Approved')
+                .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
+              const pendingCount = orgAchievements.filter(a => a.status === 'Submitted').length;
+              const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
+              const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
 
-                  {/* Compact Organization Summary Card */}
-                  <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-                    {/* Org Identity */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm shadow-2xs flex-shrink-0">
-                        {selectedOrg.logo ? (
-                          <img src={selectedOrg.logo} alt={selectedOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          selectedOrg.name.substring(0, 2).toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-2">
-                          <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight truncate">{selectedOrg.name}</h2>
-                          {selectedOrg.className && (
-                            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                              {selectedOrg.className}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
-                          Leader: <span className="font-semibold text-slate-700">{selectedOrg.leader || 'N/A'}</span>
-                          <span className="mx-1.5 text-slate-300">•</span>
-                          Contact: <span className="font-semibold text-slate-700">{selectedOrg.contactDetails || 'N/A'}</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()
-          )
-          }
+              const filteredAchs = orgAchievements.filter(a => {
+                const matchesStatus = statusFilter === 'All' || a.status === statusFilter;
+                const matchesSearch = !searchQuery.trim() || 
+                  a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (a.programName && a.programName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                  (a.achieverName && a.achieverName.toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchesStatus && matchesSearch;
+              });
+
+              const sortedAchs = [...filteredAchs].sort((a, b) => {
+                const timeA = new Date(a.submittedAt || a.createdAt).getTime() || 0;
+                const timeB = new Date(b.submittedAt || b.createdAt).getTime() || 0;
+                return timeB - timeA;
+              });
 
 
 
@@ -866,6 +918,8 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               );
+            })()
+          )}
         </div>
       )}
 
