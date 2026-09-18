@@ -272,10 +272,30 @@ export const AdminDashboard: React.FC = () => {
   // 2. Category form
   const [catName, setCatName] = useState('');
   const [catPoints, setCatPoints] = useState<number>(15);
+  const [isRankBased, setIsRankBased] = useState(false);
+  const [rank1Points, setRank1Points] = useState<number | ''>('');
+  const [rank2Points, setRank2Points] = useState<number | ''>('');
+  const [rank3Points, setRank3Points] = useState<number | ''>('');
   const [catError, setCatError] = useState('');
   const [catSuccess, setCatSuccess] = useState('');
   const [categoryToDelete, setCategoryToDelete] = useState<SP_Category | null>(null);
   const [isDeletingCategory, setIsDeletingCategory] = useState<boolean>(false);
+
+  const openEvaluationModal = (ach: SP_Achievement) => {
+    setSelectedAchievement(ach);
+    const cat = categories.find(c => c.id === ach.categoryId);
+    let initialBase = ach.requestedPoints || 10;
+    if (cat?.isRankBased && ach.rank) {
+      if (ach.rank === '1st') initialBase = cat.rank1Points || 5;
+      else if (ach.rank === '2nd') initialBase = cat.rank2Points || 3;
+      else if (ach.rank === '3rd') initialBase = cat.rank3Points || 1;
+    }
+    setBaseAwardedPoints(ach.baseAwardedPoints !== undefined ? ach.baseAwardedPoints : initialBase);
+    setBonusPoints(ach.bonusPoints || 0);
+    setDeductionPoints(ach.deductionPoints || 0);
+    setReviewPoints(initialBase);
+    setReviewNotes(ach.reviewNotes || '');
+  };
 
   // 3. Competition form
   const [compName, setCompName] = useState('');
@@ -932,14 +952,7 @@ export const AdminDashboard: React.FC = () => {
                             {/* Right Action: Evaluate Button */}
                             <div className="flex items-center sm:self-center shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                               <button
-                                onClick={() => {
-                                  setSelectedAchievement(ach);
-                                  setBaseAwardedPoints(ach.requestedPoints || 10);
-                                  setBonusPoints(ach.bonusPoints || 0);
-                                  setDeductionPoints(ach.deductionPoints || 0);
-                                  setReviewPoints(ach.requestedPoints || 10);
-                                  setReviewNotes(ach.reviewNotes || '');
-                                }}
+                                onClick={() => openEvaluationModal(ach)}
                                 className="w-full sm:w-auto px-5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-extrabold rounded-xl shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1531,7 +1544,13 @@ export const AdminDashboard: React.FC = () => {
                       <p className="text-[10px] text-slate-400">Created: {formatDate(cat.createdAt)}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="font-extrabold text-sm text-emerald-800">+{cat.defaultPoints} pts</span>
+                      {cat.isRankBased ? (
+                        <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                          Rank-Based: 1st ({cat.rank1Points} pts), 2nd ({cat.rank2Points} pts), 3rd ({cat.rank3Points} pts)
+                        </span>
+                      ) : (
+                        <span className="font-extrabold text-sm text-emerald-800">+{cat.defaultPoints} pts</span>
+                      )}
                       <button
                         type="button"
                         title={`Delete ${cat.name}`}
@@ -1559,31 +1578,105 @@ export const AdminDashboard: React.FC = () => {
                 <label className="text-[10px] font-bold text-slate-500 uppercase">Category Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Research Paper"
+                  placeholder="e.g. Research Paper / Sports"
                   value={catName}
                   onChange={(e) => setCatName(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase">Default Points</label>
+
+              {/* Rank-based toggle */}
+              <div className="flex items-center gap-2 pt-1">
                 <input
-                  type="number"
-                  min="1"
-                  value={catPoints}
-                  onChange={(e) => setCatPoints(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                  type="checkbox"
+                  id="rank-based-toggle"
+                  checked={isRankBased}
+                  onChange={(e) => setIsRankBased(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
                 />
+                <label htmlFor="rank-based-toggle" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  Enable Rank-Based Points (1st, 2nd, 3rd)
+                </label>
               </div>
+
+              {isRankBased ? (
+                <div className="grid grid-cols-3 gap-2 bg-amber-50/50 p-3 rounded-2xl border border-amber-200">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-amber-900 uppercase block">1st Place *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 10"
+                      value={rank1Points}
+                      onChange={(e) => setRank1Points(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-bold text-amber-900 text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-amber-900 uppercase block">2nd Place *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 7"
+                      value={rank2Points}
+                      onChange={(e) => setRank2Points(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-bold text-amber-900 text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-amber-900 uppercase block">3rd Place *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 5"
+                      value={rank3Points}
+                      onChange={(e) => setRank3Points(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-2 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-bold text-amber-900 text-center"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Default Points</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={catPoints}
+                    onChange={(e) => setCatPoints(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none"
+                  />
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={async () => {
-                  if (!catName) return;
+                  if (!catName) {
+                    setCatError('Please enter a category name.');
+                    setTimeout(() => setCatError(''), 5000);
+                    return;
+                  }
+                  if (isRankBased && (rank1Points === '' || rank2Points === '' || rank3Points === '' || Number(rank1Points) <= 0 || Number(rank2Points) <= 0 || Number(rank3Points) <= 0)) {
+                    setCatError('Please enter valid point values for 1st, 2nd, and 3rd place.');
+                    setTimeout(() => setCatError(''), 5000);
+                    return;
+                  }
                   try {
                     setCatError('');
                     setCatSuccess('');
-                    await addCategory(catName, catPoints);
+                    await addCategory(
+                      catName,
+                      catPoints,
+                      isRankBased,
+                      isRankBased ? Number(rank1Points) : undefined,
+                      isRankBased ? Number(rank2Points) : undefined,
+                      isRankBased ? Number(rank3Points) : undefined
+                    );
                     setCatName('');
+                    setIsRankBased(false);
+                    setRank1Points('');
+                    setRank2Points('');
+                    setRank3Points('');
                     setCatSuccess('Point category added successfully.');
                     setTimeout(() => setCatSuccess(''), 4000);
                   } catch (e: any) {
@@ -3160,6 +3253,18 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* Point evaluation forms */}
                     <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4">
+                      {selectedAchievement.rank && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <Trophy className="w-4 h-4 text-amber-600" />
+                            <span className="font-extrabold text-amber-900">Rank Achieved: {selectedAchievement.rank} Place</span>
+                          </div>
+                          <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-lg text-[10px]">
+                            Rank-Based Points
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h4 className="text-xs font-black text-slate-900 uppercase">EVALUATION METRICS</h4>
                         <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">
@@ -3278,12 +3383,7 @@ export const AdminDashboard: React.FC = () => {
                       disabled={currentIndex <= 0}
                       onClick={() => {
                         const prevAch = sortedAchsForNav[currentIndex - 1];
-                        setSelectedAchievement(prevAch);
-                        setBaseAwardedPoints(prevAch.requestedPoints || 10);
-                        setBonusPoints(prevAch.bonusPoints || 0);
-                        setDeductionPoints(prevAch.deductionPoints || 0);
-                        setReviewPoints(prevAch.requestedPoints || 10);
-                        setReviewNotes(prevAch.reviewNotes || '');
+                        openEvaluationModal(prevAch);
                       }}
                       className="py-2 px-3.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white border border-slate-200 rounded-xl text-slate-700 text-xs font-extrabold flex items-center gap-1 transition-all cursor-pointer"
                     >
@@ -3299,12 +3399,7 @@ export const AdminDashboard: React.FC = () => {
                       disabled={currentIndex >= totalInList - 1 || currentIndex === -1}
                       onClick={() => {
                         const nextAch = sortedAchsForNav[currentIndex + 1];
-                        setSelectedAchievement(nextAch);
-                        setBaseAwardedPoints(nextAch.requestedPoints || 10);
-                        setBonusPoints(nextAch.bonusPoints || 0);
-                        setDeductionPoints(nextAch.deductionPoints || 0);
-                        setReviewPoints(nextAch.requestedPoints || 10);
-                        setReviewNotes(nextAch.reviewNotes || '');
+                        openEvaluationModal(nextAch);
                       }}
                       className="py-2 px-3.5 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white border border-slate-200 rounded-xl text-slate-700 text-xs font-extrabold flex items-center gap-1 transition-all cursor-pointer"
                     >

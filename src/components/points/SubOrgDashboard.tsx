@@ -56,6 +56,7 @@ export const SubOrgDashboard: React.FC = () => {
   const [isCustomAchiever, setIsCustomAchiever] = useState<boolean>(false);
 
   const [requestedPoints, setRequestedPoints] = useState<number>(10);
+  const [selectedRank, setSelectedRank] = useState<'1st' | '2nd' | '3rd' | ''>('');
   const [additionalNotes, setAdditionalNotes] = useState('');
 
   // Media attachments queues
@@ -71,7 +72,26 @@ export const SubOrgDashboard: React.FC = () => {
     setCategoryId(catId);
     const cat = categories.find(c => c.id === catId);
     if (cat) {
-      setRequestedPoints(cat.defaultPoints);
+      if (cat.isRankBased) {
+        setSelectedRank('1st');
+        setRequestedPoints(cat.rank1Points || 5);
+      } else {
+        setSelectedRank('');
+        setRequestedPoints(cat.defaultPoints);
+      }
+    } else {
+      setSelectedRank('');
+      setRequestedPoints(10);
+    }
+  };
+
+  const handleRankChange = (rank: '1st' | '2nd' | '3rd') => {
+    setSelectedRank(rank);
+    const cat = categories.find(c => c.id === categoryId);
+    if (cat && cat.isRankBased) {
+      if (rank === '1st') setRequestedPoints(cat.rank1Points || 5);
+      else if (rank === '2nd') setRequestedPoints(cat.rank2Points || 3);
+      else if (rank === '3rd') setRequestedPoints(cat.rank3Points || 1);
     }
   };
 
@@ -89,6 +109,7 @@ export const SubOrgDashboard: React.FC = () => {
     setAchieverName(ach.achieverName);
     setAchieverStudentId(ach.achieverStudentId || '');
     setRequestedPoints(ach.requestedPoints);
+    setSelectedRank(ach.rank || '');
     setAdditionalNotes(ach.additionalNotes);
     
     // Media attachments
@@ -192,6 +213,12 @@ export const SubOrgDashboard: React.FC = () => {
       return;
     }
 
+    const selectedCat = categories.find(c => c.id === categoryId);
+    if (selectedCat?.isRankBased && !selectedRank) {
+      setFormError('Please select a rank (1st, 2nd, or 3rd place) for this rank-based category.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Gather all uploaded files
@@ -219,7 +246,9 @@ export const SubOrgDashboard: React.FC = () => {
           achieverStudentId: cleanAchieverStudentId,
           requestedPoints: Number(requestedPoints) || 10,
           additionalNotes: additionalNotes.trim(),
-          status: 'Submitted'
+          status: 'Submitted',
+          rank: selectedCat?.isRankBased ? selectedRank : undefined,
+          rankBasedPoints: !!selectedCat?.isRankBased
         });
         setFormSuccess('Submission updated successfully.');
       } else {
@@ -240,7 +269,9 @@ export const SubOrgDashboard: React.FC = () => {
           achieverName: cleanAchieverName,
           achieverStudentId: cleanAchieverStudentId,
           requestedPoints: Number(requestedPoints) || 10,
-          additionalNotes: additionalNotes.trim()
+          additionalNotes: additionalNotes.trim(),
+          rank: selectedCat?.isRankBased ? selectedRank : undefined,
+          rankBasedPoints: !!selectedCat?.isRankBased
         }, allFiles);
         setFormSuccess('Achievement successfully submitted to the Review Panel!');
       }
@@ -664,10 +695,49 @@ export const SubOrgDashboard: React.FC = () => {
                 >
                   <option value="">Select point category (optional)...</option>
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name} (Default: {cat.defaultPoints} pts)</option>
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} {cat.isRankBased ? '(Rank-Based)' : `(Default: ${cat.defaultPoints} pts)`}
+                    </option>
                   ))}
                 </select>
               </div>
+
+              {/* Rank selection if category is rank-based */}
+              {(() => {
+                const selectedCat = categories.find(c => c.id === categoryId);
+                if (!selectedCat?.isRankBased) return null;
+                return (
+                  <div className="space-y-2 bg-amber-50/60 p-4 rounded-2xl border border-amber-200 sm:col-span-2">
+                    <label className="text-xs font-bold text-amber-900 uppercase flex items-center gap-1.5">
+                      <Trophy className="w-4 h-4 text-amber-600" />
+                      <span>Position / Rank *</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['1st', '2nd', '3rd'] as const).map((r) => {
+                        const pts = r === '1st' ? selectedCat.rank1Points : r === '2nd' ? selectedCat.rank2Points : selectedCat.rank3Points;
+                        const isSelected = selectedRank === r;
+                        return (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => handleRankChange(r)}
+                            className={`py-2.5 px-3 rounded-xl border text-xs font-extrabold flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-amber-600 border-amber-700 text-white shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>{r} Place</span>
+                            <span className={`text-[10px] ${isSelected ? 'text-amber-100' : 'text-slate-500'}`}>
+                              +{pts || 0} pts
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700" htmlFor="ach-date">Activity Date *</label>

@@ -149,6 +149,10 @@ export interface SP_Category {
   portalId: string;
   name: string;
   defaultPoints: number;
+  isRankBased?: boolean;
+  rank1Points?: number;
+  rank2Points?: number;
+  rank3Points?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -197,6 +201,8 @@ export interface SP_Achievement {
   deductionPoints?: number;
   evaluationPeriodId?: string;
   evaluationPeriod?: string;
+  rank?: '1st' | '2nd' | '3rd';
+  rankBasedPoints?: boolean;
 }
 
 export interface SP_Media {
@@ -458,7 +464,14 @@ interface PortalContextType {
     deductionPoints?: number
   ) => Promise<void>;
   
-  addCategory: (name: string, defaultPoints: number) => Promise<void>;
+  addCategory: (
+    name: string,
+    defaultPoints: number,
+    isRankBased?: boolean,
+    rank1Points?: number,
+    rank2Points?: number,
+    rank3Points?: number
+  ) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   
   addCompetition: (name: string, start: string, end: string) => Promise<void>;
@@ -2315,7 +2328,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // 9. Categories Management
-  const addCategory = async (name: string, defaultPoints: number) => {
+  const addCategory = async (
+    name: string,
+    defaultPoints: number,
+    isRankBased?: boolean,
+    rank1Points?: number,
+    rank2Points?: number,
+    rank3Points?: number
+  ) => {
     if (!masterAccountId) return;
     if (!isAdminAuthorized()) {
       throw new Error('Forbidden: Administrative privileges required to create point categories.');
@@ -2328,11 +2348,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       portalId: masterAccountId,
       name,
       defaultPoints,
+      isRankBased: !!isRankBased,
+      rank1Points: isRankBased ? (Number(rank1Points) || 5) : null,
+      rank2Points: isRankBased ? (Number(rank2Points) || 3) : null,
+      rank3Points: isRankBased ? (Number(rank3Points) || 1) : null,
       createdAt: now,
       updatedAt: now
     }));
 
-    await logPortalAction('ADD_CATEGORY', `Added point category: "${name}" with default ${defaultPoints} points`);
+    await logPortalAction('ADD_CATEGORY', `Added point category: "${name}" with ${isRankBased ? 'rank-based points (1st:' + rank1Points + ', 2nd:' + rank2Points + ', 3rd:' + rank3Points + ')' : defaultPoints + ' default points'}`);
   };
 
   const deleteCategory = async (id: string) => {
