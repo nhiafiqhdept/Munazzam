@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { usePortal, SP_Organization, SP_Achievement, SP_Category, SP_Award, AwardWinner, getAwardWinners, getWinnerDisplayName, getWinnerSubtext, getAchievementPeriodId, getAwardPeriodId } from '../../context/PortalContext';
 import { useApp } from '../../context/AppContext';
 import { EvaluationPeriodSelector } from './EvaluationPeriodSelector';
+import { ReportGeneratorModal } from './ReportGeneratorModal';
 import { 
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
@@ -25,6 +26,7 @@ export const AdminDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'review' | 'organizations' | 'categories' | 'competitions' | 'awards' | 'announcements' | 'audit'>('review');
   const [selectedAchievement, setSelectedAchievement] = useState<SP_Achievement | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Achiever assignment in review modal
   const [isEditingAchiever, setIsEditingAchiever] = useState(false);
@@ -313,6 +315,7 @@ export const AdminDashboard: React.FC = () => {
   const [awIndId2, setAwIndId2] = useState('');
   const [awIndId3, setAwIndId3] = useState('');
   const [awPeriod, setAwPeriod] = useState('');
+  const [isAddAwardModalOpen, setIsAddAwardModalOpen] = useState(false);
 
   // Award Edit Modal state
   const [editingAward, setEditingAward] = useState<SP_Award | null>(null);
@@ -618,19 +621,29 @@ export const AdminDashboard: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-600 bg-slate-50/90 px-3 py-1.5 rounded-xl border border-slate-100 flex-wrap shrink-0">
-                  <span className="font-semibold text-slate-500 text-[11px]">Period Stats:</span>
-                  <span className="font-black text-slate-800">
-                    {periodFilteredAchievements.length} Total
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className={`font-black ${pendingAchievements.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
-                    {pendingAchievements.length} Pending
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="font-black text-emerald-800">
-                    +{periodFilteredAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)} pts
-                  </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="px-4 py-2 bg-[#1B4D3E] hover:bg-[#14392e] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#C5A059]" />
+                    <span>Generate Progress Report</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-600 bg-slate-50/90 px-3 py-1.5 rounded-xl border border-slate-100 shrink-0">
+                    <span className="font-semibold text-slate-500 text-[11px]">Period Stats:</span>
+                    <span className="font-black text-slate-800">
+                      {periodFilteredAchievements.length} Total
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className={`font-black ${pendingAchievements.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                      {pendingAchievements.length} Pending
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="font-black text-emerald-800">
+                      +{periodFilteredAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)} pts
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2025,8 +2038,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Awards section */}
       {activeTab === 'awards' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900 font-heading">Conferred Awards</h2>
@@ -2045,8 +2058,8 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             {periodFilteredAwards.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                {awards.length === 0 ? 'No awards conferred yet. Use the form to confer an award.' : 'No awards found for the selected evaluation period.'}
+              <div className="py-12 text-center text-slate-400 text-xs">
+                {awards.length === 0 ? 'No awards conferred yet. Click "+ Add Award" below to confer an award.' : 'No awards found for the selected evaluation period.'}
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -2140,12 +2153,44 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Confer Award Form */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 font-heading">
-              <span>🏆</span> Confer Award
-            </h3>
+      {/* Floating Action Button (+ Add Award) */}
+      {activeTab === 'awards' && (
+        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-[60]">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsAddAwardModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-[#1B4D3E] hover:bg-[#14392e] text-white font-bold text-xs sm:text-sm rounded-full shadow-[0_10px_30px_rgba(27,77,62,0.4)] border-2 border-white/30 transition-all cursor-pointer group"
+            title="Add Award"
+            aria-label="Add Award"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#163d32] flex items-center justify-center group-hover:bg-[#113128] transition-colors shadow-inner">
+              <Plus className="w-4 h-4 text-[#C5A059] stroke-[3]" />
+            </div>
+            <span className="font-bold pr-1">Add Award</span>
+          </motion.button>
+        </div>
+      )}
+
+      {/* ADD AWARD MODAL */}
+      {isAddAwardModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl relative my-auto">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+              <h3 className="font-bold text-slate-900 text-base font-heading flex items-center gap-2">
+                <span>🏆</span> Confer Award
+              </h3>
+              <button
+                onClick={() => setIsAddAwardModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <div className="space-y-4">
               {/* Recipient Selector */}
               <div className="space-y-1.5">
@@ -2226,7 +2271,6 @@ export const AdminDashboard: React.FC = () => {
               {/* CLASS ORGANIZATION WINNERS */}
               {awRecipientType === 'class_organization' ? (
                 <>
-                  {/* 1st Winner — REQUIRED */}
                   <div className="space-y-1 pt-1 border-t border-slate-100">
                     <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥇 1st Winner</span>
@@ -2247,7 +2291,6 @@ export const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 2nd Winner — OPTIONAL */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
                       <span>🥈 2nd Winner</span>
@@ -2268,7 +2311,6 @@ export const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 3rd Winner — OPTIONAL */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥉 3rd Winner</span>
@@ -2292,7 +2334,6 @@ export const AdminDashboard: React.FC = () => {
               ) : (
                 /* INDIVIDUAL ACHIEVER WINNERS */
                 <>
-                  {/* 1st Winner — REQUIRED */}
                   <div className="space-y-1 pt-1 border-t border-slate-100">
                     <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥇 1st Winner</span>
@@ -2318,7 +2359,6 @@ export const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 2nd Winner — OPTIONAL */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
                       <span>🥈 2nd Winner</span>
@@ -2344,7 +2384,6 @@ export const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* 3rd Winner — OPTIONAL */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥉 3rd Winner</span>
@@ -2372,110 +2411,119 @@ export const AdminDashboard: React.FC = () => {
                 </>
               )}
 
-              <button
-                onClick={async () => {
-                  if (!awName.trim()) return;
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddAwardModalOpen(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Cancel / Close
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!awName.trim()) return;
 
-                  let winners: AwardWinner[] = [];
-                  let primaryWinnerOrgId = '';
-                  let primaryWinnerOrgName = '';
+                    let winners: AwardWinner[] = [];
+                    let primaryWinnerOrgId = '';
+                    let primaryWinnerOrgName = '';
 
-                  if (awRecipientType === 'class_organization') {
-                    if (!awOrgId1) return;
-                    const w1 = organizations.find(o => o.id === awOrgId1);
-                    if (!w1) return;
-                    primaryWinnerOrgId = w1.id;
-                    primaryWinnerOrgName = w1.name;
+                    if (awRecipientType === 'class_organization') {
+                      if (!awOrgId1) return;
+                      const w1 = organizations.find(o => o.id === awOrgId1);
+                      if (!w1) return;
+                      primaryWinnerOrgId = w1.id;
+                      primaryWinnerOrgName = w1.name;
 
-                    winners.push({ position: 1, organizationId: w1.id, organizationName: w1.name, name: w1.name });
+                      winners.push({ position: 1, organizationId: w1.id, organizationName: w1.name, name: w1.name });
 
-                    if (awOrgId2) {
-                      const w2 = organizations.find(o => o.id === awOrgId2);
-                      if (w2) winners.push({ position: 2, organizationId: w2.id, organizationName: w2.name, name: w2.name });
+                      if (awOrgId2) {
+                        const w2 = organizations.find(o => o.id === awOrgId2);
+                        if (w2) winners.push({ position: 2, organizationId: w2.id, organizationName: w2.name, name: w2.name });
+                      }
+                      if (awOrgId3) {
+                        const w3 = organizations.find(o => o.id === awOrgId3);
+                        if (w3) winners.push({ position: 3, organizationId: w3.id, organizationName: w3.name, name: w3.name });
+                      }
+                    } else {
+                      if (!awIndId1) return;
+                      const m1 = members.find(m => m.id === awIndId1);
+                      if (!m1) return;
+                      const o1 = organizations.find(o => o.id === m1.organizationId);
+                      primaryWinnerOrgId = m1.organizationId;
+                      primaryWinnerOrgName = o1?.name || '';
+
+                      winners.push({
+                        position: 1,
+                        achieverId: m1.id,
+                        studentId: m1.studentId || '',
+                        achieverName: m1.name,
+                        name: m1.name,
+                        organizationId: m1.organizationId,
+                        organizationName: o1?.name || ''
+                      });
+
+                      if (awIndId2) {
+                        const m2 = members.find(m => m.id === awIndId2);
+                        if (m2) {
+                          const o2 = organizations.find(o => o.id === m2.organizationId);
+                          winners.push({
+                            position: 2,
+                            achieverId: m2.id,
+                            studentId: m2.studentId || '',
+                            achieverName: m2.name,
+                            name: m2.name,
+                            organizationId: m2.organizationId,
+                            organizationName: o2?.name || ''
+                          });
+                        }
+                      }
+
+                      if (awIndId3) {
+                        const m3 = members.find(m => m.id === awIndId3);
+                        if (m3) {
+                          const o3 = organizations.find(o => o.id === m3.organizationId);
+                          winners.push({
+                            position: 3,
+                            achieverId: m3.id,
+                            studentId: m3.studentId || '',
+                            achieverName: m3.name,
+                            name: m3.name,
+                            organizationId: m3.organizationId,
+                            organizationName: o3?.name || ''
+                          });
+                        }
+                      }
                     }
-                    if (awOrgId3) {
-                      const w3 = organizations.find(o => o.id === awOrgId3);
-                      if (w3) winners.push({ position: 3, organizationId: w3.id, organizationName: w3.name, name: w3.name });
-                    }
-                  } else {
-                    // Individual Achiever
-                    if (!awIndId1) return;
-                    const m1 = members.find(m => m.id === awIndId1);
-                    if (!m1) return;
-                    const o1 = organizations.find(o => o.id === m1.organizationId);
-                    primaryWinnerOrgId = m1.organizationId;
-                    primaryWinnerOrgName = o1?.name || '';
 
-                    winners.push({
-                      position: 1,
-                      achieverId: m1.id,
-                      studentId: m1.studentId || '',
-                      achieverName: m1.name,
-                      name: m1.name,
-                      organizationId: m1.organizationId,
-                      organizationName: o1?.name || ''
+                    await addAward({
+                      name: awName.trim(),
+                      description: awDesc.trim(),
+                      evaluationPeriod: awPeriod,
+                      recipientType: awRecipientType,
+                      winnerOrganizationId: primaryWinnerOrgId,
+                      winnerOrganizationName: primaryWinnerOrgName,
+                      winners: winners,
+                      awardDate: new Date().toISOString().split('T')[0],
+                      certificateUrl: '',
+                      notes: ''
                     });
 
-                    if (awIndId2) {
-                      const m2 = members.find(m => m.id === awIndId2);
-                      if (m2) {
-                        const o2 = organizations.find(o => o.id === m2.organizationId);
-                        winners.push({
-                          position: 2,
-                          achieverId: m2.id,
-                          studentId: m2.studentId || '',
-                          achieverName: m2.name,
-                          name: m2.name,
-                          organizationId: m2.organizationId,
-                          organizationName: o2?.name || ''
-                        });
-                      }
-                    }
-
-                    if (awIndId3) {
-                      const m3 = members.find(m => m.id === awIndId3);
-                      if (m3) {
-                        const o3 = organizations.find(o => o.id === m3.organizationId);
-                        winners.push({
-                          position: 3,
-                          achieverId: m3.id,
-                          studentId: m3.studentId || '',
-                          achieverName: m3.name,
-                          name: m3.name,
-                          organizationId: m3.organizationId,
-                          organizationName: o3?.name || ''
-                        });
-                      }
-                    }
-                  }
-
-                  await addAward({
-                    name: awName.trim(),
-                    description: awDesc.trim(),
-                    evaluationPeriod: awPeriod,
-                    recipientType: awRecipientType,
-                    winnerOrganizationId: primaryWinnerOrgId,
-                    winnerOrganizationName: primaryWinnerOrgName,
-                    winners: winners,
-                    awardDate: new Date().toISOString().split('T')[0],
-                    certificateUrl: '',
-                    notes: ''
-                  });
-
-                  setAwName('');
-                  setAwDesc('');
-                  setAwOrgId1('');
-                  setAwOrgId2('');
-                  setAwOrgId3('');
-                  setAwIndId1('');
-                  setAwIndId2('');
-                  setAwIndId3('');
-                }}
-                disabled={!awName.trim() || (awRecipientType === 'class_organization' ? !awOrgId1 : !awIndId1)}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                Confer Award
-              </button>
+                    setAwName('');
+                    setAwDesc('');
+                    setAwOrgId1('');
+                    setAwOrgId2('');
+                    setAwOrgId3('');
+                    setAwIndId1('');
+                    setAwIndId2('');
+                    setAwIndId3('');
+                    setIsAddAwardModalOpen(false);
+                  }}
+                  disabled={!awName.trim() || (awRecipientType === 'class_organization' ? !awOrgId1 : !awIndId1)}
+                  className="px-5 py-2.5 bg-[#1B4D3E] hover:bg-[#14392e] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Confer Award
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3414,6 +3462,19 @@ export const AdminDashboard: React.FC = () => {
           );
         })()
       )}
+
+      {/* Automatic Professional Report Generator Modal */}
+      <ReportGeneratorModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        organizations={organizations}
+        achievements={achievements}
+        categories={categories}
+        awards={awards}
+        members={members}
+        competitions={competitions}
+        auditLogs={auditLogs}
+      />
     </div>
   );
 };
