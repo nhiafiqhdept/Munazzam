@@ -187,8 +187,8 @@ export const SubOrgDashboard: React.FC = () => {
     setFormError('');
     setFormSuccess('');
 
-    if (!title || !programName || !categoryId || !date || !description || !achieverName.trim()) {
-      setFormError('Please fill in all required fields marked with * including the Achiever name');
+    if (!title.trim() || !programName.trim() || !date || !description.trim()) {
+      setFormError('Please fill in all required fields marked with * (Title, Program/Activity Name, Activity Date, and Description).');
       return;
     }
 
@@ -201,20 +201,24 @@ export const SubOrgDashboard: React.FC = () => {
         ...queuedDocs.map(d => ({ fileUrl: d.url, name: d.name, size: d.size, type: 'document' as const }))
       ];
 
+      const cleanAchieverName = achieverName.trim();
+      const cleanAchieverStudentId = achieverStudentId.trim();
+      const finalAchId = cleanAchieverName ? achieverId : 'unassigned';
+
       if (isEditing && editingAchievementId) {
         await updateAchievement(editingAchievementId, {
-          title,
-          programName,
-          categoryId,
+          title: title.trim(),
+          programName: programName.trim(),
+          categoryId: categoryId || '',
           date,
-          place,
-          description,
-          participantsCount,
-          achieverId,
-          achieverName: achieverName.trim(),
-          achieverStudentId: achieverStudentId.trim(),
-          requestedPoints,
-          additionalNotes,
+          place: place.trim(),
+          description: description.trim(),
+          participantsCount: Number(participantsCount) || 0,
+          achieverId: finalAchId,
+          achieverName: cleanAchieverName,
+          achieverStudentId: cleanAchieverStudentId,
+          requestedPoints: Number(requestedPoints) || 10,
+          additionalNotes: additionalNotes.trim(),
           status: 'Submitted'
         });
         setFormSuccess('Submission updated successfully.');
@@ -225,18 +229,18 @@ export const SubOrgDashboard: React.FC = () => {
           return;
         }
         await submitAchievement({
-          title,
-          programName,
-          categoryId,
+          title: title.trim(),
+          programName: programName.trim(),
+          categoryId: categoryId || '',
           date,
-          place,
-          description,
-          participantsCount,
-          achieverId,
-          achieverName: achieverName.trim(),
-          achieverStudentId: achieverStudentId.trim(),
-          requestedPoints,
-          additionalNotes
+          place: place.trim(),
+          description: description.trim(),
+          participantsCount: Number(participantsCount) || 0,
+          achieverId: finalAchId,
+          achieverName: cleanAchieverName,
+          achieverStudentId: cleanAchieverStudentId,
+          requestedPoints: Number(requestedPoints) || 10,
+          additionalNotes: additionalNotes.trim()
         }, allFiles);
         setFormSuccess('Achievement successfully submitted to the Review Panel!');
       }
@@ -651,15 +655,14 @@ export const SubOrgDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-cat">Point Category *</label>
+                <label className="text-xs font-bold text-slate-700" htmlFor="ach-cat">Point Category</label>
                 <select
                   id="ach-cat"
-                  required
                   value={categoryId}
                   onChange={(e) => handleCategoryChange(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
                 >
-                  <option value="">Select point category...</option>
+                  <option value="">Select point category (optional)...</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name} (Default: {cat.defaultPoints} pts)</option>
                   ))}
@@ -690,26 +693,25 @@ export const SubOrgDashboard: React.FC = () => {
                 />
               </div>
 
-              {/* Student Identification - Individual Achiever Identification */}
+              {/* Student Identification - Individual Achiever Identification (Optional for group achievements) */}
               <div className="space-y-3 sm:col-span-2 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <User className="w-4 h-4 text-emerald-700" />
-                    <span>Student Identification *</span>
+                    <span>Student Identification</span>
                   </label>
-                  <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100/50 px-2 py-0.5 rounded-md">
-                    Points awarded will belong directly to this individual
+                  <span className="text-[10px] text-slate-500 font-medium bg-slate-200/70 px-2 py-0.5 rounded-md self-start sm:self-auto">
+                    Optional: Leave blank for group / class-level achievements
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-sid-input">Student / Roll ID *</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-sid-input">Student / Roll ID</label>
                     <input
                       type="text"
                       id="ach-sid-input"
-                      required
-                      placeholder="Enter Student / Roll ID"
+                      placeholder="Enter Student / Roll ID (Optional)"
                       value={achieverStudentId}
                       onChange={(e) => {
                         const sid = e.target.value;
@@ -728,12 +730,11 @@ export const SubOrgDashboard: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-name-input">Student Name *</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-name-input">Student Name</label>
                     <input
                       type="text"
                       id="ach-name-input"
-                      required
-                      placeholder="Enter Student Name"
+                      placeholder="Enter Student Name (Optional)"
                       value={achieverName}
                       onChange={(e) => {
                         setAchieverName(e.target.value);

@@ -2029,15 +2029,16 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let finalAchieverName = achievement.achieverName;
     let finalAchieverStudentId = achievement.achieverStudentId || '';
 
-    if (!finalAchieverId || finalAchieverId === 'new') {
-      if (finalAchieverName && finalAchieverName.trim()) {
+    if (!finalAchieverId || finalAchieverId === 'new' || finalAchieverId === 'unassigned') {
+      if (finalAchieverName && finalAchieverName.trim() && finalAchieverName !== 'Achiever Not Assigned') {
         const newMember = await addMember(portalUser.organizationId, finalAchieverName, finalAchieverStudentId);
         finalAchieverId = newMember.id;
         finalAchieverName = newMember.name;
         finalAchieverStudentId = newMember.studentId || '';
       } else {
         finalAchieverId = 'unassigned';
-        finalAchieverName = 'Achiever Not Assigned';
+        finalAchieverName = '';
+        finalAchieverStudentId = '';
       }
     }
 

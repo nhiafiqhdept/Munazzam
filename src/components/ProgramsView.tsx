@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   CalendarDays,
-  PlusCircle,
+  Plus,
   Search,
   MapPin,
   Clock,
@@ -78,21 +78,16 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       {/* Executive Combined Header & Toolbar Card */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
         {/* Top Header Row */}
-        <div className="flex flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100 shrink-0">
-              <CalendarDays className="w-5 h-5 text-emerald-700" />
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100/80 shrink-0 shadow-2xs">
+              <CalendarDays className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-emerald-700" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-                  Programs & Activities
-                </h1>
-                <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200 shrink-0">
-                  {programs.length} {programs.length === 1 ? 'Record' : 'Records'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 hidden sm:block mt-0.5">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
+                Programs & Activities
+              </h1>
+              <p className="text-xs text-slate-500 hidden sm:block mt-0.5 truncate">
                 Official register of seminars, workshops, and academic events for {currentOrg.name}.
               </p>
             </div>
@@ -102,9 +97,9 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             <button
               id="add-program-btn"
               onClick={onOpenAddModal}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 text-xs sm:text-sm shrink-0 active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-2xs hover:shadow-xs transition-all active:scale-[0.98] shrink-0 cursor-pointer border border-emerald-600/30"
             >
-              <PlusCircle className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
               <span>Add Program</span>
             </button>
           )}

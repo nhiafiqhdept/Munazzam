@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePortal, SP_Organization, SP_Achievement, SP_Member, getAwardWinners, getWinnerDisplayName, getWinnerSubtext, getAchievementPeriodId, getAwardPeriodId } from '../../context/PortalContext';
+import { EvaluationPeriodSelector } from './EvaluationPeriodSelector';
 import { Award, Trophy, Star, ChevronRight, ChevronLeft, ArrowLeft, FileText, Calendar, MapPin, Eye, Film, Megaphone, HelpCircle, User, Users, Search, Building2, ChevronDown, X, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDate } from '../../utils/helpers';
@@ -25,20 +26,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     return competitions.find(c => c.status === 'active');
   }, [competitions]);
 
-  // Selected period filter state (defaults to active period if one exists, otherwise 'all')
-  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('all');
-  const [periodUserSelected, setPeriodUserSelected] = useState<boolean>(false);
-
-  // Auto-sync to active period initially when competitions load
-  useEffect(() => {
-    if (!periodUserSelected) {
-      if (activeCompetition) {
-        setSelectedPeriodFilter(activeCompetition.id);
-      } else {
-        setSelectedPeriodFilter('all');
-      }
-    }
-  }, [activeCompetition, periodUserSelected]);
+  // Selected period filter state (defaults to 'active')
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('active');
 
   React.useEffect(() => {
     if (currentTab) {
@@ -56,22 +45,22 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     return [...activeOrganizations].sort((a, b) => a.name.localeCompare(b.name));
   }, [activeOrganizations]);
 
-  // Sorted competitions for dropdown (Active first, then Concluded by date descending)
-  const dropdownCompetitions = useMemo(() => {
-    return [...competitions].sort((a, b) => {
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (b.status === 'active' && a.status !== 'active') return 1;
-      const tA = new Date(a.startDate || a.createdAt).getTime();
-      const tB = new Date(b.startDate || b.createdAt).getTime();
-      return tB - tA;
-    });
-  }, [competitions]);
-
   // Currently selected competition metadata
   const currentSelectedComp = useMemo(() => {
     if (selectedPeriodFilter === 'all') return null;
+    if (selectedPeriodFilter === 'active') return activeCompetition || null;
     return competitions.find(c => c.id === selectedPeriodFilter) || null;
-  }, [competitions, selectedPeriodFilter]);
+  }, [competitions, selectedPeriodFilter, activeCompetition]);
+
+  // Helper to check if an item's period matches the filter
+  const isPeriodMatch = (itemPeriodId: string | null | undefined) => {
+    if (selectedPeriodFilter === 'all') return true;
+    if (selectedPeriodFilter === 'active') {
+      if (!activeCompetition) return !itemPeriodId;
+      return itemPeriodId === activeCompetition.id || (!itemPeriodId && competitions.length <= 1);
+    }
+    return itemPeriodId === selectedPeriodFilter;
+  };
 
   // Find media attachments for an achievement
   const getMediaForAchievement = (achId: string) => {
@@ -95,10 +84,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
     achievements.forEach(a => {
       if (a.status !== 'Approved') return;
-      if (selectedPeriodFilter !== 'all') {
-        const periodId = getAchievementPeriodId(a, competitions);
-        if (periodId !== selectedPeriodFilter) return;
-      }
+      const periodId = getAchievementPeriodId(a, competitions);
+      if (!isPeriodMatch(periodId)) return;
 
       const pts = Number(a.awardedPoints) || 0;
       let matchedMember = members.find(m => m.id === a.achieverId);
@@ -119,7 +106,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     });
 
     return statsMap;
-  }, [members, achievements, competitions, selectedPeriodFilter]);
+  }, [members, achievements, competitions, selectedPeriodFilter, activeCompetition]);
 
   // Compute period-specific stats for each organization
   const orgPeriodStats = useMemo(() => {
@@ -128,10 +115,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
     achievements.forEach(a => {
       if (a.status !== 'Approved') return;
-      if (selectedPeriodFilter !== 'all') {
-        const periodId = getAchievementPeriodId(a, competitions);
-        if (periodId !== selectedPeriodFilter) return;
-      }
+      const periodId = getAchievementPeriodId(a, competitions);
+      if (!isPeriodMatch(periodId)) return;
 
       const pts = Number(a.awardedPoints) || 0;
       if (a.organizationId) {
@@ -144,7 +129,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     });
 
     return statsMap;
-  }, [activeOrganizations, achievements, competitions, selectedPeriodFilter]);
+  }, [activeOrganizations, achievements, competitions, selectedPeriodFilter, activeCompetition]);
 
   // Filtered & sorted members based on selected organization, period stats, and search query
   const sortedMembers = useMemo(() => {
@@ -203,16 +188,15 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
   const filteredAwards = useMemo(() => {
     return awards.filter(award => {
       // Period filter
-      if (selectedPeriodFilter !== 'all') {
-        const awardPeriodId = getAwardPeriodId(award, competitions);
-        if (awardPeriodId !== selectedPeriodFilter) return false;
-      }
+      const awardPeriodId = getAwardPeriodId(award, competitions);
+      if (!isPeriodMatch(awardPeriodId)) return false;
+
       // Recipient type filter
       if (awardsRecipientFilter === 'individual') return award.recipientType === 'individual';
       if (awardsRecipientFilter === 'class_organization') return award.recipientType !== 'individual';
       return true;
     });
-  }, [awards, selectedPeriodFilter, awardsRecipientFilter, competitions]);
+  }, [awards, selectedPeriodFilter, awardsRecipientFilter, competitions, activeCompetition]);
 
   // Compute student-specific achievements and awarded points for selected member
   const studentAchievements = selectedMemberForDetails
@@ -230,10 +214,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
         if (!isMatch) return false;
 
         // Apply period filter if selected
-        if (selectedPeriodFilter !== 'all') {
-          const aPeriodId = getAchievementPeriodId(a, competitions);
-          if (aPeriodId !== selectedPeriodFilter) return false;
-        }
+        const aPeriodId = getAchievementPeriodId(a, competitions);
+        if (!isPeriodMatch(aPeriodId)) return false;
 
         return true;
       })
@@ -545,38 +527,11 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                 {/* Filter & Search Toolbar (Period Filter + Organization Filter + Search Bar) */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5 pt-1">
                   {/* Evaluation Period Filter Dropdown */}
-                  <div className="relative w-full md:w-56 shrink-0">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-700">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <select
-                      id="live-standings-period-filter"
-                      value={selectedPeriodFilter}
-                      onChange={(e) => {
-                        setSelectedPeriodFilter(e.target.value);
-                        setPeriodUserSelected(true);
-                      }}
-                      className="w-full appearance-none pl-9 pr-8 py-2 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer"
-                      aria-label="Filter leaderboard by evaluation period"
-                    >
-                      {activeCompetition && (
-                        <option value={activeCompetition.id}>
-                          Active: {activeCompetition.name}
-                        </option>
-                      )}
-                      <option value="all">All Periods (Lifetime / Cumulative)</option>
-                      {dropdownCompetitions
-                        .filter(c => c.id !== activeCompetition?.id)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} {c.status === 'completed' ? '(Concluded)' : ''}
-                          </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
+                  <EvaluationPeriodSelector
+                    selectedPeriod={selectedPeriodFilter}
+                    onSelectPeriod={setSelectedPeriodFilter}
+                    competitions={competitions}
+                  />
 
                   {/* Organization Filter Dropdown */}
                   <div className="relative w-full md:w-48 shrink-0">
@@ -875,40 +830,13 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
               </div>
 
               {/* Toolbar: Period Filter + Recipient Type Filter */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 {/* Period Selector in Awards */}
-                <div className="relative w-full sm:w-56 shrink-0">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-700">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <select
-                    id="awards-period-filter"
-                    value={selectedPeriodFilter}
-                    onChange={(e) => {
-                      setSelectedPeriodFilter(e.target.value);
-                      setPeriodUserSelected(true);
-                    }}
-                    className="w-full appearance-none pl-9 pr-8 py-2 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer"
-                    aria-label="Filter awards by evaluation period"
-                  >
-                    {activeCompetition && (
-                      <option value={activeCompetition.id}>
-                        Active: {activeCompetition.name}
-                      </option>
-                    )}
-                    <option value="all">All Periods (Historical Awards)</option>
-                    {dropdownCompetitions
-                      .filter(c => c.id !== activeCompetition?.id)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} {c.status === 'completed' ? '(Concluded)' : ''}
-                        </option>
-                      ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                <EvaluationPeriodSelector
+                  selectedPeriod={selectedPeriodFilter}
+                  onSelectPeriod={setSelectedPeriodFilter}
+                  competitions={competitions}
+                />
 
                 {/* Recipient Type Filter Control */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto overflow-x-auto max-w-full no-scrollbar">

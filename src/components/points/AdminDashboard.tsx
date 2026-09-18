@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { usePortal, SP_Organization, SP_Achievement, SP_Category, SP_Award, AwardWinner, getAwardWinners, getWinnerDisplayName, getWinnerSubtext } from '../../context/PortalContext';
+import React, { useState, useMemo } from 'react';
+import { usePortal, SP_Organization, SP_Achievement, SP_Category, SP_Award, AwardWinner, getAwardWinners, getWinnerDisplayName, getWinnerSubtext, getAchievementPeriodId, getAwardPeriodId } from '../../context/PortalContext';
 import { useApp } from '../../context/AppContext';
+import { EvaluationPeriodSelector } from './EvaluationPeriodSelector';
 import { 
   Trophy, Plus, Users, Award, Star, Settings, Megaphone, ShieldAlert, CheckCircle2,
   ListFilter, Eye, Check, X, FileText, Calendar, MapPin, Film, History, Loader2, AlertCircle,
@@ -142,19 +143,107 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setCopiedLinkId(null), 2000);
   };
 
+  // Evaluation Period Filter state for Review Submissions
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('active');
+
+  // Active Evaluation Period resolver
+  const activeEvaluationPeriod = useMemo(() => {
+    return competitions.find(c => c.status === 'active');
+  }, [competitions]);
+
+  // Submissions filtered strictly by selected Evaluation Period
+  const periodFilteredAchievements = useMemo(() => {
+    if (selectedPeriodFilter === 'all') {
+      return achievements;
+    }
+    if (selectedPeriodFilter === 'active') {
+      if (!activeEvaluationPeriod) {
+        // When no active period is active, return submissions with unassigned period or empty
+        return achievements.filter(a => !getAchievementPeriodId(a, competitions));
+      }
+      return achievements.filter(a => getAchievementPeriodId(a, competitions) === activeEvaluationPeriod.id);
+    }
+    // Specific period by ID
+    return achievements.filter(a => getAchievementPeriodId(a, competitions) === selectedPeriodFilter);
+  }, [achievements, competitions, selectedPeriodFilter, activeEvaluationPeriod]);
+
+  // Evaluation Period Filter state for Conferred Awards
+  const [awardsPeriodFilter, setAwardsPeriodFilter] = useState<string>('active');
+
+  const periodFilteredAwards = useMemo(() => {
+    if (awardsPeriodFilter === 'all') {
+      return awards;
+    }
+    if (awardsPeriodFilter === 'active') {
+      if (!activeEvaluationPeriod) {
+        return awards;
+      }
+      return awards.filter(a => {
+        const pId = getAwardPeriodId(a, competitions);
+        return !pId || pId === activeEvaluationPeriod.id;
+      });
+    }
+    return awards.filter(a => getAwardPeriodId(a, competitions) === awardsPeriodFilter);
+  }, [awards, competitions, awardsPeriodFilter, activeEvaluationPeriod]);
+
   // Redesigned review workflow state
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortOption, setSortOption] = useState<string>('newest');
 
   // Point evaluation fields
   const [baseAwardedPoints, setBaseAwardedPoints] = useState<number>(10);
   const [bonusPoints, setBonusPoints] = useState<number>(0);
   const [deductionPoints, setDeductionPoints] = useState<number>(0);
 
-  // Submissions for review count
-  const pendingAchievements = achievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review');
+  // Submissions for review count filtered by selected Evaluation Period
+  const pendingAchievements = periodFilteredAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review');
+
+  // Organizations that have submitted at least 1 achievement in the currently selected evaluation period, sorted with latest submitters first
+  const submittingOrgsForSelectedPeriod = useMemo(() => {
+    const list: Array<{
+      org: SP_Organization;
+      orgAchievements: SP_Achievement[];
+      totalSubmitted: number;
+      pendingCount: number;
+      approvedCount: number;
+      rejectedCount: number;
+      pointsAwarded: number;
+      latestTimestamp: number;
+    }> = [];
+
+    organizations.forEach(org => {
+      const orgAchs = periodFilteredAchievements.filter(a => a.organizationId === org.id || a.organizationName === org.name);
+      if (orgAchs.length === 0) return;
+
+      const latestTimestamp = orgAchs.reduce((latest, ach) => {
+        const t = new Date(ach.submittedAt || ach.createdAt).getTime();
+        return isNaN(t) ? latest : Math.max(latest, t);
+      }, 0);
+
+      const totalSubmitted = orgAchs.length;
+      const pendingCount = orgAchs.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
+      const approvedCount = orgAchs.filter(a => a.status === 'Approved').length;
+      const rejectedCount = orgAchs.filter(a => a.status === 'Rejected').length;
+      const pointsAwarded = orgAchs
+        .filter(a => a.status === 'Approved')
+        .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
+
+      list.push({
+        org,
+        orgAchievements: orgAchs,
+        totalSubmitted,
+        pendingCount,
+        approvedCount,
+        rejectedCount,
+        pointsAwarded,
+        latestTimestamp
+      });
+    });
+
+    // Newly / most recently submitting organizations appear at the top/front of the list
+    return list.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+  }, [organizations, periodFilteredAchievements]);
 
   // Forms states
   const [reviewPoints, setReviewPoints] = useState<number>(10);
@@ -451,19 +540,28 @@ export const AdminDashboard: React.FC = () => {
           {!selectedOrgId ? (
             // STEP 1: Grid of Organizations
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs">
+              {/* Clean & Compact Achievements Review Panel Card */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 font-heading">Achievements Review Panel</h2>
-                  <p className="text-xs text-slate-500">Select a class organization to inspect and review their submitted programs and achievements.</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">Achievements Review Panel</h2>
+                    {activeEvaluationPeriod && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Active Period: {activeEvaluationPeriod.name}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Select a class organization to inspect and review their submitted programs and achievements.</p>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Submissions Status</span>
+                  <div className="text-right hidden sm:block">
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Submissions Status</span>
                     <span className={`text-xs font-black inline-flex items-center gap-1.5 ${
                       portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
                     }`}>
-                      <span className={`w-2 h-2 rounded-full ${
+                      <span className={`w-1.5 h-1.5 rounded-full ${
                         portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                       }`} />
                       {portal?.submissionsAllowed !== false ? 'Accepting Submissions' : 'Submissions Paused'}
@@ -490,67 +588,88 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {organizations.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400 text-xs italic">
-                  No class sub-organizations are registered in the portal yet. Create accounts under the "Class Organizations" tab.
+              {/* Standalone Evaluation Period Selector Control Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <EvaluationPeriodSelector
+                    selectedPeriod={selectedPeriodFilter}
+                    onSelectPeriod={setSelectedPeriodFilter}
+                    competitions={competitions}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-600 bg-slate-50/90 px-3 py-1.5 rounded-xl border border-slate-100 flex-wrap shrink-0">
+                  <span className="font-semibold text-slate-500 text-[11px]">Period Stats:</span>
+                  <span className="font-black text-slate-800">
+                    {periodFilteredAchievements.length} Total
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className={`font-black ${pendingAchievements.length > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                    {pendingAchievements.length} Pending
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="font-black text-emerald-800">
+                    +{periodFilteredAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)} pts
+                  </span>
+                </div>
+              </div>
+
+              {submittingOrgsForSelectedPeriod.length === 0 ? (
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-8 sm:p-12 text-center shadow-2xs">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3.5 border border-emerald-200/60 shadow-2xs">
+                    <FileText className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">No Submissions Yet</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
+                    No achievements or programs have been submitted by any class organization for this evaluation period. When an organization submits an achievement, it will automatically appear here.
+                  </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {organizations.map((org) => {
-                    const orgAchievements = achievements.filter(a => a.organizationId === org.id);
-                    const totalSubmitted = orgAchievements.length;
-                    const pendingCount = orgAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
-                    const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
-                    const rejectedCount = orgAchievements.filter(a => a.status === 'Rejected').length;
-                    
-                    // Compute total points from approved achievements
-                    const pointsAwarded = orgAchievements
-                      .filter(a => a.status === 'Approved')
-                      .reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0);
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {submittingOrgsForSelectedPeriod.map(({ org, totalSubmitted, pendingCount, approvedCount, rejectedCount, pointsAwarded }) => {
                     return (
                       <div 
                         key={org.id} 
-                        className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 hover:border-emerald-600/40 transition-all shadow-xs flex flex-col justify-between space-y-3 group"
+                        className="bg-white rounded-2xl sm:rounded-3xl border-2 border-emerald-600 p-4 sm:p-5 hover:border-emerald-700 hover:shadow-md transition-all shadow-xs flex flex-col justify-between space-y-4 group"
                         id={`org-card-${org.id}`}
                       >
                         {/* Organization Header */}
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-black text-emerald-800 text-xs shadow-2xs flex-shrink-0">
+                          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-xs sm:text-sm shadow-2xs flex-shrink-0">
                             {org.logo ? (
-                              <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
+                              <img src={org.logo} alt={org.name} className="w-full h-full rounded-2xl object-cover" referrerPolicy="no-referrer" />
                             ) : (
                               org.name.substring(0, 2).toUpperCase()
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-800 transition-colors leading-tight">{org.name}</h3>
-                            <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base truncate group-hover:text-emerald-900 transition-colors leading-tight font-heading">{org.name}</h3>
+                            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold truncate mt-0.5">
                               {org.membersCount || 0} members {org.className ? `• ${org.className}` : ''}
                             </p>
                           </div>
                         </div>
 
                         {/* Primary Statistics (Submitted / Pending / Approved) */}
-                        <div className="grid grid-cols-3 gap-1 py-2 border-y border-slate-100 text-center">
-                          <div className="space-y-0.5">
+                        <div className="grid grid-cols-3 gap-1 py-2.5 bg-slate-50/70 rounded-xl border border-slate-100 text-center">
+                          <div className="space-y-0.5 px-1">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Submitted</p>
-                            <p className="text-sm font-black text-slate-800">{totalSubmitted}</p>
+                            <p className="text-sm sm:text-base font-black text-slate-900">{totalSubmitted}</p>
                           </div>
-                          <div className="space-y-0.5 border-x border-slate-100/80">
+                          <div className="space-y-0.5 px-1 border-x border-slate-200/60">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pending</p>
-                            <p className={`text-sm font-black ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+                            <p className={`text-sm sm:text-base font-black ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
                               {pendingCount}
                             </p>
                           </div>
-                          <div className="space-y-0.5">
+                          <div className="space-y-0.5 px-1">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Approved</p>
-                            <p className="text-sm font-black text-emerald-600">{approvedCount}</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-600">{approvedCount}</p>
                           </div>
                         </div>
 
                         {/* Secondary Statistics (Rejected / Awarded Points) */}
-                        <div className="flex items-center justify-between text-xs px-0.5">
+                        <div className="flex items-center justify-between text-xs px-1">
                           <div className="space-y-0.5 text-left">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Rejected Submissions</p>
                             <p className="text-xs font-bold text-rose-600">{rejectedCount}</p>
@@ -566,10 +685,10 @@ export const AdminDashboard: React.FC = () => {
                           onClick={() => {
                             setSelectedOrgId(org.id);
                           }}
-                          className="w-full py-2 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                          className="w-full py-2.5 bg-slate-50 hover:bg-emerald-700 hover:text-white hover:border-emerald-700 text-slate-800 font-bold rounded-xl text-xs border border-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1 shadow-2xs"
                         >
-                          <Building className="w-3.5 h-3.5" />
-                          Review Programs
+                          <Building className="w-4 h-4" />
+                          <span>Review Programs</span>
                         </button>
                       </div>
                     );
@@ -592,8 +711,8 @@ export const AdminDashboard: React.FC = () => {
                 );
               }
 
-              // Filter achievements for this organization
-              const orgAchievements = achievements.filter(a => a.organizationId === selectedOrg.id);
+              // Filter achievements for this organization strictly within selected evaluation period
+              const orgAchievements = periodFilteredAchievements.filter(a => a.organizationId === selectedOrg.id || a.organizationName === selectedOrg.name);
               const totalSubmitted = orgAchievements.length;
               const pendingCount = orgAchievements.filter(a => a.status === 'Submitted' || a.status === 'Under Review').length;
               const approvedCount = orgAchievements.filter(a => a.status === 'Approved').length;
@@ -614,98 +733,97 @@ export const AdminDashboard: React.FC = () => {
 
               const filteredAchs = statusFilter === 'All' ? searchedAchs : searchedAchs.filter(a => a.status === statusFilter);
 
-              // Apply Sort
+              // Apply Sort (newest submissions first by default)
               const sortedAchs = [...filteredAchs].sort((a, b) => {
-                if (sortOption === 'newest') {
-                  return new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime();
-                }
-                if (sortOption === 'oldest') {
-                  return new Date(a.submittedAt || a.createdAt).getTime() - new Date(b.submittedAt || b.createdAt).getTime();
-                }
-                if (sortOption === 'points') {
-                  return (b.requestedPoints || 0) - (a.requestedPoints || 0);
-                }
-                if (sortOption === 'status') {
-                  return a.status.localeCompare(b.status);
-                }
-                return 0;
+                return new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime();
               });
 
               return (
-                <div className="space-y-6" id="org-review-container">
+                <div className="space-y-4" id="org-review-container">
                   {/* Breadcrumbs */}
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                     <button 
                       onClick={() => setSelectedOrgId(null)} 
-                      className="hover:text-emerald-800 transition-colors cursor-pointer font-bold"
+                      className="hover:text-emerald-800 transition-colors cursor-pointer font-bold text-slate-600 hover:underline"
                     >
                       Achievements Review
                     </button>
-                    <span>→</span>
-                    <span className="text-slate-800 font-extrabold">{selectedOrg.name}</span>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-emerald-800 font-extrabold truncate">{selectedOrg.name}</span>
                   </div>
 
-                  {/* Organization Summary Card */}
-                  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-black text-emerald-800 text-lg shadow-xs flex-shrink-0">
+                  {/* Compact Organization Summary Card */}
+                  <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                    {/* Org Identity */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm shadow-2xs flex-shrink-0">
                         {selectedOrg.logo ? (
-                          <img src={selectedOrg.logo} alt={selectedOrg.name} className="w-full h-full rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                          <img src={selectedOrg.logo} alt={selectedOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
                         ) : (
                           selectedOrg.name.substring(0, 2).toUpperCase()
                         )}
                       </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-900 font-heading">{selectedOrg.name}</h2>
-                        <p className="text-sm text-slate-500 font-semibold">{selectedOrg.className}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">Leader: {selectedOrg.leader || 'N/A'} • Contact: {selectedOrg.contactDetails || 'N/A'}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight truncate">{selectedOrg.name}</h2>
+                          {selectedOrg.className && (
+                            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                              {selectedOrg.className}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
+                          Leader: <span className="font-semibold text-slate-700">{selectedOrg.leader || 'N/A'}</span>
+                          <span className="mx-1.5 text-slate-300">•</span>
+                          Contact: <span className="font-semibold text-slate-700">{selectedOrg.contactDetails || 'N/A'}</span>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center flex-shrink-0">
-                      <div className="px-3">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Points</p>
-                        <p className="text-base font-black text-emerald-800">+{pointsAwarded} pts</p>
+                    {/* Compact Stats Row */}
+                    <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-slate-50/80 p-2 sm:p-2.5 rounded-xl border border-slate-100/90 text-center flex-shrink-0">
+                      <div className="px-2">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Awarded</p>
+                        <p className="text-xs sm:text-sm font-black text-emerald-800">+{pointsAwarded} pts</p>
                       </div>
-                      <div className="px-3 border-l border-slate-100">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pending</p>
-                        <p className="text-base font-black text-amber-600">{pendingCount}</p>
+                      <div className="px-2 border-l border-slate-200/60">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Pending</p>
+                        <p className={`text-xs sm:text-sm font-black ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{pendingCount}</p>
                       </div>
-                      <div className="px-3 border-l border-slate-100">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Approved</p>
-                        <p className="text-base font-black text-emerald-600">{approvedCount}</p>
+                      <div className="px-2 border-l border-slate-200/60">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Approved</p>
+                        <p className="text-xs sm:text-sm font-black text-emerald-600">{approvedCount}</p>
                       </div>
-                      <div className="px-3 border-l border-slate-100">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Rejected</p>
-                        <p className="text-base font-black text-rose-600">{rejectedCount}</p>
+                      <div className="px-2 border-l border-slate-200/60">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Rejected</p>
+                        <p className="text-xs sm:text-sm font-black text-rose-600">{rejectedCount}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Filters and search block */}
-                  <div className="bg-white rounded-3xl border border-slate-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className="relative w-full max-w-sm">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                          <Search className="w-4 h-4" />
-                        </span>
+                  {/* Compact Unified Filters Toolbar (Search & Status) */}
+                  <div className="bg-white rounded-2xl border border-slate-200/90 p-2.5 sm:p-3 shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+                      {/* Search Input */}
+                      <div className="relative flex-1 min-w-0">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         <input
                           type="text"
-                          placeholder="Search programs/achievements..."
+                          placeholder="Search programs or achievements..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-600 transition-all font-medium"
                         />
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5">
-                        <span className="text-slate-400 font-bold text-[10px] uppercase">Status:</span>
+                      {/* Status Filter */}
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs shrink-0 self-start sm:self-auto">
+                        <ListFilter className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Status:</span>
                         <select
                           value={statusFilter}
                           onChange={(e) => setStatusFilter(e.target.value)}
-                          className="bg-transparent border-none text-slate-800 font-semibold focus:outline-none focus:ring-0 text-xs py-0 pl-1 pr-4"
+                          className="bg-transparent border-none text-slate-800 font-semibold focus:outline-none focus:ring-0 text-xs py-0 pl-0.5 pr-2 cursor-pointer"
                         >
                           <option value="All">All Statuses</option>
                           <option value="Submitted">Submitted</option>
@@ -715,193 +833,122 @@ export const AdminDashboard: React.FC = () => {
                           <option value="Returned for Correction">Returned for Correction</option>
                         </select>
                       </div>
-
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1.5">
-                        <span className="text-slate-400 font-bold text-[10px] uppercase">Sort:</span>
-                        <select
-                          value={sortOption}
-                          onChange={(e) => setSortOption(e.target.value)}
-                          className="bg-transparent border-none text-slate-800 font-semibold focus:outline-none focus:ring-0 text-xs py-0 pl-1 pr-4"
-                        >
-                          <option value="newest">Newest First</option>
-                          <option value="oldest">Oldest First</option>
-                          <option value="points">Requested Points</option>
-                          <option value="status">Status</option>
-                        </select>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setSelectedOrgId(null);
-                        }}
-                        className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-2xl text-xs transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        Back to Organizations
-                      </button>
                     </div>
                   </div>
 
-                  {/* Achievements List / Table Block */}
-                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+                  {/* Achievements List / Compact Cards Block */}
+                  <div>
                     {orgAchievements.length === 0 ? (
-                      <div className="text-center py-16 text-slate-400 text-xs italic">
+                      <div className="bg-white rounded-3xl border-2 border-slate-200 text-center py-12 px-4 text-slate-400 text-xs italic">
                         “No achievements submitted by this organization yet.”
                       </div>
                     ) : sortedAchs.length === 0 ? (
-                      <div className="text-center py-16 text-slate-400 text-xs italic">
+                      <div className="bg-white rounded-3xl border-2 border-slate-200 text-center py-12 px-4 text-slate-400 text-xs italic">
                         {statusFilter === 'Submitted' ? '“No pending achievements to review.”' : 'No achievements match the selected filters.'}
                       </div>
                     ) : (
-                      <>
-                        {/* Desktop Table View */}
-                        <div className="hidden md:block overflow-x-auto">
-                          <table className="w-full text-xs text-left text-slate-600">
-                            <thead className="bg-slate-50/70 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-100">
-                              <tr>
-                                <th className="py-3 px-4">Program / Achievement Title</th>
-                                <th className="py-3 px-4">Whose Achievement (Achiever)</th>
-                                <th className="py-3 px-4">Category</th>
-                                <th className="py-3 px-4">Date</th>
-                                <th className="py-3 px-4">Requested</th>
-                                <th className="py-3 px-4">Status</th>
-                                <th className="py-3 px-4">Submitted Date</th>
-                                <th className="py-3 px-4 text-right">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {sortedAchs.map((ach) => (
-                                <tr key={ach.id} className="hover:bg-slate-50/30 transition-colors">
-                                  <td className="py-4 px-4 font-medium text-slate-700 max-w-xs">
-                                    <p className="font-extrabold text-slate-950 text-sm">{ach.title}</p>
-                                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{ach.programName}</p>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <div className="flex items-center gap-1.5">
-                                      <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                      <div>
-                                        <p className="font-extrabold text-slate-900 text-xs">
-                                          {ach.achieverName || 'Achiever Not Assigned'}
-                                        </p>
-                                        {ach.achieverStudentId ? (
-                                          <p className="text-[10px] text-slate-400 font-mono">ID: {ach.achieverStudentId}</p>
-                                        ) : ach.achieverName === 'Achiever Not Assigned' || !ach.achieverName ? (
-                                          <span className="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block">
-                                            Needs Assignment
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4 font-semibold text-slate-600">
-                                    <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200/40">
-                                      {getCategoryName(ach.categoryId)}
-                                    </span>
-                                  </td>
-                                  <td className="py-4 px-4 text-slate-500 font-medium">
-                                    {formatDate(ach.date)}
-                                  </td>
-                                  <td className="py-4 px-4 font-black text-slate-800 text-sm">
-                                    {ach.requestedPoints} pts
-                                  </td>
-                                  <td className="py-4 px-4 font-medium">
-                                    {(() => {
-                                      switch (ach.status) {
-                                        case 'Approved':
-                                          return <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-bold rounded-lg">🟢 Approved</span>;
-                                        case 'Rejected':
-                                          return <span className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-100 text-[10px] font-bold rounded-lg">🔴 Rejected</span>;
-                                        case 'Under Review':
-                                          return <span className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-100 text-[10px] font-bold rounded-lg">🔵 Under Review</span>;
-                                        case 'Returned for Correction':
-                                          return <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-100 text-[10px] font-bold rounded-lg">🟡 Returned</span>;
-                                        default:
-                                          return <span className="px-2.5 py-1 bg-slate-50 text-slate-800 border border-slate-100 text-[10px] font-bold rounded-lg">⚪ Submitted</span>;
-                                      }
-                                    })()}
-                                  </td>
-                                  <td className="py-4 px-4 text-slate-400">
-                                    {formatDate(ach.submittedAt || ach.createdAt)}
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <button
-                                      onClick={() => {
-                                        setSelectedAchievement(ach);
-                                        setBaseAwardedPoints(ach.requestedPoints || 10);
-                                        setBonusPoints(ach.bonusPoints || 0);
-                                        setDeductionPoints(ach.deductionPoints || 0);
-                                        setReviewPoints(ach.requestedPoints || 10);
-                                        setReviewNotes(ach.reviewNotes || '');
-                                      }}
-                                      className="py-1.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold rounded-xl shadow-2xs transition-colors cursor-pointer"
-                                    >
-                                      Evaluate
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div className="space-y-3 sm:space-y-3.5" id="evaluation-programs-list">
+                        {sortedAchs.map((ach) => (
+                          <div
+                            key={ach.id}
+                            id={`program-card-${ach.id}`}
+                            className="bg-white rounded-2xl border-2 border-emerald-600 p-3.5 sm:p-4 hover:border-emerald-700 hover:shadow-sm transition-all shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                          >
+                            {/* Left Info: Meta row, Program/Achievement Name, Achiever Name */}
+                            <div className="space-y-1.5 min-w-0 flex-1">
+                              {/* Meta Row: Category, Status, Submitted Date */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-extrabold rounded-lg">
+                                  {getCategoryName(ach.categoryId)}
+                                </span>
 
-                        {/* Mobile Stacked List View */}
-                        <div className="block md:hidden divide-y divide-slate-100">
-                          {sortedAchs.map((ach) => (
-                            <div key={ach.id} className="p-4 space-y-3">
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="min-w-0">
-                                  <h4 className="font-extrabold text-slate-950 text-sm break-words">{ach.title}</h4>
-                                  <p className="text-[11px] text-slate-500 font-semibold">{ach.programName}</p>
-                                </div>
-                                <span className="flex-shrink-0">
-                                  {(() => {
-                                    switch (ach.status) {
-                                      case 'Approved':
-                                        return <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[9px] font-bold rounded-lg font-mono">Approved</span>;
-                                      case 'Rejected':
-                                        return <span className="px-2 py-0.5 bg-rose-50 text-rose-800 text-[9px] font-bold rounded-lg font-mono">Rejected</span>;
-                                      case 'Under Review':
-                                        return <span className="px-2 py-0.5 bg-blue-50 text-blue-800 text-[9px] font-bold rounded-lg font-mono">Review</span>;
-                                      case 'Returned for Correction':
-                                        return <span className="px-2 py-0.5 bg-amber-50 text-amber-800 text-[9px] font-bold rounded-lg font-mono">Returned</span>;
-                                      default:
-                                        return <span className="px-2 py-0.5 bg-slate-50 text-slate-800 text-[9px] font-bold rounded-lg font-mono">Submitted</span>;
-                                    }
-                                  })()}
+                                {(() => {
+                                  switch (ach.status) {
+                                    case 'Approved':
+                                      return (
+                                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                          🟢 Approved
+                                        </span>
+                                      );
+                                    case 'Rejected':
+                                      return (
+                                        <span className="px-2 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                          🔴 Rejected
+                                        </span>
+                                      );
+                                    case 'Under Review':
+                                      return (
+                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                          🔵 Under Review
+                                        </span>
+                                      );
+                                    case 'Returned for Correction':
+                                      return (
+                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                          🟡 Returned
+                                        </span>
+                                      );
+                                    default:
+                                      return (
+                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                          ⚪ Submitted
+                                        </span>
+                                      );
+                                  }
+                                })()}
+
+                                <span className="text-[10px] text-slate-400 font-medium ml-auto sm:ml-0">
+                                  Submitted: {formatDate(ach.submittedAt || ach.createdAt)}
                                 </span>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-bold bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                                <div>
-                                  <span className="text-slate-400 block uppercase">Category</span>
-                                  <span className="text-slate-700 font-bold truncate block">{getCategoryName(ach.categoryId)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-400 block uppercase">Requested</span>
-                                  <span className="text-slate-700 font-extrabold block">{ach.requestedPoints} pts</span>
-                                </div>
+                              {/* Program / Achievement Name */}
+                              <div>
+                                <h4 className="font-extrabold text-slate-950 text-sm sm:text-base font-heading leading-tight truncate">
+                                  {ach.title}
+                                </h4>
+                                {ach.programName && ach.programName !== ach.title && (
+                                  <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                                    {ach.programName}
+                                  </p>
+                                )}
                               </div>
 
-                              <div className="flex items-center justify-between pt-1">
-                                <span className="text-[10px] text-slate-400">Submitted: {formatDate(ach.submittedAt || ach.createdAt)}</span>
-                                <button
-                                  onClick={() => {
-                                    setSelectedAchievement(ach);
-                                    setBaseAwardedPoints(ach.requestedPoints || 10);
-                                    setBonusPoints(ach.bonusPoints || 0);
-                                    setDeductionPoints(ach.deductionPoints || 0);
-                                    setReviewPoints(ach.requestedPoints || 10);
-                                    setReviewNotes(ach.reviewNotes || '');
-                                  }}
-                                  className="py-1.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-xl transition-colors cursor-pointer"
-                                >
-                                  Evaluate
-                                </button>
+                              {/* Achiever Name */}
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                <span className="text-[11px] font-bold text-slate-400">Achiever:</span>
+                                <span className="font-extrabold text-slate-900 text-xs truncate">
+                                  {ach.achieverName || 'Group / Class Achievement'}
+                                </span>
+                                {ach.achieverStudentId && (
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    ({ach.achieverStudentId})
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </>
+
+                            {/* Right Action: Evaluate Button */}
+                            <div className="flex items-center sm:self-center shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                              <button
+                                onClick={() => {
+                                  setSelectedAchievement(ach);
+                                  setBaseAwardedPoints(ach.requestedPoints || 10);
+                                  setBonusPoints(ach.bonusPoints || 0);
+                                  setDeductionPoints(ach.deductionPoints || 0);
+                                  setReviewPoints(ach.requestedPoints || 10);
+                                  setReviewNotes(ach.reviewNotes || '');
+                                }}
+                                className="w-full sm:w-auto px-5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-extrabold rounded-xl shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Evaluate</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1887,19 +1934,30 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'awards' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-base font-bold text-slate-900 font-heading">Conferred Awards</h2>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
-                Total: {awards.length}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 font-heading">Conferred Awards</h2>
+                <p className="text-xs text-slate-500">Official awards and recognitions issued to achievers and organizations.</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <EvaluationPeriodSelector
+                  compact={true}
+                  selectedPeriod={awardsPeriodFilter}
+                  onSelectPeriod={setAwardsPeriodFilter}
+                  competitions={competitions}
+                />
+                <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-xl">
+                  {periodFilteredAwards.length} Award{periodFilteredAwards.length === 1 ? '' : 's'}
+                </span>
+              </div>
             </div>
-            {awards.length === 0 ? (
+            {periodFilteredAwards.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
-                No awards conferred yet. Use the form to confer an award.
+                {awards.length === 0 ? 'No awards conferred yet. Use the form to confer an award.' : 'No awards found for the selected evaluation period.'}
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {awards.map(aw => {
+                {periodFilteredAwards.map(aw => {
                   const winners = getAwardWinners(aw);
                   const isInd = aw.recipientType === 'individual';
                   return (
@@ -2724,19 +2782,7 @@ export const AdminDashboard: React.FC = () => {
           });
           const filteredAchsForNav = statusFilter === 'All' ? searchedAchsForNav : searchedAchsForNav.filter(a => a.status === statusFilter);
           const sortedAchsForNav = [...filteredAchsForNav].sort((a, b) => {
-            if (sortOption === 'newest') {
-              return new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime();
-            }
-            if (sortOption === 'oldest') {
-              return new Date(a.submittedAt || a.createdAt).getTime() - new Date(b.submittedAt || b.createdAt).getTime();
-            }
-            if (sortOption === 'points') {
-              return (b.requestedPoints || 0) - (a.requestedPoints || 0);
-            }
-            if (sortOption === 'status') {
-              return a.status.localeCompare(b.status);
-            }
-            return 0;
+            return new Date(b.submittedAt || b.createdAt).getTime() - new Date(a.submittedAt || a.createdAt).getTime();
           });
 
           const currentIndex = sortedAchsForNav.findIndex(a => a.id === selectedAchievement.id);
