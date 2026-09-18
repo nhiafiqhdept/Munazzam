@@ -2446,7 +2446,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const now = new Date().toISOString();
 
     await updateDoc(doc(db, 'sp_competitions', id), cleanFirestorePayload({
-      status: 'completed',
+      status: 'concluded',
+      conclusionDate: now,
       updatedAt: now
     }));
 

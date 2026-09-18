@@ -1975,7 +1975,10 @@ export const AdminDashboard: React.FC = () => {
                       {comp.status === 'active' ? (
                         <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">🟢 Active Period</span>
                       ) : (
-                        <span className="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">⚪ Concluded</span>
+                        <div className="space-y-1">
+                          <span className="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">⚪ Concluded</span>
+                          {comp.conclusionDate && <p className="text-[9px] text-slate-500 font-medium">Concluded on {formatDate(comp.conclusionDate)}</p>}
+                        </div>
                       )}
                     </p>
                   </div>
