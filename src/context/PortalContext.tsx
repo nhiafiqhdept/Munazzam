@@ -1028,9 +1028,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       handleFirestoreError(error, OperationType.GET, 'sp_registration_links');
     });
 
-    // Auto-reconcile totals once masterAccountId is connected
+    // Auto-reconcile totals once masterAccountId is connected (throttled to once per 5 minutes per session)
     if (masterAccountId) {
-      recalculateLeaderboardTotals().catch((err) => console.warn('Auto reconciliation error', err));
+      const lastReconcileKey = `sp_last_reconcile_${masterAccountId}`;
+      const lastReconcile = sessionStorage.getItem(lastReconcileKey);
+      const nowTime = Date.now();
+      if (!lastReconcile || nowTime - Number(lastReconcile) > 300000) {
+        sessionStorage.setItem(lastReconcileKey, String(nowTime));
+        recalculateLeaderboardTotals().catch((err) => console.warn('Auto reconciliation error', err));
+      }
     }
 
     return () => {
@@ -1325,8 +1331,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }));
         }
       }
-    } catch (e) {
-      console.error('Error recalculating totals', e);
+    } catch (e: any) {
+      if (e?.message?.includes('Quota exceeded') || e?.code === 'resource-exhausted') {
+        console.warn('Firestore free tier quota limit reached for recalculating totals. Skipping reconciliation until limits reset.');
+      } else {
+        console.error('Error recalculating totals', e);
+      }
     }
   };
 
@@ -2448,6 +2458,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await updateDoc(doc(db, 'sp_competitions', id), cleanFirestorePayload({
       status: 'concluded',
       conclusionDate: now,
+      concludedAt: now,
       updatedAt: now
     }));
 
