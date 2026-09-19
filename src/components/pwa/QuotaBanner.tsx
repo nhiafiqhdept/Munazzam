@@ -21,11 +21,10 @@ export const QuotaBanner: React.FC = () => {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-            <span>High Load Mode Active</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+            <span>Cloud Database Limit Reached</span>
           </p>
           <p className="text-[11px] text-amber-300/85 mt-0.5 leading-relaxed">
-            The cloud database is experiencing extremely high traffic. Your portal is running in **Optimistic Local-First Mode**. All additions, edits, and details will update instantly on your device and will sync with the cloud as soon as connections clear.
+            Cloud database read limit reached. Some data may be temporarily unavailable. Please try again after the quota resets.
           </p>
         </div>
         <button
