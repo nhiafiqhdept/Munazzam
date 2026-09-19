@@ -1441,9 +1441,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return true;
     }
 
-    // Check if account/email or org has been rejected
+    // Check if account/email or org has been rejected for this portal
     try {
-      const qRej = query(collection(db, 'sp_rejections'), where('userEmail', '==', cleanEmail));
+      const qRej = query(
+        collection(db, 'sp_rejections'), 
+        where('portalId', '==', targetPortalId), 
+        where('userEmail', '==', cleanEmail)
+      );
       const rejSnap = await getDocs(qRej);
       if (!rejSnap.empty) {
         const rejData = rejSnap.docs[0].data();
@@ -1462,12 +1466,55 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('Error checking rejection record on login:', e);
     }
 
-    // Check sp_users collection (support case-insensitive match and exact match)
-    let snap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
-    if (snap.empty) {
-      snap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', email.trim())));
+    // Check sp_users collection scoped to targetPortalId
+    let snap = targetPortalId 
+      ? await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', cleanEmail)))
+      : await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+
+    if (snap.empty && targetPortalId) {
+      snap = await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', email.trim())));
     }
-    if (snap.empty) return false;
+
+    if (snap.empty) {
+      // Fallback for legacy users without portalId or when targetPortalId isn't fully initialized
+      const globalSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+      if (!globalSnap.empty) {
+        const validDoc = globalSnap.docs.find(d => {
+          const dat = d.data();
+          return !targetPortalId || !dat.portalId || dat.portalId === targetPortalId;
+        });
+        if (validDoc) {
+          const userData = validDoc.data();
+          if (userData.status === 'inactive') {
+            throw new Error('This account has been disabled.');
+          }
+          const match = bcrypt.compareSync(password, userData.passwordHash);
+          if (!match) return false;
+
+          const resolvedPortalId = userData.portalId || targetPortalId || '';
+          const loggedUser: PortalUser = {
+            id: userData.id,
+            portalId: resolvedPortalId,
+            organizationId: userData.organizationId || null,
+            email: userData.email,
+            role: userData.role as any,
+            name: userData.name,
+            status: userData.status as any,
+          };
+          setPortalUser(loggedUser);
+          localStorage.setItem('sp_portal_user', JSON.stringify(loggedUser));
+          try {
+            sessionStorage.removeItem('sp_explicit_logout');
+          } catch {}
+          if (userData.portalId) {
+            setActivePortalId(userData.portalId);
+          }
+          await logPortalAction('USER_LOGIN', `Logged in: ${userData.email}`).catch(() => {});
+          return true;
+        }
+      }
+      return false;
+    }
 
     const userDoc = snap.docs[0];
     const userData = userDoc.data();
@@ -1478,7 +1525,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (userData.organizationId) {
       try {
-        const qRejOrg = query(collection(db, 'sp_rejections'), where('organizationId', '==', userData.organizationId));
+        const qRejOrg = query(
+          collection(db, 'sp_rejections'), 
+          where('portalId', '==', targetPortalId), 
+          where('organizationId', '==', userData.organizationId)
+        );
         const rejOrgSnap = await getDocs(qRejOrg);
         if (!rejOrgSnap.empty) {
           const rejData = rejOrgSnap.docs[0].data();
@@ -1565,13 +1616,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     const cleanEmail = loginEmail.trim().toLowerCase();
 
-    // Check if email already registered in sp_users
-    let existingCheck = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+    // Check if email already registered in sp_users for this portal
+    let existingCheck = await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', cleanEmail)));
     if (existingCheck.empty) {
-      existingCheck = await getDocs(query(collection(db, 'sp_users'), where('email', '==', loginEmail.trim())));
+      existingCheck = await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', loginEmail.trim())));
     }
     if (!existingCheck.empty) {
-      throw new Error(`An account with email "${loginEmail}" already exists. Please choose a different email or log in.`);
+      throw new Error(`An account with email "${loginEmail}" already exists in this organization. Please choose a different email or log in.`);
     }
 
     const orgId = generateId('sp_org');
@@ -2674,13 +2725,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     const cleanEmail = loginEmail.trim().toLowerCase();
 
-    // Check if email already registered in sp_users
-    let emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', cleanEmail)));
+    // Check if email already registered in sp_users for this portal
+    let emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', cleanEmail)));
     if (emailCheckSnap.empty) {
-      emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('email', '==', loginEmail.trim())));
+      emailCheckSnap = await getDocs(query(collection(db, 'sp_users'), where('portalId', '==', targetPortalId), where('email', '==', loginEmail.trim())));
     }
     if (!emailCheckSnap.empty) {
-      throw new Error('An account with this email address is already registered.');
+      throw new Error('An account with this email address is already registered in this organization.');
     }
 
     const orgId = generateId('sp_org');
