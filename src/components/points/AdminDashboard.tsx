@@ -458,7 +458,7 @@ export const AdminDashboard: React.FC = () => {
                       <span className="font-bold text-slate-800 truncate">{pendingOrg.name}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-semibold">Leader:</span>
+                      <span className="text-slate-400 block font-semibold">President:</span>
                       <span className="font-bold text-slate-800 truncate">{pendingOrg.leader || 'N/A'}</span>
                     </div>
                     <div>
@@ -752,7 +752,7 @@ export const AdminDashboard: React.FC = () => {
                           )}
                         </div>
                         <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
-                          Leader: <span className="font-semibold text-slate-700">{selectedOrg.leader || 'N/A'}</span>
+                          President: <span className="font-semibold text-slate-700">{selectedOrg.leader || 'N/A'}</span>
                           <span className="mx-1.5 text-slate-300">•</span>
                           Contact: <span className="font-semibold text-slate-700">{selectedOrg.contactDetails || 'N/A'}</span>
                         </p>
@@ -1052,7 +1052,7 @@ export const AdminDashboard: React.FC = () => {
                               )}
                             </p>
                             <p className="text-xs text-slate-500 truncate mt-0.5">
-                              {org.className || 'Class'} • Leader: {org.leader || 'N/A'}
+                              {org.className || 'Class'} • President: {org.leader || 'N/A'}
                             </p>
                           </div>
                         </div>
@@ -1182,7 +1182,7 @@ export const AdminDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Leader / Rep</label>
+                      <label className="text-xs font-bold text-slate-700">President</label>
                       <input
                         type="text"
                         placeholder="e.g. Alex Johnson"
@@ -1285,7 +1285,7 @@ export const AdminDashboard: React.FC = () => {
                 <span className="font-bold text-slate-800">{orgToApprove.className || 'General'}</span>
               </div>
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-500 font-semibold">Leader:</span>
+                <span className="text-slate-500 font-semibold">President:</span>
                 <span className="font-bold text-slate-800">{orgToApprove.leader || 'N/A'}</span>
               </div>
               <p className="text-[11px] text-emerald-800 pt-1 border-t border-emerald-100/60">

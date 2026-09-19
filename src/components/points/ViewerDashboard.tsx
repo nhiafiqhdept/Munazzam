@@ -165,7 +165,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
         if (selectedOrgFilter !== 'all' && o.id !== selectedOrgFilter) {
           return false;
         }
-        // Search query filter (org name, class name, leader)
+        // Search query filter (org name, class name, president)
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase().trim();
         const matchName = o.name?.toLowerCase().includes(query);
@@ -565,7 +565,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       placeholder={
                         leaderboardScope === 'achievers'
                           ? "Search achiever name or student ID..."
-                          : "Search organization name or leader..."
+                          : "Search organization name or president..."
                       }
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -714,7 +714,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                                   )}
                                   <div>
                                     <p className="font-bold text-slate-900 text-sm">{org.name}</p>
-                                    <p className="text-xs text-slate-500">{org.className} • Leader: {org.leader || 'N/A'}</p>
+                                    <p className="text-xs text-slate-500">{org.className} • President: {org.leader || 'N/A'}</p>
                                   </div>
                                 </div>
                               </div>
