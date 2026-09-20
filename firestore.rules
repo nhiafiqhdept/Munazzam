@@ -30,13 +30,13 @@ service cloud.firestore {
 
     // Sub-Wings collection
     match /sub_wings/{subWingId} {
-      allow get, create, update, delete: if true;
-      allow list: if request.auth != null;
+      allow read, create, update, delete: if true;
     }
 
     // Sub-Wing Portals collection
     match /sub_wing_portals/{portalId} {
       allow get: if true;
+      allow list: if request.auth != null && resource.data.accountId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.accountId == request.auth.uid;
       allow update: if request.auth != null && resource.data.accountId == request.auth.uid && request.resource.data.accountId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.accountId == request.auth.uid;

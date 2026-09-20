@@ -134,6 +134,16 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
             </div>
           </div>
 
+          {/* Resource Person / Faculty */}
+          {program.resourcePerson && (
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+              <span className="text-slate-500 font-bold uppercase tracking-wider block mb-1">
+                Resource Person / Faculty
+              </span>
+              <p className="text-sm font-bold text-slate-900">{program.resourcePerson}</p>
+            </div>
+          )}
+
           {/* Keynote / Presenter */}
           {program.presenter_name && (
             <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 text-xs">

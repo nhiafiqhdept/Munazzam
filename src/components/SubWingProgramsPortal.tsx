@@ -36,8 +36,34 @@ import bcrypt from 'bcryptjs';
 
 export const SubWingProgramsPortal: React.FC = () => {
   // Read organization ID from url: ?subwing=true&portal=orgId
-  const params = new URLSearchParams(window.location.search);
-  const portalId = params.get('portal') || '';
+  const getPortalIdFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    const portal = params.get('portal');
+    if (portal && portal.trim()) {
+      return portal.trim();
+    }
+
+    if (window.location.hash.includes('portal=')) {
+      const hashParts = window.location.hash.split('portal=');
+      if (hashParts.length > 1) {
+        return hashParts[1].split('&')[0].trim();
+      }
+    }
+
+    // Try finding any swp_ pattern in search or hash
+    const match = window.location.href.match(/portal=(swp_[a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+    const matchFallback = window.location.href.match(/(swp_[a-zA-Z0-9_-]+)/);
+    if (matchFallback && matchFallback[1]) {
+      return matchFallback[1];
+    }
+
+    return '';
+  };
+
+  const portalId = getPortalIdFromUrl();
 
   const [orgName, setOrgName] = useState<string>('');
   const [orgLoading, setOrgLoading] = useState<boolean>(true);
@@ -77,6 +103,7 @@ export const SubWingProgramsPortal: React.FC = () => {
   const [progTime, setProgTime] = useState('');
   const [progAudience, setProgAudience] = useState('');
   const [progDesc, setProgDesc] = useState('');
+  const [progResourcePerson, setProgResourcePerson] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
 
@@ -146,7 +173,8 @@ export const SubWingProgramsPortal: React.FC = () => {
             setLoggedInSubWing(freshData);
             sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(freshData));
           } else {
-            setLoggedInSubWing(parsed);
+            setLoggedInSubWing(null);
+            sessionStorage.removeItem(`subwing_user_${portalId}`);
           }
         };
         verifyStatus();
@@ -158,7 +186,7 @@ export const SubWingProgramsPortal: React.FC = () => {
 
   // Real-time listener for Sub-Wing's own submitted programs
   useEffect(() => {
-    if (!loggedInSubWing || loggedInSubWing.status !== 'approved') return;
+    if (!loggedInSubWing) return;
 
     setProgramsLoading(true);
     const q = query(
@@ -250,6 +278,7 @@ export const SubWingProgramsPortal: React.FC = () => {
       }
 
       // Check current status
+      setRegSuccess(false);
       setLoggedInSubWing(swData);
       sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(swData));
     } catch (err: any) {
@@ -301,7 +330,24 @@ export const SubWingProgramsPortal: React.FC = () => {
         createdAt: new Date().toISOString(),
       });
 
-      await addDoc(collection(db, 'sub_wings'), payload);
+      const docRef = await addDoc(collection(db, 'sub_wings'), payload);
+
+      // Auto login newly registered sub-wing
+      const createdSubWing: SubWing = {
+        id: docRef.id,
+        portalId: payload.portalId,
+        name: payload.name,
+        president: payload.president,
+        contactDetails: payload.contactDetails,
+        email: payload.email,
+        passwordHash: payload.passwordHash,
+        description: payload.description,
+        status: payload.status,
+        createdAt: payload.createdAt,
+      };
+
+      setLoggedInSubWing(createdSubWing);
+      sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(createdSubWing));
 
       setRegSuccess(true);
       // Reset registration form
@@ -352,6 +398,7 @@ export const SubWingProgramsPortal: React.FC = () => {
         subWingStatus: 'pending',
         submittedByEmail: loggedInSubWing.email,
         submittedAt: new Date().toISOString(),
+        resourcePerson: progResourcePerson.trim(),
       });
 
       await addDoc(collection(db, 'programs'), payload);
@@ -362,6 +409,7 @@ export const SubWingProgramsPortal: React.FC = () => {
       setProgTime('');
       setProgAudience('');
       setProgDesc('');
+      setProgResourcePerson('');
       setIsAddProgramOpen(false);
     } catch (err) {
       console.error('Error submitting program:', err);
@@ -427,94 +475,40 @@ export const SubWingProgramsPortal: React.FC = () => {
     );
   }
 
-  // Render Pending Registration Status
-  if (loggedInSubWing && loggedInSubWing.status === 'pending') {
-    return (
-      <div className="max-w-lg mx-auto my-8 px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-6 shadow-xl"
-        >
-          <div className="w-16 h-16 bg-amber-50 border border-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
-            <Clock className="w-8 h-8 animate-pulse" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="inline-block px-3.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-bold tracking-tight">
-              🟡 Pending Administrator Approval
-            </span>
-            <h3 className="text-xl font-bold font-heading text-slate-900">
-              Registration Under Review
-            </h3>
-            <p className="text-xs text-slate-600 leading-relaxed px-2">
-              Your sub-wing account <strong>"{loggedInSubWing.name}"</strong> is currently pending review by the <strong>{orgName}</strong> administrator.
-              <br />
-              <br />
-              Please check back shortly. Once approved, you can log in to submit your program proposals.
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-            >
-              Back to Login
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Render Rejected Status
-  if (loggedInSubWing && loggedInSubWing.status === 'rejected') {
-    return (
-      <div className="max-w-lg mx-auto my-8 px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-3xl border border-rose-200 p-8 text-center space-y-6 shadow-xl"
-        >
-          <div className="w-16 h-16 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
-            <XCircle className="w-8 h-8" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="inline-block px-3.5 py-1 bg-rose-50 border border-rose-200 text-rose-800 rounded-full text-xs font-bold tracking-tight">
-              🔴 Registration Rejected
-            </span>
-            <h3 className="text-xl font-bold font-heading text-slate-900">
-              Access Disapproved
-            </h3>
-            <p className="text-xs text-slate-600 leading-relaxed px-2">
-              Your registration as <strong>"{loggedInSubWing.name}"</strong> has been disapproved or rejected by the <strong>{orgName}</strong> administrator.
-              <br />
-              <br />
-              Please contact the Main Organization directly if you believe this was an error.
-            </p>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-            >
-              Back to Login
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
   // Render Logged-In Sub-Wing Dashboard Workspace
-  if (loggedInSubWing && loggedInSubWing.status === 'approved') {
+  if (loggedInSubWing) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
+        {/* Registration Success Banner */}
+        {regSuccess && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3 shadow-xs animate-fadeIn">
+            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-emerald-900 leading-none">
+                Registration Successful!
+              </p>
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                Your Sub-Wing partner account has been created and you are now signed in. You can begin submitting program proposals immediately.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Banner */}
+        {loggedInSubWing.status === 'pending' && !regSuccess && (
+          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-amber-900 leading-none">
+                Account Status: Pending Admin Review
+              </p>
+              <p className="text-xs text-amber-700/90 leading-relaxed">
+                Your sub-wing account is currently awaiting administrative approval from the <strong>{orgName}</strong> administrator. You can still create and submit new program proposals, view their review status, and manage your active drafts while your account review is in progress.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header Block */}
         <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -655,6 +649,17 @@ export const SubWingProgramsPortal: React.FC = () => {
                     value={progAudience}
                     onChange={(e) => setProgAudience(e.target.value)}
                     placeholder="e.g. All Students, Degree Students, Staff..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">RESOURCE PERSON / FACULTY <span className="text-slate-400 text-[10px] font-normal normal-case">(OPTIONAL)</span></label>
+                  <input
+                    type="text"
+                    value={progResourcePerson}
+                    onChange={(e) => setProgResourcePerson(e.target.value)}
+                    placeholder="Enter presenter, speaker, faculty, or resource person name"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>

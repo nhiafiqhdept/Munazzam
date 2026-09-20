@@ -456,6 +456,18 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                   </div>
                 </div>
 
+                {program.resourcePerson && (
+                  <div className="flex items-center gap-3 bg-slate-800/60 p-3 rounded-2xl border border-slate-700/60">
+                    <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs">
+                      <p className="text-slate-400 font-medium">Resource Person / Faculty</p>
+                      <p className="font-bold text-white mt-0.5">{program.resourcePerson}</p>
+                    </div>
+                  </div>
+                )}
+
                 {typeof program.attendance_count === 'number' && program.attendance_count > 0 && (
                   <div className="flex items-center gap-3 bg-slate-800/60 p-3 rounded-2xl border border-slate-700/60">
                     <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
@@ -551,6 +563,12 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
               <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span className="text-xs font-semibold">{program.audience}</span>
             </div>
+            {program.resourcePerson && (
+              <div className="flex items-center gap-2 text-slate-600">
+                <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="text-xs font-semibold">Resource Person / Faculty: {program.resourcePerson}</span>
+              </div>
+            )}
             {program.attendance_count ? (
               <div className="flex items-center gap-2 text-slate-600">
                 <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />

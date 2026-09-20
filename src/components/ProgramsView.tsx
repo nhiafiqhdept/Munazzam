@@ -27,7 +27,7 @@ import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/helpers';
 import { ConfirmModal } from './ConfirmModal';
 import { db, cleanFirestorePayload } from '../lib/firebase';
-import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import bcrypt from 'bcryptjs';
 
 interface ProgramsViewProps {
@@ -153,7 +153,15 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const hasActiveFilters = searchQuery.trim().length > 0 || selectedStatus !== 'all' || selectedCategory !== 'all';
 
   // Copy portal link helper
-  const portalUrl = `${window.location.origin}/?subwing=true&portal=${publicPortalId || currentOrg.id}`;
+  const getPublicOrigin = () => {
+    let origin = window.location.origin;
+    if (origin.includes('ais-dev-')) {
+      origin = origin.replace('ais-dev-', 'ais-pre-');
+    }
+    return origin;
+  };
+
+  const portalUrl = `${getPublicOrigin()}/?subwing=true&portal=${publicPortalId || currentOrg.id}`;
   const handleCopyPortalLink = () => {
     navigator.clipboard.writeText(portalUrl);
     setLinkCopied(true);
@@ -230,9 +238,16 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   const handleRejectSubWing = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'sub_wings', id), { status: 'rejected' });
+      // 1. Delete all submitted program proposals belonging exclusively to this sub-wing
+      const q = query(collection(db, 'programs'), where('subWingId', '==', id));
+      const querySnap = await getDocs(q);
+      const deletePromises = querySnap.docs.map((docSnap) => deleteDoc(docSnap.ref));
+      await Promise.all(deletePromises);
+
+      // 2. Delete the sub-wing account document
+      await deleteDoc(doc(db, 'sub_wings', id));
     } catch (err) {
-      console.error('Error rejecting sub-wing:', err);
+      console.error('Error rejecting and cleaning up sub-wing:', err);
     }
   };
 
@@ -686,6 +701,13 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                               <span className="font-semibold text-slate-800 truncate block" title={proposal.audience}>{proposal.audience || 'N/A'}</span>
                             </div>
                           </div>
+
+                          {proposal.resourcePerson && (
+                            <div className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                              <span className="font-bold block text-slate-400 text-[9px] uppercase tracking-wider">Resource Person / Faculty</span>
+                              <span className="font-semibold text-slate-800 block truncate" title={proposal.resourcePerson}>{proposal.resourcePerson}</span>
+                            </div>
+                          )}
 
                           <p className="text-xs text-slate-500 whitespace-pre-line leading-relaxed line-clamp-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                             {proposal.description || 'No description provided.'}

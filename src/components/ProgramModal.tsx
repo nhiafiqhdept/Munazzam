@@ -56,6 +56,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'completed' | 'upcoming' | 'ongoing'>('completed');
   const [attendanceCount, setAttendanceCount] = useState<number | ''>('');
+  const [resourcePerson, setResourcePerson] = useState('');
 
   // Poster
   const [poster, setPoster] = useState(
@@ -120,6 +121,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setPoster(programToEdit.poster || '');
       setStatus(programToEdit.status || 'completed');
       setAttendanceCount(programToEdit.attendance_count || '');
+      setResourcePerson(programToEdit.resourcePerson || '');
       // Load existing media into initialProofs for management
       if (programToEdit.media) {
         setInitialProofs(programToEdit.media.map(m => ({
@@ -377,6 +379,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
         poster: finalPoster || '',
         status,
         attendance_count: isNaN(parsedAttendance) ? 0 : parsedAttendance,
+        resourcePerson: resourcePerson.trim(),
       };
 
       const formattedInitialMedia = initialProofs.map((p, idx) => ({
@@ -497,6 +500,20 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 setCategory(catName);
                 setCategoryId(catId || '');
               }}
+            />
+          </div>
+
+          {/* Resource Person / Faculty (Optional) */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              RESOURCE PERSON / FACULTY <span className="text-slate-400 text-[10px] font-normal normal-case">(OPTIONAL)</span>
+            </label>
+            <input
+              type="text"
+              value={resourcePerson}
+              onChange={(e) => setResourcePerson(e.target.value)}
+              placeholder="Enter presenter, speaker, faculty, or resource person name"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
 

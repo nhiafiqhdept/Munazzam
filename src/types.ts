@@ -82,6 +82,7 @@ export interface Program {
   subWingStatus?: 'pending' | 'approved' | 'rejected';
   submittedByEmail?: string;
   submittedAt?: string;
+  resourcePerson?: string;
 }
 
 export interface SubWing {
