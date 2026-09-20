@@ -18,6 +18,12 @@ import {
   Download,
   X,
   Film,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  FileEdit,
+  ExternalLink,
 } from 'lucide-react';
 import { Program, ProgramMedia } from '../types';
 import { useApp } from '../context/AppContext';
@@ -34,6 +40,11 @@ import {
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { PrintActivityReport } from './PrintActivityReport';
 import { ConfirmModal } from './ConfirmModal';
+import { PermissionStatusBadge } from './permissions/PermissionStatusBadge';
+import { PrintableApprovalRequest } from './permissions/PrintableApprovalRequest';
+import { PermissionRequestModal } from './permissions/PermissionRequestModal';
+import { PermissionReviewModal } from './permissions/PermissionReviewModal';
+import { SharePermissionModal } from './permissions/SharePermissionModal';
 
 interface VideoCardProps {
   video: ProgramMedia;
@@ -158,10 +169,18 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
     isAdmin,
     incomes,
     expenses,
+    programPermissions,
   } = useApp();
 
   // Find program
   const program = programs.find((p) => p.id === selectedProgramId) || programs[0];
+  const permission = programPermissions.find((p) => p.programId === program?.id);
+
+  // Permission Modals
+  const [showPermissionRequestModal, setShowPermissionRequestModal] = useState(false);
+  const [showPermissionReviewModal, setShowPermissionReviewModal] = useState(false);
+  const [showPrintablePermissionModal, setShowPrintablePermissionModal] = useState(false);
+  const [showSharePermissionModal, setShowSharePermissionModal] = useState(false);
 
   // Calculate financial summary if admin
   const eventIncomes = incomes.filter((inc) => inc.program_id === program?.id);
@@ -623,6 +642,220 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <div className="text-slate-700 text-sm md:text-base leading-relaxed whitespace-pre-line font-sans">
           {program.description}
         </div>
+      </div>
+
+      {/* 3. COLLEGE PERMISSION & APPROVAL DOSSIER */}
+      <div className="bg-white p-6 md:p-8 rounded-[18px] md:rounded-3xl border border-slate-200 shadow-2xs space-y-5 mx-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base md:text-lg font-bold text-slate-900 font-heading">
+                  College Permission & Sanction
+                </h2>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  Official Workflow
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Institutional approval and formal printable sanction request for college authority
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <PermissionStatusBadge status={permission?.status || 'not_requested'} size="md" />
+          </div>
+        </div>
+
+        {/* Permission Content Details */}
+        {!permission || permission.status === 'not_requested' ? (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-slate-800">Formal College Permission Not Requested</h4>
+              <p className="text-xs text-slate-500 max-w-xl">
+                This program currently has no formal college permission file on record. You can generate an approval request for the Principal or configured college authority.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPermissionRequestModal(true)}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Request College Permission</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Status-specific Callout Card */}
+            {permission.status === 'approved' && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs sm:text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>College Permission Officially Sanctioned</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-emerald-800">
+                    Authority: <strong>{permission.approvedBy || permission.approvingAuthority || 'Principal'}</strong>
+                  </span>
+                </div>
+                <div className="text-xs text-emerald-800 grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60">
+                  <div>
+                    <span className="font-semibold text-emerald-900">Sanctioned Date:</span>{' '}
+                    {permission.approvedAt ? formatDate(permission.approvedAt) : 'Recorded'}
+                  </div>
+                  {permission.approvalNotes && (
+                    <div className="sm:col-span-2">
+                      <span className="font-bold text-emerald-900">Official Conditions / Remarks:</span>{' '}
+                      <span className="italic">{permission.approvalNotes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {permission.status === 'pending' && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold text-xs sm:text-sm">
+                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Awaiting College Sanction from {permission.approvingAuthority || 'Principal'}</span>
+                  </div>
+                  <span className="text-[11px] text-amber-800">
+                    Submitted by: <strong>{permission.submittedBy?.name || 'Coordinator'}</strong>
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800">
+                  The permission request has been submitted and is currently pending review and formal sign-off.
+                </p>
+              </div>
+            )}
+
+            {permission.status === 'recommended' && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-blue-900 font-bold text-xs sm:text-sm">
+                    <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>Recommended by {permission.recommendedBy?.designation || 'Faculty Coordinator'}</span>
+                  </div>
+                  <span className="text-[11px] text-blue-800">
+                    Advisor: <strong>{permission.recommendedBy?.name || 'Staff Advisor'}</strong>
+                  </span>
+                </div>
+                {permission.recommendedBy?.notes && (
+                  <p className="text-xs text-blue-800 italic">
+                    "{permission.recommendedBy.notes}"
+                  </p>
+                )}
+              </div>
+            )}
+
+            {permission.status === 'changes_required' && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-orange-900 font-bold text-xs sm:text-sm">
+                  <AlertCircle className="w-4 h-4 text-orange-600 shrink-0" />
+                  <span>Changes Required by Authority</span>
+                </div>
+                {permission.changesRequiredNotes && (
+                  <div className="p-3 bg-white/80 border border-orange-200 rounded-xl text-xs text-orange-900 font-medium">
+                    "{permission.changesRequiredNotes}"
+                  </div>
+                )}
+                <p className="text-xs text-orange-700">
+                  Please update the request particulars and click "Edit & Resubmit" to submit for revised approval.
+                </p>
+              </div>
+            )}
+
+            {permission.status === 'rejected' && (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-rose-900 font-bold text-xs sm:text-sm">
+                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>College Permission Rejected</span>
+                </div>
+                {permission.rejectionReason && (
+                  <div className="p-3 bg-white/80 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium">
+                    Reason: "{permission.rejectionReason}"
+                  </div>
+                )}
+              </div>
+            )}
+
+            {permission.status === 'draft' && (
+              <div className="p-4 bg-slate-100 border border-slate-200 rounded-2xl">
+                <p className="text-xs text-slate-700 font-medium">
+                  This request is currently saved as a draft. Review the details and submit it when ready for institutional sanction.
+                </p>
+              </div>
+            )}
+
+            {/* Permission Dossier Summary Grid */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Authority</span>
+                <span className="font-bold text-slate-800">{permission.approvingAuthority || 'Principal'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Conducted By</span>
+                <span className="font-semibold text-slate-800">{permission.conductedBy || currentOrg?.name}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted By</span>
+                <span className="font-semibold text-slate-800">{permission.submittedBy?.name || 'Organizer'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Request Date</span>
+                <span className="font-semibold text-slate-800">{formatDate(permission.createdAt)}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                {/* Share via WhatsApp */}
+                <button
+                  onClick={() => setShowSharePermissionModal(true)}
+                  className="px-3.5 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="Share via WhatsApp for Principal Review"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.043.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824zM12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.174L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.25c-1.636 0-3.153-.497-4.417-1.352l-.316-.214-2.955.775.789-2.88-.236-.376C4.043 14.898 3.5 13.5 3.5 12c0-4.687 3.813-8.5 8.5-8.5s8.5 3.813 8.5 8.5-3.813 8.5-8.5 8.5z" />
+                  </svg>
+                  <span>Share via WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => setShowPrintablePermissionModal(true)}
+                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Request</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPermissionRequestModal(true)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileEdit className="w-3.5 h-3.5" />
+                  <span>{permission.status === 'changes_required' ? 'Edit & Resubmit' : 'Edit Request'}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowPermissionReviewModal(true)}
+                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Review & Decision</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. DOCUMENTATION PROOFS & GALLERY (Desktop) */}
@@ -1149,6 +1382,40 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         }}
         onCancel={() => setDeleteConfirmOpen(false)}
       />
+
+      {/* Permission Request Modal */}
+      {showPermissionRequestModal && (
+        <PermissionRequestModal
+          program={program}
+          existingPermission={permission}
+          onClose={() => setShowPermissionRequestModal(false)}
+        />
+      )}
+
+      {/* Permission Review Modal */}
+      {showPermissionReviewModal && permission && (
+        <PermissionReviewModal
+          permission={permission}
+          onClose={() => setShowPermissionReviewModal(false)}
+        />
+      )}
+
+      {/* Formal Printable Approval Request Modal */}
+      {showPrintablePermissionModal && permission && (
+        <PrintableApprovalRequest
+          permission={permission}
+          program={program}
+          onClose={() => setShowPrintablePermissionModal(false)}
+        />
+      )}
+
+      {/* Share Permission via WhatsApp / QR Modal */}
+      {showSharePermissionModal && permission && (
+        <SharePermissionModal
+          permission={permission}
+          onClose={() => setShowSharePermissionModal(false)}
+        />
+      )}
     </div>
   );
 };

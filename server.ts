@@ -5,6 +5,33 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { createServer as createViteServer } from 'vite';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
+
+let serverFirestore: any = null;
+function getServerFirestore() {
+  if (serverFirestore) return serverFirestore;
+  try {
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(configPath)) {
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      serverFirestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    }
+  } catch (err) {
+    console.warn('Could not initialize server Firestore instance:', err);
+  }
+  return serverFirestore;
+}
 
 const app = express();
 const PORT = 3000;
@@ -68,6 +95,7 @@ interface DBData {
   repayments: any[];
   transfers: any[];
   audit_logs: any[];
+  program_permissions: any[];
 }
 
 let memoryCache: DBData | null = null;
@@ -85,6 +113,7 @@ function ensureCollections(data: any): DBData {
     'repayments',
     'transfers',
     'audit_logs',
+    'program_permissions',
   ];
   for (const c of collections) {
     if (!Array.isArray(data[c])) {
@@ -498,6 +527,421 @@ setupEntityEndpoints(app, 'loans');
 setupEntityEndpoints(app, 'repayments');
 setupEntityEndpoints(app, 'transfers');
 setupEntityEndpoints(app, 'audit_logs');
+setupEntityEndpoints(app, 'program_permissions');
+
+// ==================== PUBLIC UNRESTRICTED COLLEGE PERMISSION REVIEW API ====================
+// Public, unauthenticated token lookup - allows external Principals to review permission requests safely
+app.get('/api/public/college-permission/:token', async (req: Request, res: Response) => {
+  const { token } = req.params;
+  if (!token) {
+    return res.status(400).json({ success: false, errorCode: 'MISSING_TOKEN', message: 'Token is required' });
+  }
+
+  const dbFs = getServerFirestore();
+  let perm: any = null;
+  let docId = '';
+
+  if (dbFs) {
+    try {
+      const q = query(collection(dbFs, 'program_permissions'), where('approvalToken', '==', token));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        docId = snap.docs[0].id;
+        perm = { id: docId, ...snap.docs[0].data() };
+      } else {
+        const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
+        if (dSnap.exists()) {
+          docId = dSnap.id;
+          perm = { id: docId, ...dSnap.data() };
+        }
+      }
+    } catch (fsErr) {
+      console.warn('Server GET Firestore lookup error, falling back to local DB:', fsErr);
+    }
+  }
+
+  if (!perm) {
+    const db = readDB();
+    const permissions = db.program_permissions || [];
+    const found = permissions.find(
+      (p: any) => p.approvalToken === token || p.id === token || p.approval_token === token
+    );
+    if (found) {
+      docId = found.id || token;
+      perm = found;
+    }
+  }
+
+  if (!perm) {
+    return res.status(404).json({
+      success: false,
+      errorCode: 'PERMISSION_NOT_FOUND',
+      message: 'Permission request not found or link has expired.'
+    });
+  }
+
+  if (perm.tokenRevoked) {
+    return res.status(403).json({
+      success: false,
+      errorCode: 'TOKEN_REVOKED',
+      message: 'This approval link has been revoked.'
+    });
+  }
+
+  if (perm.tokenExpiresAt) {
+    const expiry = new Date(perm.tokenExpiresAt).getTime();
+    if (!isNaN(expiry) && Date.now() > expiry) {
+      return res.status(410).json({
+        success: false,
+        errorCode: 'TOKEN_EXPIRED',
+        message: 'This approval link has expired.'
+      });
+    }
+  }
+
+  // Find associated organization info (name, college_name, logo)
+  let matchingOrg: any = null;
+  const targetOrgId = perm.organizationId || perm.organization_id || perm.accountId || '';
+  if (dbFs && targetOrgId) {
+    try {
+      const orgSnap = await getDoc(doc(dbFs, 'organizations', targetOrgId));
+      if (orgSnap.exists()) {
+        matchingOrg = { id: orgSnap.id, ...orgSnap.data() };
+      }
+    } catch {}
+  }
+
+  if (!matchingOrg) {
+    const db = readDB();
+    const orgs = db.organizations || [];
+    matchingOrg = orgs.find((o: any) => o.id === targetOrgId) || orgs[0] || null;
+  }
+
+  // Return strictly public-safe information
+  const sanitized = {
+    id: docId || perm.id,
+    programId: perm.programId || perm.program_id || '',
+    organizationId: perm.organizationId || perm.organization_id || '',
+    organization: matchingOrg ? {
+      id: matchingOrg.id,
+      name: matchingOrg.name || '',
+      college_name: matchingOrg.college_name || '',
+      logo: matchingOrg.logo || '',
+      tagline: matchingOrg.tagline || '',
+    } : undefined,
+    programName: perm.programName || perm.title || 'Untitled Program',
+    conductedBy: perm.conductedBy || perm.organizer || '',
+    category: perm.category || '',
+    subCategory: perm.subCategory || '',
+    date: perm.date || '',
+    timeFrom: perm.timeFrom || '',
+    timeTill: perm.timeTill || '',
+    venue: perm.venue || '',
+    audience: perm.audience || '',
+    resourcePerson: perm.resourcePerson || '',
+    expectedAttendance: perm.expectedAttendance ? Number(perm.expectedAttendance) : undefined,
+    description: perm.description || '',
+    permissionNotes: perm.permissionNotes || '',
+    approvingAuthority: perm.approvingAuthority || 'Principal',
+    status: perm.status || 'pending',
+    submittedBy: perm.submittedBy,
+    recommendedBy: perm.recommendedBy,
+    approvedBy: perm.approvedBy,
+    approvedAt: perm.approvedAt,
+    approvalNotes: perm.approvalNotes,
+    approvalMethod: perm.approvalMethod,
+    approverDesignation: perm.approverDesignation,
+    rejectedBy: perm.rejectedBy,
+    rejectedAt: perm.rejectedAt,
+    rejectionReason: perm.rejectionReason,
+    changesRequestedBy: perm.changesRequestedBy,
+    changesRequestedAt: perm.changesRequestedAt,
+    changesRequiredNotes: perm.changesRequiredNotes,
+    approvalToken: perm.approvalToken || perm.approval_token || token,
+    tokenCreatedAt: perm.tokenCreatedAt,
+    tokenExpiresAt: perm.tokenExpiresAt,
+    tokenRevoked: Boolean(perm.tokenRevoked),
+    history: perm.history || [],
+    createdAt: perm.createdAt || perm.created_at,
+    updatedAt: perm.updatedAt || perm.updated_at,
+  };
+
+  res.json({ success: true, permission: sanitized });
+});
+
+// Helper for handling public permission action decisions securely
+async function processPublicPermissionAction(req: Request, res: Response) {
+  try {
+    const token = (
+      req.body.token ||
+      req.body.approvalToken ||
+      req.body.secureApprovalToken ||
+      req.params.token ||
+      ''
+    ).trim();
+
+    const rawAction = (
+      req.body.action ||
+      req.body.decision ||
+      ''
+    ).toLowerCase().trim();
+
+    const approverName = (
+      req.body.approverName ||
+      req.body.approver_name ||
+      ''
+    ).trim();
+
+    const approverDesignation = (
+      req.body.approverDesignation ||
+      req.body.approver_designation ||
+      ''
+    ).trim();
+
+    const notes = (
+      req.body.approvalRemarks ||
+      req.body.rejectionReason ||
+      req.body.changesRequiredNotes ||
+      req.body.notes ||
+      ''
+    ).trim();
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'MISSING_TOKEN',
+        message: 'A secure approval token is required.',
+      });
+    }
+
+    let targetStatus = '';
+    if (rawAction === 'approved' || rawAction === 'approve') {
+      targetStatus = 'approved';
+    } else if (rawAction === 'rejected' || rawAction === 'reject') {
+      targetStatus = 'rejected';
+    } else if (
+      rawAction === 'changes_required' ||
+      rawAction === 'changes_requested' ||
+      rawAction === 'request_changes' ||
+      rawAction === 'changes'
+    ) {
+      targetStatus = 'changes_required';
+    } else {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'INVALID_ACTION',
+        message: 'Invalid decision specified. Must be approved, rejected, or changes_required.',
+      });
+    }
+
+    if (targetStatus === 'rejected' && !notes) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'REASON_REQUIRED',
+        message: 'Please provide an official reason for rejecting this permission request.',
+      });
+    }
+
+    if (targetStatus === 'changes_required' && !notes) {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'REASON_REQUIRED',
+        message: 'Please specify the changes or modifications required.',
+      });
+    }
+
+    // Locate permission document in Firestore or fallback DB
+    const dbFs = getServerFirestore();
+    let docId = '';
+    let permData: any = null;
+
+    if (dbFs) {
+      try {
+        const q = query(
+          collection(dbFs, 'program_permissions'),
+          where('approvalToken', '==', token)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          docId = snap.docs[0].id;
+          permData = snap.docs[0].data();
+        } else {
+          const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
+          if (dSnap.exists()) {
+            docId = dSnap.id;
+            permData = dSnap.data();
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore lookup notice during permission action:', err);
+      }
+    }
+
+    let localDbIndex = -1;
+    const db = readDB();
+    const permissions = db.program_permissions || [];
+    if (!permData) {
+      localDbIndex = permissions.findIndex(
+        (p: any) => p.approvalToken === token || p.id === token || p.approval_token === token
+      );
+      if (localDbIndex !== -1) {
+        docId = permissions[localDbIndex].id || token;
+        permData = permissions[localDbIndex];
+      }
+    }
+
+    if (!permData) {
+      return res.status(404).json({
+        success: false,
+        errorCode: 'PERMISSION_NOT_FOUND',
+        message: 'Permission request not found or approval link is invalid.',
+      });
+    }
+
+    // Validate token revocation
+    if (permData.tokenRevoked) {
+      return res.status(403).json({
+        success: false,
+        errorCode: 'TOKEN_REVOKED',
+        message: 'This approval link has been revoked.',
+      });
+    }
+
+    // Validate token expiration
+    if (permData.tokenExpiresAt) {
+      const expiry = new Date(permData.tokenExpiresAt).getTime();
+      if (!isNaN(expiry) && Date.now() > expiry) {
+        return res.status(410).json({
+          success: false,
+          errorCode: 'TOKEN_EXPIRED',
+          message: 'This approval link has expired.',
+        });
+      }
+    }
+
+    // Prevent duplicate decisions if already finalized (approved or rejected)
+    const currentStatus = permData.status || 'pending';
+    if (currentStatus === 'approved' || currentStatus === 'rejected') {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'ALREADY_REVIEWED',
+        message: `This permission request has already been ${currentStatus}.`,
+      });
+    }
+
+    const finalDesignation = approverDesignation || permData.approvingAuthority || 'Principal';
+    const finalApproverName = approverName || finalDesignation;
+    const now = new Date().toISOString();
+
+    let actionDescription = '';
+    if (targetStatus === 'approved') {
+      actionDescription = `Approved via Official Institutional Review Link by ${finalApproverName} (${finalDesignation})`;
+    } else if (targetStatus === 'rejected') {
+      actionDescription = `Rejected via Official Review Link by ${finalApproverName} (${finalDesignation}) - Reason: ${notes}`;
+    } else {
+      actionDescription = `Modifications requested via Official Review Link by ${finalApproverName} (${finalDesignation})`;
+    }
+
+    const newHistoryItem = {
+      id: 'hist_' + Date.now(),
+      timestamp: now,
+      status: targetStatus,
+      action: actionDescription,
+      actorName: finalApproverName,
+      actorRole: finalDesignation,
+      notes: notes || '',
+    };
+
+    const updatedHistory = [
+      ...(Array.isArray(permData.history) ? permData.history : []),
+      newHistoryItem,
+    ];
+
+    const updates: Record<string, any> = {
+      status: targetStatus,
+      approvalMethod: 'public_link',
+      approverDesignation: finalDesignation,
+      history: updatedHistory,
+      updatedAt: now,
+      updated_at: now,
+    };
+
+    if (targetStatus === 'approved') {
+      updates.approvedBy = finalApproverName;
+      updates.approvedAt = now;
+      updates.approvalNotes = notes || '';
+    } else if (targetStatus === 'rejected') {
+      updates.rejectedBy = finalApproverName;
+      updates.rejectedAt = now;
+      updates.rejectionReason = notes || '';
+    } else if (targetStatus === 'changes_required') {
+      updates.changesRequestedBy = finalApproverName;
+      updates.changesRequestedAt = now;
+      updates.changesRequiredNotes = notes || '';
+    }
+
+    // 1. Write updates securely to Firestore
+    if (dbFs && docId) {
+      try {
+        await updateDoc(doc(dbFs, 'program_permissions', docId), updates);
+
+        // Sync linked program document if present
+        const progId = permData.programId || permData.program_id;
+        if (progId) {
+          await updateDoc(doc(dbFs, 'programs', progId), {
+            permissionStatus: targetStatus,
+            updatedAt: now,
+          }).catch((err) => console.warn('Program doc status sync notice:', err));
+        }
+      } catch (fsWriteErr) {
+        console.error('Error updating Firestore from server action endpoint:', fsWriteErr);
+      }
+    }
+
+    // 2. Sync server local DB cache
+    if (localDbIndex !== -1 || docId) {
+      const idx =
+        localDbIndex !== -1
+          ? localDbIndex
+          : permissions.findIndex((p: any) => p.id === docId);
+      if (idx !== -1) {
+        permissions[idx] = { ...permissions[idx], ...updates };
+        db.program_permissions = permissions;
+        writeDB(db);
+      }
+    }
+
+    const mergedPerm = { ...permData, ...updates, id: docId };
+
+    let successMsg = 'Permission decision recorded successfully.';
+    if (targetStatus === 'approved') {
+      successMsg = 'Permission for this program has been approved successfully.';
+    } else if (targetStatus === 'rejected') {
+      successMsg = 'Permission request has been rejected.';
+    } else if (targetStatus === 'changes_required') {
+      successMsg = 'Requested modifications sent back to the organizer successfully.';
+    }
+
+    return res.json({
+      success: true,
+      status: targetStatus,
+      message: successMsg,
+      permission: mergedPerm,
+    });
+  } catch (err: any) {
+    console.error('Exception in public permission action handler:', err);
+    return res.status(500).json({
+      success: false,
+      errorCode: 'SERVER_ERROR',
+      message: err?.message || 'An unexpected error occurred while processing permission decision.',
+    });
+  }
+}
+
+// Support all route variations for public permission decision submissions
+app.post('/api/public/college-permission/approve', processPublicPermissionAction);
+app.post('/api/public/college-permission/action', processPublicPermissionAction);
+app.post('/api/public/college-permission/:token/action', processPublicPermissionAction);
 
 // ==================== VITE / STATIC SERVING ====================
 async function startServer() {

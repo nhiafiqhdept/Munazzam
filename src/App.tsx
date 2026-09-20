@@ -37,6 +37,7 @@ import { Organizer, Program, FinancialAccount, Loan } from './types';
 import { LogOut } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
+import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
 
 const MainLayout: React.FC = () => {
   const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg } = useApp();
@@ -306,6 +307,65 @@ const MainLayout: React.FC = () => {
   );
 };
 
+// Extract public permission token from URL before initialization
+function extractPublicPermissionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const pathname = window.location.pathname || '';
+  const search = window.location.search || '';
+  const hash = window.location.hash || '';
+
+  // 1. Direct path matching: /public/college-permission/<token>
+  const publicPathPrefix = '/public/college-permission/';
+  if (pathname.includes(publicPathPrefix)) {
+    const raw = pathname.substring(pathname.indexOf(publicPathPrefix) + publicPathPrefix.length);
+    const token = raw.split('/')[0].split('?')[0].split('#')[0];
+    if (token && token.trim()) {
+      return decodeURIComponent(token.trim());
+    }
+  }
+
+  // 2. Fallback path matching: /permission/<token>
+  const permPathPrefix = '/permission/';
+  if (pathname.includes(permPathPrefix) && !pathname.includes('/public/college-permission/')) {
+    const raw = pathname.substring(pathname.indexOf(permPathPrefix) + permPathPrefix.length);
+    const token = raw.split('/')[0].split('?')[0].split('#')[0];
+    if (token && token.trim()) {
+      return decodeURIComponent(token.trim());
+    }
+  }
+
+  // 3. Hash-based route: #/public/college-permission/<token>
+  if (hash.includes(publicPathPrefix)) {
+    const raw = hash.substring(hash.indexOf(publicPathPrefix) + publicPathPrefix.length);
+    const token = raw.split('/')[0].split('?')[0].split('#')[0];
+    if (token && token.trim()) {
+      return decodeURIComponent(token.trim());
+    }
+  }
+
+  // 4. Query param: ?permission_token=<token>
+  if (search.includes('permission_token=')) {
+    const params = new URLSearchParams(search);
+    const token = params.get('permission_token');
+    if (token && token.trim()) {
+      return token.trim();
+    }
+  }
+
+  // 5. Hash query param: #...permission_token=<token>
+  if (hash.includes('permission_token=')) {
+    const hashPart = hash.substring(hash.indexOf('permission_token='));
+    const params = new URLSearchParams(hashPart);
+    const token = params.get('permission_token');
+    if (token && token.trim()) {
+      return token.trim();
+    }
+  }
+
+  return null;
+}
+
 const AuthenticatedApp: React.FC = () => {
   const { token, user, authLoading, orgLoading, loginUser } = useApp();
 
@@ -393,6 +453,19 @@ const AuthenticatedApp: React.FC = () => {
 };
 
 export function App() {
+  const publicPermissionToken = extractPublicPermissionToken();
+
+  // Bypasses all authentication, AppProvider, and protected route checks for public College Permission review
+  if (publicPermissionToken) {
+    return (
+      <>
+        <OfflineBanner />
+        <QuotaBanner />
+        <PublicPermissionApprovalView token={publicPermissionToken} />
+      </>
+    );
+  }
+
   return (
     <AppProvider>
       <AuthenticatedApp />

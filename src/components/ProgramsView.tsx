@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Eye,
   Building2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Program, SubWing } from '../types';
 import { useApp } from '../context/AppContext';
@@ -32,6 +33,8 @@ import { ConfirmModal } from './ConfirmModal';
 import { db, cleanFirestorePayload } from '../lib/firebase';
 import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import bcrypt from 'bcryptjs';
+import { PermissionStatusBadge } from './permissions/PermissionStatusBadge';
+import { ProgramPermissionsView } from './permissions/ProgramPermissionsView';
 
 interface ProgramsViewProps {
   onOpenAddModal: () => void;
@@ -51,10 +54,11 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     isAdmin,
     subWings,
     subWingPrograms,
+    programPermissions,
   } = useApp();
 
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<'official' | 'subwings'>('official');
+  const [activeTab, setActiveTab] = useState<'official' | 'subwings' | 'permissions'>('official');
   const [activeSubTab, setActiveSubTab] = useState<'proposals' | 'partners'>('proposals');
 
   // Search and general filters for official programs
@@ -372,7 +376,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     <div className="space-y-4 pb-12">
       {/* Tab Switcher for Admin */}
       {isAdmin && (
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
+        <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
           <button
             onClick={() => setActiveTab('official')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -396,6 +400,22 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             <span>Sub-Wing Program Proposals</span>
             {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('permissions')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
+              activeTab === 'permissions'
+                ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>College Permissions</span>
+            {programPermissions.filter((p) => p.status === 'pending').length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
+                {programPermissions.filter((p) => p.status === 'pending').length}
+              </span>
             )}
           </button>
         </div>
@@ -622,6 +642,9 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md">
                               Sub-Wing: {prog.subWingName}
                             </span>
+                          )}
+                          {prog.permissionStatus && prog.permissionStatus !== 'not_requested' && (
+                            <PermissionStatusBadge status={prog.permissionStatus} size="sm" />
                           )}
                         </div>
                       </div>
@@ -1636,6 +1659,11 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* VIEW C: COLLEGE PROGRAM PERMISSIONS */}
+      {activeTab === 'permissions' && (
+        <ProgramPermissionsView />
       )}
 
       {/* Delete Sub-Wing Confirmation Modal */}

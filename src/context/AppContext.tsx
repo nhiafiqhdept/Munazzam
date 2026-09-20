@@ -31,8 +31,12 @@ import {
   LoanRepayment,
   AuditLog,
   SubWing,
+  ProgramPermission,
+  PermissionStatus,
+  PermissionHistoryItem,
 } from '../types';
 import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
+import { generateSecurePermissionToken, getPublicApprovalUrl } from '../utils/permissionTokens';
 
 export enum OperationType {
   CREATE = 'create',
@@ -116,6 +120,23 @@ interface AppContextType {
   subWings: SubWing[];
   subWingPrograms: Program[];
   setSubWings: React.Dispatch<React.SetStateAction<SubWing[]>>;
+
+  // College Program Permissions
+  programPermissions: ProgramPermission[];
+  allProgramPermissions: ProgramPermission[];
+  getProgramPermission: (programId: string) => ProgramPermission | undefined;
+  requestProgramPermission: (perm: Omit<ProgramPermission, 'id' | 'createdAt' | 'updatedAt' | 'history'>) => Promise<ProgramPermission>;
+  updateProgramPermission: (
+    id: string,
+    updates: Partial<ProgramPermission>,
+    historyAction?: { action: string; actorName: string; actorRole: string; notes?: string }
+  ) => Promise<void>;
+  recommendProgramPermission: (id: string, recommenderName: string, designation: string, notes?: string) => Promise<void>;
+  approveProgramPermission: (id: string, approverName: string, notes?: string) => Promise<void>;
+  rejectProgramPermission: (id: string, rejecterName: string, reason: string) => Promise<void>;
+  requestPermissionChanges: (id: string, reviewerName: string, notes: string) => Promise<void>;
+  generatePermissionApprovalToken: (permissionId: string) => Promise<{ token: string; url: string }>;
+  deleteProgramPermission: (id: string) => Promise<void>;
 
   // Treasury State & Methods
   accounts: FinancialAccount[];
@@ -283,6 +304,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
     try {
       const cached = localStorage.getItem('local_auditLogs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [programPermissions, setProgramPermissions] = useState<ProgramPermission[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_permissions');
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
@@ -548,6 +577,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           submittedByEmail: d.submittedByEmail || undefined,
           submittedAt: d.submittedAt || d.submitted_at || undefined,
           resourcePerson: d.resourcePerson || '',
+          permissionStatus: d.permissionStatus || 'not_requested',
+          permissionId: d.permissionId || undefined,
         });
       });
       list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
@@ -754,6 +785,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSubWings(list);
     }, (err) => handleFirestoreError(err, OperationType.GET, 'sub_wings'));
 
+    // 11. Program Permissions
+    const qPermissions = query(
+      collection(db, 'program_permissions'),
+      or(
+        where('accountId', '==', uid),
+        where('organizationId', '==', uid)
+      )
+    );
+    const unsubProgramPermissions = onSnapshot(qPermissions, (snapshot) => {
+      const list: ProgramPermission[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          programId: d.programId || '',
+          organizationId: d.organizationId || d.accountId || uid,
+          programName: d.programName || '',
+          conductedBy: d.conductedBy || '',
+          category: d.category || '',
+          subCategory: d.subCategory || '',
+          date: d.date || '',
+          timeFrom: d.timeFrom || '',
+          timeTill: d.timeTill || '',
+          venue: d.venue || '',
+          audience: d.audience || 'Students',
+          resourcePerson: d.resourcePerson || '',
+          expectedAttendance: d.expectedAttendance ? Number(d.expectedAttendance) : undefined,
+          description: d.description || '',
+          permissionNotes: d.permissionNotes || '',
+          approvingAuthority: d.approvingAuthority || 'Principal',
+          status: d.status || 'pending',
+          submittedBy: d.submittedBy || undefined,
+          recommendedBy: d.recommendedBy || undefined,
+          approvedBy: d.approvedBy || undefined,
+          approvedAt: d.approvedAt || undefined,
+          approvalNotes: d.approvalNotes || undefined,
+          approvalMethod: d.approvalMethod || undefined,
+          approverDesignation: d.approverDesignation || undefined,
+          rejectedBy: d.rejectedBy || undefined,
+          rejectedAt: d.rejectedAt || undefined,
+          rejectionReason: d.rejectionReason || undefined,
+          changesRequestedBy: d.changesRequestedBy || undefined,
+          changesRequestedAt: d.changesRequestedAt || undefined,
+          changesRequiredNotes: d.changesRequiredNotes || undefined,
+          approvalToken: d.approvalToken || undefined,
+          tokenCreatedAt: d.tokenCreatedAt || undefined,
+          tokenExpiresAt: d.tokenExpiresAt || undefined,
+          tokenRevoked: Boolean(d.tokenRevoked),
+          history: d.history || [],
+          createdAt: d.createdAt || d.created_at || new Date().toISOString(),
+          updatedAt: d.updatedAt || d.updated_at || new Date().toISOString(),
+        });
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setProgramPermissions(list);
+      try {
+        localStorage.setItem('local_permissions', JSON.stringify(list));
+      } catch {}
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'program_permissions'));
+
     return () => {
       unsubOrg();
       unsubOrganizers();
@@ -766,6 +857,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubLoans();
       unsubRepayments();
       unsubSubWings();
+      unsubProgramPermissions();
     };
   }, [user?.id, isAuthenticated]);
 
@@ -1213,6 +1305,300 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPrograms((prev) => {
         return prev.map((p) => (p.id === programId ? { ...p, media: updatedMedia, updated_at: now } : p));
       });
+    }
+  };
+
+  // Program Permissions Mutation Handlers
+  const getProgramPermission = (programId: string): ProgramPermission | undefined => {
+    return programPermissions.find((p) => p.programId === programId);
+  };
+
+  const requestProgramPermission = async (
+    perm: Omit<ProgramPermission, 'id' | 'createdAt' | 'updatedAt' | 'history'>
+  ): Promise<ProgramPermission> => {
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const autoToken = perm.approvalToken || generateSecurePermissionToken();
+
+    const historyItem: PermissionHistoryItem = {
+      id: 'hist_' + Date.now(),
+      timestamp: now,
+      status: perm.status || 'pending',
+      action: perm.status === 'draft' ? 'Permission request saved as draft' : 'Permission request submitted for college approval',
+      actorName: perm.submittedBy?.name || user.email || 'Organizer',
+      actorRole: perm.submittedBy?.designation || 'Program Coordinator',
+      notes: perm.permissionNotes || '',
+    };
+
+    const rawData = {
+      ...perm,
+      approvalToken: autoToken,
+      tokenCreatedAt: now,
+      tokenExpiresAt: expiresAt,
+      tokenRevoked: false,
+      organizationId: user.id,
+      accountId: user.id,
+      status: perm.status || 'pending',
+      history: [historyItem],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const payload = cleanFirestorePayload(rawData);
+
+    try {
+      const docRef = await addDoc(collection(db, 'program_permissions'), payload);
+      const savedPerm: ProgramPermission = {
+        ...rawData,
+        id: docRef.id,
+      };
+
+      setProgramPermissions((prev) => [savedPerm, ...prev.filter((p) => p.id !== docRef.id)]);
+      try {
+        localStorage.setItem(
+          'local_permissions',
+          JSON.stringify([savedPerm, ...programPermissions.filter((p) => p.id !== docRef.id)])
+        );
+      } catch {}
+
+      // Sync with Program record
+      if (perm.programId) {
+        await updateDoc(doc(db, 'programs', perm.programId), {
+          permissionStatus: perm.status || 'pending',
+          permissionId: docRef.id,
+        }).catch((err) => console.warn('Could not update program permission status:', err));
+
+        setPrograms((prev) =>
+          prev.map((p) =>
+            p.id === perm.programId
+              ? { ...p, permissionStatus: perm.status || 'pending', permissionId: docRef.id }
+              : p
+          )
+        );
+      }
+
+      return savedPerm;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'program_permissions');
+      throw err;
+    }
+  };
+
+  const updateProgramPermission = async (
+    id: string,
+    updates: Partial<ProgramPermission>,
+    historyAction?: { action: string; actorName: string; actorRole: string; notes?: string }
+  ) => {
+    if (!user?.id) throw new Error('Not authenticated');
+    const now = new Date().toISOString();
+    const target = programPermissions.find((p) => p.id === id);
+    let updatedHistory = target?.history || [];
+
+    if (historyAction) {
+      const historyItem: PermissionHistoryItem = {
+        id: 'hist_' + Date.now(),
+        timestamp: now,
+        status: updates.status || target?.status || 'pending',
+        action: historyAction.action,
+        actorName: historyAction.actorName,
+        actorRole: historyAction.actorRole,
+        notes: historyAction.notes || '',
+      };
+      updatedHistory = [...updatedHistory, historyItem];
+    }
+
+    const payload = cleanFirestorePayload({
+      ...updates,
+      history: updatedHistory,
+      updatedAt: now,
+    });
+
+    setProgramPermissions((prev) => {
+      const updated = prev.map((p) =>
+        p.id === id ? { ...p, ...updates, history: updatedHistory, updatedAt: now } : p
+      );
+      try {
+        localStorage.setItem('local_permissions', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await updateDoc(doc(db, 'program_permissions', id), payload);
+
+      // Sync status to program
+      const programId = updates.programId || target?.programId;
+      if (programId && updates.status) {
+        await updateDoc(doc(db, 'programs', programId), {
+          permissionStatus: updates.status,
+        }).catch(() => {});
+
+        setPrograms((prev) =>
+          prev.map((p) => (p.id === programId ? { ...p, permissionStatus: updates.status } : p))
+        );
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `program_permissions/${id}`);
+      throw err;
+    }
+  };
+
+  const recommendProgramPermission = async (
+    id: string,
+    recommenderName: string,
+    designation: string,
+    notes?: string
+  ) => {
+    const now = new Date().toISOString();
+    await updateProgramPermission(
+      id,
+      {
+        status: 'recommended',
+        recommendedBy: {
+          name: recommenderName,
+          designation: designation || 'Faculty Coordinator',
+          date: now,
+          notes: notes || '',
+        },
+      },
+      {
+        action: `Recommended by ${designation || 'Faculty Coordinator'} (${recommenderName})`,
+        actorName: recommenderName,
+        actorRole: designation || 'Faculty Coordinator',
+        notes,
+      }
+    );
+  };
+
+  const approveProgramPermission = async (
+    id: string,
+    approverName: string,
+    notes?: string
+  ) => {
+    const now = new Date().toISOString();
+    await updateProgramPermission(
+      id,
+      {
+        status: 'approved',
+        approvedBy: approverName,
+        approvedAt: now,
+        approvalNotes: notes || '',
+      },
+      {
+        action: `Approved by ${approverName}`,
+        actorName: approverName,
+        actorRole: 'Approving Authority',
+        notes,
+      }
+    );
+  };
+
+  const rejectProgramPermission = async (
+    id: string,
+    rejecterName: string,
+    reason: string
+  ) => {
+    const now = new Date().toISOString();
+    await updateProgramPermission(
+      id,
+      {
+        status: 'rejected',
+        rejectedBy: rejecterName,
+        rejectedAt: now,
+        rejectionReason: reason,
+      },
+      {
+        action: `Rejected by ${rejecterName} - Reason: ${reason}`,
+        actorName: rejecterName,
+        actorRole: 'Approving Authority',
+        notes: reason,
+      }
+    );
+  };
+
+  const requestPermissionChanges = async (
+    id: string,
+    reviewerName: string,
+    notes: string
+  ) => {
+    const now = new Date().toISOString();
+    await updateProgramPermission(
+      id,
+      {
+        status: 'changes_required',
+        changesRequestedBy: reviewerName,
+        changesRequestedAt: now,
+        changesRequiredNotes: notes,
+      },
+      {
+        action: `Changes requested by ${reviewerName} - Notes: ${notes}`,
+        actorName: reviewerName,
+        actorRole: 'Reviewing Authority',
+        notes,
+      }
+    );
+  };
+
+  const generatePermissionApprovalToken = async (
+    permissionId: string
+  ): Promise<{ token: string; url: string }> => {
+    const newToken = generateSecurePermissionToken();
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    await updateProgramPermission(
+      permissionId,
+      {
+        approvalToken: newToken,
+        tokenCreatedAt: now,
+        tokenExpiresAt: expiresAt,
+        tokenRevoked: false,
+      },
+      {
+        action: 'Public Principal approval link generated',
+        actorName: user?.email || 'Admin',
+        actorRole: 'Administrative Authority',
+        notes: 'Secure WhatsApp / Public approval link generated',
+      }
+    );
+
+    return {
+      token: newToken,
+      url: getPublicApprovalUrl(newToken),
+    };
+  };
+
+  const deleteProgramPermission = async (id: string) => {
+    if (!user?.id) throw new Error('Not authenticated');
+    const target = programPermissions.find((p) => p.id === id);
+    try {
+      await deleteDoc(doc(db, 'program_permissions', id));
+      setProgramPermissions((prev) => {
+        const filtered = prev.filter((p) => p.id !== id);
+        try {
+          localStorage.setItem('local_permissions', JSON.stringify(filtered));
+        } catch {}
+        return filtered;
+      });
+
+      if (target?.programId) {
+        await updateDoc(doc(db, 'programs', target.programId), {
+          permissionStatus: 'not_requested',
+          permissionId: null,
+        }).catch(() => {});
+
+        setPrograms((prev) =>
+          prev.map((p) =>
+            p.id === target.programId
+              ? { ...p, permissionStatus: 'not_requested', permissionId: undefined }
+              : p
+          )
+        );
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `program_permissions/${id}`);
+      throw err;
     }
   };
 
@@ -1714,6 +2100,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         auditLogs,
         allAuditLogs: auditLogs,
+
+        // Program Permissions
+        programPermissions,
+        allProgramPermissions: programPermissions,
+        getProgramPermission,
+        requestProgramPermission,
+        updateProgramPermission,
+        recommendProgramPermission,
+        approveProgramPermission,
+        rejectProgramPermission,
+        requestPermissionChanges,
+        generatePermissionApprovalToken,
+        deleteProgramPermission,
 
         activeTab,
         setActiveTab,

@@ -28,6 +28,11 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.accountId == request.auth.uid;
     }
 
+    // Program Permissions collection
+    match /program_permissions/{permissionId} {
+      allow read, create, update, delete: if true;
+    }
+
     // Sub-Wings collection
     match /sub_wings/{subWingId} {
       allow read, create, update, delete: if true;

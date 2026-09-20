@@ -468,6 +468,10 @@
     "/sub_wings/{subWingId}": {
       "schema": "SubWing",
       "description": "Onboarded sub-wing partner registry"
+    },
+    "/program_permissions/{permissionId}": {
+      "schema": "ProgramPermission",
+      "description": "Formal college program permission and sanction records"
     }
   }
 }

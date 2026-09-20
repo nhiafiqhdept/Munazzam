@@ -60,6 +60,90 @@ export interface ProgramCategory {
   updated_at: string;
 }
 
+export type PermissionStatus =
+  | 'not_requested'
+  | 'draft'
+  | 'pending'
+  | 'recommended'
+  | 'changes_required'
+  | 'approved'
+  | 'rejected';
+
+export type ApprovingAuthorityRole =
+  | 'Principal'
+  | 'Faculty Coordinator'
+  | 'HOD'
+  | 'Dean'
+  | 'Other Competent Authority';
+
+export interface PermissionHistoryItem {
+  id: string;
+  timestamp: string;
+  status: PermissionStatus;
+  action: string;
+  actorName: string;
+  actorRole: string;
+  notes?: string;
+}
+
+export interface ProgramPermission {
+  id: string;
+  programId: string;
+  organizationId: string;
+  programName: string;
+  conductedBy: string;
+  category?: string;
+  subCategory?: string;
+  date: string;
+  timeFrom?: string;
+  timeTill?: string;
+  venue: string;
+  audience: string;
+  resourcePerson?: string;
+  expectedAttendance?: number;
+  description: string;
+  permissionNotes?: string;
+  approvingAuthority: string;
+  status: PermissionStatus;
+  
+  submittedBy?: {
+    name: string;
+    designation: string;
+    date: string;
+  };
+
+  recommendedBy?: {
+    name: string;
+    designation: string;
+    date: string;
+    notes?: string;
+  };
+
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalNotes?: string;
+  approvalMethod?: 'in_app' | 'public_link';
+  approverDesignation?: string;
+  
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  
+  changesRequestedBy?: string;
+  changesRequestedAt?: string;
+  changesRequiredNotes?: string;
+
+  // Secure Token for Public Principal Review
+  approvalToken?: string;
+  tokenCreatedAt?: string;
+  tokenExpiresAt?: string;
+  tokenRevoked?: boolean;
+
+  history: PermissionHistoryItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Program {
   id: string;
   organization_id: string;
@@ -84,6 +168,8 @@ export interface Program {
   submittedByEmail?: string;
   submittedAt?: string;
   resourcePerson?: string;
+  permissionStatus?: PermissionStatus;
+  permissionId?: string;
 }
 
 export interface SubWing {
@@ -103,6 +189,7 @@ export type ActiveTab =
   | 'dashboard'
   | 'organizers'
   | 'programs'
+  | 'program-permissions'
   | 'settings'
   | 'program_details'
   | 'program-details'
