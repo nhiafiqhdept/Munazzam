@@ -18,7 +18,7 @@ import {
   ArrowDownLeft,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { formatDate, DEFAULT_ORG_LOGO, getValidProgramPoster } from '../utils/helpers';
+import { formatDate, DEFAULT_ORG_LOGO } from '../utils/helpers';
 import { ActiveTab } from '../types';
 
 interface DashboardProps {
@@ -235,22 +235,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
                     className="relative h-40 bg-slate-100 overflow-hidden cursor-pointer"
                     onClick={() => viewProgramDetails(prog.id)}
                   >
-                    {getValidProgramPoster(prog.poster) ? (
-                      <>
-                        <img
-                          src={getValidProgramPoster(prog.poster)!}
-                          alt={prog.name}
-                          className="w-full h-full object-cover"
-                        />
-                        {prog.media && prog.media.length > 0 && (
-                          <span className="absolute top-2.5 right-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-900/80 text-white backdrop-blur-xs flex items-center gap-1">
-                            <Camera className="w-3 h-3 text-slate-300" />
-                            <span>{prog.media.length}</span>
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <div className="w-full h-full bg-slate-100" />
+                    <img
+                      src={prog.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&auto=format&fit=crop&q=80'}
+                      alt={prog.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {prog.media && prog.media.length > 0 && (
+                      <span className="absolute top-2.5 right-2.5 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-900/80 text-white backdrop-blur-xs flex items-center gap-1">
+                        <Camera className="w-3 h-3 text-slate-300" />
+                        <span>{prog.media.length}</span>
+                      </span>
                     )}
                   </div>
 

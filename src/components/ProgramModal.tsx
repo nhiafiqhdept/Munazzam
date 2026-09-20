@@ -30,7 +30,6 @@ import {
   generateId,
   determineProgramStatusByDate,
   getProgramEffectiveStatus,
-  getValidProgramPoster,
 } from '../utils/helpers';
 
 interface ProgramModalProps {
@@ -119,8 +118,8 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
         setCustomAudience(programToEdit.audience);
       }
       setDescription(programToEdit.description);
-      setPoster(getValidProgramPoster(programToEdit.poster) || '');
-      setCustomPosterUrl(getValidProgramPoster(programToEdit.poster) || '');
+      setPoster(programToEdit.poster || '');
+      setCustomPosterUrl(programToEdit.poster || '');
       setStatus(getProgramEffectiveStatus(programToEdit));
       setAttendanceCount(programToEdit.attendance_count || '');
       setResourcePerson(programToEdit.resourcePerson || '');
@@ -328,8 +327,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       return;
     }
 
-    const rawPoster = posterTab === 'url' ? customPosterUrl.trim() : poster.trim();
-    const finalPoster = getValidProgramPoster(rawPoster) || '';
+    const finalPoster = posterTab === 'url' ? customPosterUrl.trim() : poster.trim();
 
     const trimmedCategory = category.trim();
     let finalCategoryId = categoryId;
@@ -661,7 +659,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Program Poster <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
               </label>
-              {getValidProgramPoster(posterTab === 'url' ? customPosterUrl : poster) && (
+              {(posterTab === 'url' ? customPosterUrl : poster) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -678,16 +676,16 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
             <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <div className="w-24 h-32 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 flex items-center justify-center bg-slate-100">
-                {getValidProgramPoster(posterTab === 'url' ? customPosterUrl : poster) ? (
+                {(posterTab === 'url' ? customPosterUrl : poster) ? (
                   <img
-                    src={getValidProgramPoster(posterTab === 'url' ? customPosterUrl : poster)!}
+                    src={posterTab === 'url' ? customPosterUrl : poster}
                     alt="Poster preview"
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="text-center p-2">
                     <span className="text-[11px] font-medium text-slate-400 block">No Poster</span>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">(Blank Area)</span>
+                    <span className="text-[9px] text-slate-400 block mt-0.5">(Uses Default)</span>
                   </div>
                 )}
               </div>

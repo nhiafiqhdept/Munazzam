@@ -285,18 +285,3 @@ export function getProgramEffectiveStatus(prog?: {
 
   return (prog.status as any) || 'completed';
 }
-
-/**
- * Returns the genuine user-uploaded poster URL for a program, or null if no poster was uploaded.
- * Filters out empty strings, whitespace, and any legacy auto-generated stock fallback images.
- */
-export function getValidProgramPoster(poster?: string | null): string | null {
-  if (!poster || typeof poster !== 'string') return null;
-  const trimmed = poster.trim();
-  if (!trimmed) return null;
-  // Disallow the legacy stock unsplash photo that was previously auto-assigned
-  if (trimmed.includes('photo-1517245386807-bb43f82c33c4') || trimmed.includes('unsplash.com/photo-1517245386807')) {
-    return null;
-  }
-  return trimmed;
-}

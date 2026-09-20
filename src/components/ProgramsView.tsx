@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Program, SubWing } from '../types';
 import { useApp } from '../context/AppContext';
-import { formatDate, determineProgramStatusByDate, getProgramEffectiveStatus, getValidProgramPoster } from '../utils/helpers';
+import { formatDate, determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
 import { ConfirmModal } from './ConfirmModal';
 import { db, cleanFirestorePayload } from '../lib/firebase';
 import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where, deleteDoc } from 'firebase/firestore';
@@ -475,7 +475,6 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPrograms.map((prog) => {
-                const validPoster = getValidProgramPoster(prog.poster);
                 return (
                   <div
                     key={prog.id}
@@ -485,58 +484,49 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                     {/* Top Section */}
                     <div>
                       {/* Poster Image Area */}
-                      {validPoster ? (
-                        <div
-                          className="relative h-48 bg-slate-900 overflow-hidden cursor-pointer"
-                          onClick={() => viewProgramDetails(prog.id)}
+                      <div
+                        className="relative h-48 bg-slate-900 overflow-hidden cursor-pointer"
+                        onClick={() => viewProgramDetails(prog.id)}
+                      >
+                        <img
+                          src={prog.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80'}
+                          alt={prog.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+
+                        {/* Status Badge */}
+                        <span
+                          className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs uppercase tracking-wider flex items-center gap-1 shadow-sm ${
+                            getProgramEffectiveStatus(prog) === 'upcoming'
+                              ? 'bg-sky-500/90 text-white border border-sky-400/40'
+                              : getProgramEffectiveStatus(prog) === 'ongoing'
+                              ? 'bg-amber-500/90 text-white border border-amber-400/40'
+                              : 'bg-emerald-600/90 text-white border border-emerald-400/40'
+                          }`}
                         >
-                          <img
-                            src={validPoster}
-                            alt={prog.name}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-
-                          {/* Status Badge */}
-                          <span
-                            className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs uppercase tracking-wider flex items-center gap-1 shadow-sm ${
-                              getProgramEffectiveStatus(prog) === 'upcoming'
-                                ? 'bg-sky-500/90 text-white border border-sky-400/40'
-                                : getProgramEffectiveStatus(prog) === 'ongoing'
-                                ? 'bg-amber-500/90 text-white border border-amber-400/40'
-                                : 'bg-emerald-600/90 text-white border border-emerald-400/40'
-                            }`}
-                          >
-                            {getProgramEffectiveStatus(prog) === 'upcoming' && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                            )}
-                            {getProgramEffectiveStatus(prog)}
-                          </span>
-
-                          {/* Proof Count */}
-                          {prog.media && prog.media.length > 0 && (
-                            <span className="absolute top-3 right-3 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                              <Camera className="w-3 h-3" />
-                              <span>{prog.media.length} Proofs</span>
-                            </span>
+                          {getProgramEffectiveStatus(prog) === 'upcoming' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                           )}
+                          {getProgramEffectiveStatus(prog)}
+                        </span>
 
-                          {/* Date Badge */}
-                          <div className="absolute bottom-3 left-3 right-3 text-white">
-                            <p className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5" />
-                              <span>{formatDate(prog.date)}</span>
-                            </p>
-                          </div>
+                        {/* Proof Count */}
+                        {prog.media && prog.media.length > 0 && (
+                          <span className="absolute top-3 right-3 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <Camera className="w-3 h-3" />
+                            <span>{prog.media.length} Proofs</span>
+                          </span>
+                        )}
+
+                        {/* Date Badge */}
+                        <div className="absolute bottom-3 left-3 right-3 text-white">
+                          <p className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{formatDate(prog.date)}</span>
+                          </p>
                         </div>
-                      ) : (
-                        <div
-                          className="relative h-48 bg-slate-100/70 border-b border-slate-200/60 overflow-hidden cursor-pointer"
-                          onClick={() => viewProgramDetails(prog.id)}
-                        >
-                          {/* Completely blank poster area with identical dimensions/aspect ratio */}
-                        </div>
-                      )}
+                      </div>
 
                       {/* Body Content */}
                       <div className="p-5 space-y-3">
@@ -1431,10 +1421,10 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             </div>
 
             {/* Poster Preview if available */}
-            {getValidProgramPoster(selectedProposalForDetails.poster) && (
+            {selectedProposalForDetails.poster && (
               <div className="rounded-2xl overflow-hidden border border-slate-200 max-h-56 bg-slate-100 flex items-center justify-center">
                 <img
-                  src={getValidProgramPoster(selectedProposalForDetails.poster)!}
+                  src={selectedProposalForDetails.poster}
                   alt={selectedProposalForDetails.name}
                   className="w-full h-full object-cover"
                 />

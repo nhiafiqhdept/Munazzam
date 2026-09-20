@@ -30,7 +30,6 @@ import {
   getVideoFilename,
   fileToDataUrl,
   getProgramEffectiveStatus,
-  getValidProgramPoster,
 } from '../utils/helpers';
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { PrintActivityReport } from './PrintActivityReport';
@@ -380,15 +379,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Large Poster Display */}
           <div className="lg:col-span-5 relative bg-slate-950 min-h-[300px] lg:min-h-[440px] flex items-center justify-center overflow-hidden">
-            {getValidProgramPoster(program.poster) ? (
-              <img
-                src={getValidProgramPoster(program.poster)!}
-                alt={program.name}
-                className="w-full h-full object-cover max-h-[500px]"
-              />
-            ) : (
-              <div className="w-full h-full min-h-[300px] lg:min-h-[440px] bg-slate-950" />
-            )}
+            <img
+              src={program.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop&q=80'}
+              alt={program.name}
+              className="w-full h-full object-cover max-h-[500px]"
+            />
           </div>
 
           {/* Program Key Details */}
@@ -522,15 +517,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       <div className="md:hidden bg-white rounded-[20px] border border-slate-200 shadow-sm overflow-hidden flex flex-col mx-1">
         {/* Mobile Poster */}
         <div className="aspect-[16/10] bg-slate-100 overflow-hidden">
-          {getValidProgramPoster(program.poster) ? (
-            <img
-              src={getValidProgramPoster(program.poster)!}
-              alt={program.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-slate-100" />
-          )}
+          <img
+            src={program.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80'}
+            alt={program.name}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         {/* Mobile Banner Info */}
