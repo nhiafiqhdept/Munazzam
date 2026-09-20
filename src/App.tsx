@@ -308,6 +308,26 @@ const MainLayout: React.FC = () => {
   );
 };
 
+// Check if current URL represents a public College Permission route
+function isPublicCollegePermissionRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const href = window.location.href || '';
+  const pathname = window.location.pathname || '';
+  const search = window.location.search || '';
+  const hash = window.location.hash || '';
+
+  return (
+    pathname.includes('/public/college-permission') ||
+    pathname.includes('/permission/') ||
+    hash.includes('/public/college-permission') ||
+    hash.includes('/permission/') ||
+    href.includes('cpt_') ||
+    search.includes('permission_token=') ||
+    hash.includes('permission_token=')
+  );
+}
+
 // Extract public permission token from URL before initialization
 function extractPublicPermissionToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -461,14 +481,15 @@ const AuthenticatedApp: React.FC = () => {
 };
 
 export function App() {
+  const isPublicRoute = isPublicCollegePermissionRoute();
   const publicPermissionToken = extractPublicPermissionToken();
 
   // Bypasses all authentication, AppProvider, and protected route checks for public College Permission review
-  if (publicPermissionToken) {
+  if (isPublicRoute || publicPermissionToken) {
     return (
       <ErrorBoundary fallbackTitle="College Permission Review Portal">
         <OfflineBanner />
-        <PublicPermissionApprovalView token={publicPermissionToken} />
+        <PublicPermissionApprovalView token={publicPermissionToken || ''} />
       </ErrorBoundary>
     );
   }
