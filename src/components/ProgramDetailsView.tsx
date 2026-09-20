@@ -29,6 +29,7 @@ import {
   isYouTubeUrl,
   getVideoFilename,
   fileToDataUrl,
+  getProgramEffectiveStatus,
 } from '../utils/helpers';
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { PrintActivityReport } from './PrintActivityReport';
@@ -244,6 +245,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
   const photoList = (program.media || []).filter((m) => m.type === 'photo');
   const videoList = (program.media || []).filter((m) => m.type === 'video');
   const documentList = (program.media || []).filter((m) => m.type === 'document' || m.type === 'link');
+  const effectiveStatus = getProgramEffectiveStatus(program);
 
   const handleMediaFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -393,9 +395,21 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
             <div className="space-y-4">
               {/* Badges Ribbon */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
-                  {program.status || 'Completed'}
-                </span>
+                {effectiveStatus === 'upcoming' ? (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                    Upcoming
+                  </span>
+                ) : effectiveStatus === 'ongoing' ? (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    Ongoing
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                    Completed
+                  </span>
+                )}
                 {program.category && (
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     {program.category}
@@ -518,9 +532,21 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
-                {program.status || 'Completed'}
-              </span>
+              {effectiveStatus === 'upcoming' ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 uppercase tracking-wider flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                  Upcoming
+                </span>
+              ) : effectiveStatus === 'ongoing' ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  Ongoing
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
+                  Completed
+                </span>
+              )}
               {program.category && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
                   {program.category}

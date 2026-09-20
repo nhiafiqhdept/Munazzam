@@ -28,6 +28,8 @@ import {
   uploadFile,
   DEFAULT_AUDIENCES,
   generateId,
+  determineProgramStatusByDate,
+  getProgramEffectiveStatus,
 } from '../utils/helpers';
 
 interface ProgramModalProps {
@@ -119,7 +121,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       }
       setDescription(programToEdit.description);
       setPoster(programToEdit.poster || '');
-      setStatus(programToEdit.status || 'completed');
+      setStatus(getProgramEffectiveStatus(programToEdit));
       setAttendanceCount(programToEdit.attendance_count || '');
       setResourcePerson(programToEdit.resourcePerson || '');
       // Load existing media into initialProofs for management
@@ -134,10 +136,11 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
         setInitialProofs([]);
       }
     } else {
+      const todayStr = new Date().toISOString().split('T')[0];
       setName('');
       setCategory('');
       setCategoryId('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayStr);
       setTime('10:00 AM – 01:00 PM');
       setPlace('Main College Auditorium');
       setAudience(DEFAULT_AUDIENCES[0]);
@@ -145,8 +148,9 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setCustomAudience('');
       setDescription('');
       setPoster('https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1000&auto=format&fit=crop&q=80');
-      setStatus('completed');
+      setStatus(determineProgramStatusByDate(todayStr));
       setAttendanceCount('');
+      setResourcePerson('');
       setInitialProofs([]);
     }
     setQueuedFiles([]);
@@ -526,7 +530,13 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               <input
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setDate(newDate);
+                  if (!programToEdit) {
+                    setStatus(determineProgramStatusByDate(newDate));
+                  }
+                }}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
                 required
               />

@@ -32,6 +32,7 @@ import {
   AuditLog,
   SubWing,
 } from '../types';
+import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
 
 export enum OperationType {
   CREATE = 'create',
@@ -536,7 +537,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: d.description || '',
           poster: d.poster || '',
           media: d.media || [],
-          status: d.status || 'completed',
+          status: getProgramEffectiveStatus({ date: d.date, status: d.status, subWingId: d.subWingId, subWingStatus: d.subWingStatus }),
           attendance_count: d.attendance_count || 0,
           created_at: d.created_at || d.createdAt || '',
           updated_at: d.updated_at || d.updatedAt || '',
@@ -545,6 +546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           subWingStatus: d.subWingStatus || undefined,
           submittedByEmail: d.submittedByEmail || undefined,
           submittedAt: d.submittedAt || d.submitted_at || undefined,
+          resourcePerson: d.resourcePerson || '',
         });
       });
       list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
@@ -1032,8 +1034,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: (prog.description || '').trim(),
       poster: prog.poster || '',
       media: formattedMedia,
-      status: prog.status || 'completed',
+      status: prog.status || determineProgramStatusByDate(prog.date || now.split('T')[0]),
       attendance_count: prog.attendance_count !== undefined && !isNaN(Number(prog.attendance_count)) ? Number(prog.attendance_count) : 0,
+      resourcePerson: (prog.resourcePerson || '').trim(),
       created_at: now,
       updated_at: now,
     };
@@ -1058,6 +1061,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         media: formattedMedia.map((m) => ({ ...m, program_id: docRef.id })),
         status: rawData.status,
         attendance_count: rawData.attendance_count,
+        resourcePerson: rawData.resourcePerson,
         created_at: now,
         updated_at: now,
       };
@@ -1112,6 +1116,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (prog.poster !== undefined) updatesToApply.poster = prog.poster;
     if (prog.media !== undefined) updatesToApply.media = prog.media;
     if (prog.status !== undefined) updatesToApply.status = prog.status;
+    if (prog.resourcePerson !== undefined) updatesToApply.resourcePerson = (prog.resourcePerson || '').trim();
     if (prog.attendance_count !== undefined) {
       updatesToApply.attendance_count = isNaN(Number(prog.attendance_count)) ? 0 : Number(prog.attendance_count);
     }

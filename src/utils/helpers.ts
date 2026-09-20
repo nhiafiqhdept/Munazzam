@@ -198,3 +198,90 @@ export const DEFAULT_CATEGORY_NAMES = [
 ];
 
 export const DEFAULT_ORG_LOGO = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>';
+
+export function determineProgramStatusByDate(dateStr: string): 'upcoming' | 'completed' {
+  if (!dateStr) return 'upcoming';
+  
+  try {
+    // Current date in local time
+    const today = new Date();
+    // Reset hours, minutes, seconds, ms for today to do a pure date comparison
+    today.setHours(0, 0, 0, 0);
+    
+    // Parse the program date
+    let progDate = new Date(dateStr);
+    
+    // If the input date is just YYYY-MM-DD, parsing it with `new Date('YYYY-MM-DD')`
+    // in JS defaults to UTC midnight, which when converted to local time might shift to the previous day!
+    // To prevent timezone shifting, we should parse the YYYY-MM-DD manually in local time:
+    if (typeof dateStr === 'string' && dateStr.includes('-') && !dateStr.includes('T')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed
+        const day = parseInt(parts[2], 10);
+        progDate = new Date(year, month, day, 0, 0, 0, 0);
+      }
+    } else if (typeof dateStr === 'string' && dateStr.includes('/') && !dateStr.includes('T')) {
+      // Sometimes dates are in MM/DD/YYYY format
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        let month = parseInt(parts[0], 10) - 1;
+        let day = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        // handle YYYY/MM/DD
+        if (parts[0].length === 4) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[2], 10);
+        }
+        progDate = new Date(year, month, day, 0, 0, 0, 0);
+      }
+    }
+    
+    // If invalid date parsing fallback, use standard date
+    if (isNaN(progDate.getTime())) {
+      progDate = new Date(dateStr);
+    }
+    
+    // Reset time of program date to midnight for comparison
+    progDate.setHours(0, 0, 0, 0);
+    
+    // IF program date is today or in the future: upcoming, otherwise: completed
+    if (progDate.getTime() >= today.getTime()) {
+      return 'upcoming';
+    } else {
+      return 'completed';
+    }
+  } catch (err) {
+    console.error('Error determining program status:', err);
+    return 'upcoming'; // safe fallback
+  }
+}
+
+/**
+ * Resolves the effective status for a program.
+ * - Preserves 'ongoing' status if explicitly set.
+ * - If program date is today or in the future, returns 'upcoming' (correcting any future records mistakenly saved as 'completed').
+ * - If program date has passed, returns 'completed' (preserving historical records).
+ */
+export function getProgramEffectiveStatus(prog?: {
+  date?: string;
+  status?: string;
+  subWingId?: string;
+  subWingStatus?: string;
+}): 'upcoming' | 'completed' | 'ongoing' {
+  if (!prog) return 'upcoming';
+  if (prog.status === 'ongoing') return 'ongoing';
+
+  if (prog.date) {
+    const dateBased = determineProgramStatusByDate(prog.date);
+    if (dateBased === 'upcoming') {
+      return 'upcoming';
+    } else {
+      return 'completed';
+    }
+  }
+
+  return (prog.status as any) || 'completed';
+}

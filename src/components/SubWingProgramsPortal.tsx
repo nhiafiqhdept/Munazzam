@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { Program, SubWing } from '../types';
 import bcrypt from 'bcryptjs';
+import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
 
 export const SubWingProgramsPortal: React.FC = () => {
   // Read organization ID from url: ?subwing=true&portal=orgId
@@ -211,7 +212,7 @@ export const SubWingProgramsPortal: React.FC = () => {
             audience: d.audience || 'Members',
             poster: d.poster || '',
             media: d.media || [],
-            status: d.status || 'completed',
+            status: getProgramEffectiveStatus({ date: d.date, status: d.status, subWingId: d.subWingId, subWingStatus: d.subWingStatus }),
             attendance_count: d.attendance_count || 0,
             created_at: d.created_at || '',
             updated_at: d.updated_at || '',
@@ -220,6 +221,7 @@ export const SubWingProgramsPortal: React.FC = () => {
             subWingStatus: d.subWingStatus,
             submittedByEmail: d.submittedByEmail,
             submittedAt: d.submittedAt,
+            resourcePerson: d.resourcePerson || '',
           });
         });
         list.sort(
@@ -389,7 +391,7 @@ export const SubWingProgramsPortal: React.FC = () => {
         description: progDesc.trim(),
         poster: '',
         media: [],
-        status: 'completed',
+        status: determineProgramStatusByDate(progDate),
         attendance_count: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
