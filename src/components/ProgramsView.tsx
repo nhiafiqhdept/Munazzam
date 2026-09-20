@@ -131,6 +131,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       const matchesSearch =
         prog.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (prog.category && prog.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (prog.subCategory && prog.subCategory.toLowerCase().includes(searchQuery.toLowerCase())) ||
         prog.place.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prog.audience.toLowerCase().includes(searchQuery.toLowerCase());
@@ -571,6 +572,11 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                           {prog.category && (
                             <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md">
                               {prog.category}
+                            </span>
+                          )}
+                          {prog.subCategory && (
+                            <span className="text-[11px] font-medium text-slate-700 bg-slate-100/90 border border-slate-200 px-2.5 py-0.5 rounded-md">
+                              {prog.subCategory}
                             </span>
                           )}
                           <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
@@ -1049,11 +1055,18 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 {/* Title & Category */}
                                 <div>
                                   <h4 className="font-bold text-slate-900 text-base leading-snug">{proposal.name}</h4>
-                                  {proposal.category && (
-                                    <span className="inline-block mt-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                                      {proposal.category}
-                                    </span>
-                                  )}
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                    {proposal.category && (
+                                      <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                        {proposal.category}
+                                      </span>
+                                    )}
+                                    {proposal.subCategory && (
+                                      <span className="inline-block text-[10px] font-medium text-slate-600 bg-slate-100/70 border border-slate-200 px-2 py-0.5 rounded-md">
+                                        {proposal.subCategory}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Metadata Grid: Time & Target Audience */}
@@ -1450,9 +1463,15 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                 <span className="font-semibold text-slate-800">{selectedProposalForDetails.audience || 'N/A'}</span>
               </div>
               {selectedProposalForDetails.category && (
-                <div className="col-span-2">
+                <div className={selectedProposalForDetails.subCategory ? 'col-span-1' : 'col-span-2'}>
                   <span className="font-bold text-slate-400 text-[10px] uppercase block">Category</span>
                   <span className="font-semibold text-slate-800">{selectedProposalForDetails.category}</span>
+                </div>
+              )}
+              {selectedProposalForDetails.subCategory && (
+                <div className={selectedProposalForDetails.category ? 'col-span-1' : 'col-span-2'}>
+                  <span className="font-bold text-slate-400 text-[10px] uppercase block">Sub Category</span>
+                  <span className="font-semibold text-slate-800">{selectedProposalForDetails.subCategory}</span>
                 </div>
               )}
             </div>

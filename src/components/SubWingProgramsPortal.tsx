@@ -100,6 +100,8 @@ export const SubWingProgramsPortal: React.FC = () => {
 
   // Add Program Form States
   const [progName, setProgName] = useState('');
+  const [progCategory, setProgCategory] = useState('');
+  const [progSubCategory, setProgSubCategory] = useState('');
   const [progDate, setProgDate] = useState('');
   const [progTime, setProgTime] = useState('');
   const [progAudience, setProgAudience] = useState('');
@@ -384,6 +386,8 @@ export const SubWingProgramsPortal: React.FC = () => {
       const payload = cleanFirestorePayload({
         accountId: resolvedAccountId || portalId, // maps to organization's loading id
         name: progName.trim(),
+        category: progCategory.trim() || undefined,
+        subCategory: progSubCategory.trim() || undefined,
         date: progDate,
         time: progTime.trim(),
         place: 'Sub-Wing Proposal',
@@ -407,6 +411,8 @@ export const SubWingProgramsPortal: React.FC = () => {
 
       // Reset Form
       setProgName('');
+      setProgCategory('');
+      setProgSubCategory('');
       setProgDate('');
       setProgTime('');
       setProgAudience('');
@@ -621,6 +627,34 @@ export const SubWingProgramsPortal: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      PROGRAM CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={progCategory}
+                      onChange={(e) => setProgCategory(e.target.value)}
+                      placeholder="e.g. Academic, Cultural, Sports..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={progSubCategory}
+                      onChange={(e) => setProgSubCategory(e.target.value)}
+                      placeholder="Select or enter sub category..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700">PROPOSED DATE *</label>
                     <input
                       type="date"
@@ -750,6 +784,22 @@ export const SubWingProgramsPortal: React.FC = () => {
                     </div>
                     <h3 className="font-bold text-slate-900 text-sm">{prog.name}</h3>
                     
+                    {(prog.category || prog.subCategory) && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {prog.category && (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-[10px] font-semibold">
+                            {prog.category}
+                          </span>
+                        )}
+                        {prog.subCategory && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                            {prog.subCategory}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
                       <div>
                         <span className="font-bold block text-slate-400 text-[9px] uppercase tracking-wider">Time</span>

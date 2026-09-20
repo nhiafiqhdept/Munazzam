@@ -99,6 +99,11 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
                     Category: {program.category}
                   </span>
                 )}
+                {program.subCategory && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                    Sub-Category: {program.subCategory}
+                  </span>
+                )}
               </div>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading mt-1">

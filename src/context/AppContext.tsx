@@ -530,6 +530,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: d.name || '',
           category_id: d.categoryId || d.category_id || '',
           category: d.category || '',
+          subCategory: d.subCategory || d.sub_category || '',
           date: d.date || '',
           time: d.time || '',
           place: d.place || '',
@@ -1027,6 +1028,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: (prog.name || '').trim(),
       categoryId: resolvedCategoryId || '',
       category: resolvedCategoryName || '',
+      subCategory: (prog.subCategory || '').trim() || '',
       date: prog.date || now.split('T')[0],
       time: prog.time || '',
       place: (prog.place || '').trim(),
@@ -1052,6 +1054,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: rawData.name,
         category_id: rawData.categoryId || undefined,
         category: rawData.category || undefined,
+        subCategory: rawData.subCategory || undefined,
         date: rawData.date,
         time: rawData.time,
         place: rawData.place,
@@ -1117,6 +1120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (prog.media !== undefined) updatesToApply.media = prog.media;
     if (prog.status !== undefined) updatesToApply.status = prog.status;
     if (prog.resourcePerson !== undefined) updatesToApply.resourcePerson = (prog.resourcePerson || '').trim();
+    if (prog.subCategory !== undefined) updatesToApply.subCategory = (prog.subCategory || '').trim() || '';
     if (prog.attendance_count !== undefined) {
       updatesToApply.attendance_count = isNaN(Number(prog.attendance_count)) ? 0 : Number(prog.attendance_count);
     }

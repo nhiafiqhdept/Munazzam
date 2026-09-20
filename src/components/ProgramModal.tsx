@@ -23,6 +23,7 @@ import {
 import { Program, ProgramMedia } from '../types';
 import { useApp } from '../context/AppContext';
 import { ProgramCategoryCombobox } from './ProgramCategoryCombobox';
+import { ProgramSubCategoryCombobox } from './ProgramSubCategoryCombobox';
 import {
   fileToDataUrl,
   uploadFile,
@@ -49,6 +50,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [subCategory, setSubCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('');
   const [place, setPlace] = useState('');
@@ -105,6 +107,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       }
       setCategory(initialCatName);
       setCategoryId(initialCatId);
+      setSubCategory(programToEdit.subCategory || '');
 
       setDate(programToEdit.date);
       setTime(programToEdit.time || '');
@@ -139,6 +142,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
       setName('');
       setCategory('');
       setCategoryId('');
+      setSubCategory('');
       setDate(todayStr);
       setTime('10:00 AM – 01:00 PM');
       setPlace('Main College Auditorium');
@@ -375,6 +379,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
         name: name.trim(),
         category_id: finalCategoryId || '',
         category: finalCategoryName || '',
+        subCategory: subCategory.trim() || undefined,
         date,
         time: time.trim(),
         place: place.trim(),
@@ -504,6 +509,26 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 setCategory(catName);
                 setCategoryId(catId || '');
               }}
+            />
+          </div>
+
+          {/* Sub Category (Optional Account Combobox) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+              </label>
+              {subCategory && (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  {subCategory}
+                </span>
+              )}
+            </div>
+            <ProgramSubCategoryCombobox
+              value={subCategory}
+              onChange={(subCat) => setSubCategory(subCat)}
+              categoryContext={category}
+              placeholder="Select or enter sub category..."
             />
           </div>
 

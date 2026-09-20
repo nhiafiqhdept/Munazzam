@@ -411,6 +411,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                     {program.category}
                   </span>
                 )}
+                {program.subCategory && (
+                  <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/60">
+                    {program.subCategory}
+                  </span>
+                )}
                 {program.subWingName && (
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
@@ -424,9 +429,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-heading tracking-tight text-white leading-tight">
                   {program.name}
                 </h1>
-                {program.category && (
-                  <p className="text-xs sm:text-sm font-semibold text-emerald-400/90 mt-1 uppercase tracking-wider">
+                {(program.category || program.subCategory) && (
+                  <p className="text-xs sm:text-sm font-semibold text-emerald-400/90 mt-1 uppercase tracking-wider flex items-center gap-2">
                     {program.category}
+                    {program.category && program.subCategory && <span className="text-slate-500">•</span>}
+                    {program.subCategory && <span className="text-slate-300 font-normal">{program.subCategory}</span>}
                   </p>
                 )}
               </div>
@@ -548,6 +555,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                   {program.category}
                 </span>
               )}
+              {program.subCategory && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
+                  {program.subCategory}
+                </span>
+              )}
               {program.subWingName && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 uppercase tracking-wider">
                   Sub-Wing: {program.subWingName}
@@ -565,9 +577,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
             <h1 className="text-xl font-bold font-heading text-slate-900 leading-tight">
               {program.name}
             </h1>
-            {program.category && (
-              <p className="text-xs font-semibold text-emerald-700 mt-1 uppercase tracking-wider">
+            {(program.category || program.subCategory) && (
+              <p className="text-xs font-semibold text-emerald-700 mt-1 uppercase tracking-wider flex items-center gap-1.5">
                 {program.category}
+                {program.category && program.subCategory && <span className="text-slate-400">•</span>}
+                {program.subCategory && <span className="text-slate-500 font-normal">{program.subCategory}</span>}
               </p>
             )}
           </div>

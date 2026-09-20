@@ -66,6 +66,7 @@ export interface Program {
   name: string;
   category_id?: string;
   category?: string;
+  subCategory?: string;
   date: string; // YYYY-MM-DD
   time?: string;
   place: string;
