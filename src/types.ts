@@ -77,6 +77,24 @@ export interface Program {
   attendance_count?: number;
   created_at: string;
   updated_at: string;
+  subWingId?: string;
+  subWingName?: string;
+  subWingStatus?: 'pending' | 'approved' | 'rejected';
+  submittedByEmail?: string;
+  submittedAt?: string;
+}
+
+export interface SubWing {
+  id: string;
+  portalId: string; // matches main organization accountId
+  name: string;
+  president: string; // President / Responsible Person
+  contactDetails: string;
+  email: string;
+  passwordHash: string;
+  description: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
 }
 
 export type ActiveTab =

@@ -8,6 +8,7 @@ import {
   collection,
   query,
   where,
+  or,
   onSnapshot,
   addDoc,
   deleteDoc,
@@ -29,6 +30,7 @@ import {
   Loan,
   LoanRepayment,
   AuditLog,
+  SubWing,
 } from '../types';
 
 export enum OperationType {
@@ -110,6 +112,9 @@ interface AppContextType {
   deleteProgramMedia: (programId: string, mediaId: string) => Promise<void>;
   addProgramCategory: (name: string) => Promise<ProgramCategory>;
   ensureCategoryExists: (name: string) => Promise<ProgramCategory | null>;
+  subWings: SubWing[];
+  subWingPrograms: Program[];
+  setSubWings: React.Dispatch<React.SetStateAction<SubWing[]>>;
 
   // Treasury State & Methods
   accounts: FinancialAccount[];
@@ -216,6 +221,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
+  const [subWingPrograms, setSubWingPrograms] = useState<Program[]>([]);
+  const [subWings, setSubWings] = useState<SubWing[]>([]);
   const [programCategories, setProgramCategories] = useState<ProgramCategory[]>(() => {
     try {
       const cached = localStorage.getItem('local_categories');
@@ -533,12 +540,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           attendance_count: d.attendance_count || 0,
           created_at: d.created_at || d.createdAt || '',
           updated_at: d.updated_at || d.updatedAt || '',
+          subWingId: d.subWingId || undefined,
+          subWingName: d.subWingName || undefined,
+          subWingStatus: d.subWingStatus || undefined,
+          submittedByEmail: d.submittedByEmail || undefined,
+          submittedAt: d.submittedAt || d.submitted_at || undefined,
         });
       });
       list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
-      setPrograms(list);
+      
+      const officialList = list.filter((p) => !p.subWingId || p.subWingStatus === 'approved');
+      const subWingList = list.filter((p) => p.subWingId);
+      
+      setPrograms(officialList);
+      setSubWingPrograms(subWingList);
       try {
-        localStorage.setItem('local_programs', JSON.stringify(list));
+        localStorage.setItem('local_programs', JSON.stringify(officialList));
       } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'programs'));
 
@@ -706,6 +723,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {}
     }, (err) => handleFirestoreError(err, OperationType.GET, 'repayments'));
 
+    // 10. Sub-Wings
+    const qSubWings = query(
+      collection(db, 'sub_wings'),
+      or(
+        where('portalId', '==', uid),
+        where('accountId', '==', uid)
+      )
+    );
+    const unsubSubWings = onSnapshot(qSubWings, (snapshot) => {
+      const list: SubWing[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          portalId: d.portalId || '',
+          name: d.name || '',
+          president: d.president || d.leader || '',
+          contactDetails: d.contactDetails || d.contact_details || '',
+          email: d.email || '',
+          passwordHash: d.passwordHash || d.password_hash || '',
+          description: d.description || '',
+          status: d.status || 'pending',
+          createdAt: d.createdAt || d.created_at || '',
+        });
+      });
+      setSubWings(list);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'sub_wings'));
+
     return () => {
       unsubOrg();
       unsubOrganizers();
@@ -717,6 +762,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubTransfers();
       unsubLoans();
       unsubRepayments();
+      unsubSubWings();
     };
   }, [user?.id, isAuthenticated]);
 
@@ -1619,6 +1665,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteProgramMedia,
         addProgramCategory,
         ensureCategoryExists,
+        subWings,
+        subWingPrograms,
+        setSubWings,
 
         accounts,
         allAccounts: accounts,

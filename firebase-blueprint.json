@@ -347,9 +347,43 @@
         "rejectedAt": { "type": "string" }
       },
       "required": ["id", "portalId", "organizationId", "organizationName", "userEmail", "status", "rejectedAt"]
+    },
+    "SubWing": {
+      "title": "SubWing",
+      "description": "Sub-Wing program management partner or office branch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "portalId": { "type": "string" },
+        "name": { "type": "string" },
+        "president": { "type": "string" },
+        "contactDetails": { "type": "string" },
+        "email": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "portalId", "name", "email", "passwordHash"]
+    },
+    "SubWingPortal": {
+      "title": "SubWingPortal",
+      "description": "Sub-Wing Program Portal configuration document linking portalId to parent accountId",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "accountId", "status"]
     }
   },
   "firestore": {
+    "/sub_wing_portals/{portalId}": {
+      "schema": "SubWingPortal",
+      "description": "Global configuration document lookup mapping portalId to parent accountId"
+    },
     "/accounts/{accountId}": {
       "schema": "Account",
       "description": "User account documents indexed by Firebase Auth UID"
@@ -429,6 +463,10 @@
     "/sp_portal_tokens/{secureToken}": {
       "schema": "SP_PortalToken",
       "description": "Secure unguessable token lookup mapping to portalId"
+    },
+    "/sub_wings/{subWingId}": {
+      "schema": "SubWing",
+      "description": "Onboarded sub-wing partner registry"
     }
   }
 }

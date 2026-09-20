@@ -88,11 +88,18 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                 PROGRAM TITLE
               </span>
-              {program.category && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
-                  Category: {program.category}
-                </span>
-              )}
+              <div className="flex gap-2">
+                {program.subWingName && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                    Sub-Wing: {program.subWingName}
+                  </span>
+                )}
+                {program.category && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                    Category: {program.category}
+                  </span>
+                )}
+              </div>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading mt-1">
               {program.name}

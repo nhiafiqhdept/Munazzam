@@ -13,6 +13,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { OrganizerModal } from './components/OrganizerModal';
 import { ProgramModal } from './components/ProgramModal';
 import { StudentPointsPortal } from './components/points/StudentPointsPortal';
+import { SubWingProgramsPortal } from './components/SubWingProgramsPortal';
 
 import { TreasuryNav } from './components/treasury/TreasuryNav';
 import { TreasuryDashboardView } from './components/treasury/TreasuryDashboardView';
@@ -313,7 +314,10 @@ const AuthenticatedApp: React.FC = () => {
                          window.location.search.includes('reg=') || 
                          window.location.hash.includes('reg=');
 
-  if ((authLoading || orgLoading) && !isSuborgPortal) {
+  const isSubwingPortal = window.location.search.includes('subwing=true') || 
+                          window.location.hash.includes('subwing=true');
+
+  if ((authLoading || orgLoading) && !isSuborgPortal && !isSubwingPortal) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -344,6 +348,18 @@ const AuthenticatedApp: React.FC = () => {
         <QuotaBanner />
         <div className="w-full max-w-7xl mx-auto">
           <StudentPointsPortal />
+        </div>
+      </div>
+    );
+  }
+
+  if (isSubwingPortal) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-2 xs:p-3 sm:p-6 lg:p-8">
+        <OfflineBanner />
+        <QuotaBanner />
+        <div className="w-full max-w-7xl mx-auto">
+          <SubWingProgramsPortal />
         </div>
       </div>
     );

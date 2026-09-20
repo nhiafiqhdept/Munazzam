@@ -401,6 +401,12 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                     {program.category}
                   </span>
                 )}
+                {program.subWingName && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    Sub-Wing: {program.subWingName}
+                  </span>
+                )}
               </div>
 
               {/* Title & Category */}
@@ -506,6 +512,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
               {program.category && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
                   {program.category}
+                </span>
+              )}
+              {program.subWingName && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 uppercase tracking-wider">
+                  Sub-Wing: {program.subWingName}
                 </span>
               )}
             </div>
