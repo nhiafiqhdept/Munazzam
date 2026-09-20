@@ -61,13 +61,9 @@ export const MediaGalleryModal: React.FC<MediaGalleryModalProps> = ({
         {/* Main Image View */}
         <div className="relative w-full flex items-center justify-center bg-black/40 rounded-3xl overflow-hidden max-h-[70vh] border border-slate-800 shadow-2xl">
           <img
-            src={currentMedia?.url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1000&auto=format&fit=crop&q=80'}
+            src={currentMedia?.url || ''}
             alt={currentMedia?.caption || 'Program Media'}
             className="max-h-[70vh] max-w-full object-contain rounded-2xl"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1000&auto=format&fit=crop&q=80';
-            }}
           />
 
           {/* Navigation Arrows */}
