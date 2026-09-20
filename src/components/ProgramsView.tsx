@@ -78,10 +78,13 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const [addPartnerSubmitting, setAddPartnerSubmitting] = useState(false);
 
   // Sub-Wing Proposals and Directory Navigation
-  const [proposalFilter, setProposalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [proposalFilter, setProposalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('approved');
   const [selectedSubWingId, setSelectedSubWingId] = useState<string | null>(null);
   const [selectedProposalForDetails, setSelectedProposalForDetails] = useState<Program | null>(null);
   const [subWingSearch, setSubWingSearch] = useState('');
+  const [subWingToDelete, setSubWingToDelete] = useState<SubWing | null>(null);
+  const [isDeletingSubWing, setIsDeletingSubWing] = useState(false);
+  const [subWingDeleteError, setSubWingDeleteError] = useState<string | null>(null);
 
   // Public Portal ID state
   const [publicPortalId, setPublicPortalId] = useState<string>('');
@@ -244,17 +247,50 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   };
 
   const handleRejectSubWing = async (id: string) => {
+    const target = allSubWings.find((w) => w.id === id);
+    if (target) {
+      setSubWingDeleteError(null);
+      setSubWingToDelete(target);
+    }
+  };
+
+  const confirmDeleteSubWing = async () => {
+    if (!subWingToDelete) return;
+    if (!isAdmin) {
+      setSubWingDeleteError('Only an authorized Main Admin can delete a Sub-Wing.');
+      return;
+    }
+
+    setIsDeletingSubWing(true);
+    setSubWingDeleteError(null);
+
+    const wingId = subWingToDelete.id;
+
     try {
-      // 1. Delete all submitted program proposals belonging exclusively to this sub-wing
-      const q = query(collection(db, 'programs'), where('subWingId', '==', id));
+      // 1. Delete all program proposals belonging exclusively to this sub-wing
+      const q = query(
+        collection(db, 'programs'),
+        where('subWingId', '==', wingId)
+      );
       const querySnap = await getDocs(q);
       const deletePromises = querySnap.docs.map((docSnap) => deleteDoc(docSnap.ref));
       await Promise.all(deletePromises);
 
       // 2. Delete the sub-wing account document
-      await deleteDoc(doc(db, 'sub_wings', id));
-    } catch (err) {
-      console.error('Error rejecting and cleaning up sub-wing:', err);
+      await deleteDoc(doc(db, 'sub_wings', wingId));
+
+      // 3. If currently viewing proposals for this deleted sub-wing, reset selection
+      if (selectedSubWingId === wingId) {
+        setSelectedSubWingId(null);
+      }
+
+      // Close modal
+      setSubWingToDelete(null);
+      setIsDeletingSubWing(false);
+    } catch (err: any) {
+      console.error('Error deleting sub-wing:', err);
+      setSubWingDeleteError('Unable to delete this Sub-Wing. No changes were made. Please try again.');
+      setIsDeletingSubWing(false);
     }
   };
 
@@ -857,9 +893,25 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 </div>
                               </div>
 
-                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
-                                <span>Review Proposals →</span>
-                                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+                                  <span>Review Proposals →</span>
+                                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                </div>
+                                {isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSubWingDeleteError(null);
+                                      setSubWingToDelete(wing);
+                                    }}
+                                    title={`Delete ${wing.name}`}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -954,6 +1006,20 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                           <span className="px-3 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl font-bold">
                             Rejected: {selectedStats.rejected}
                           </span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSubWingDeleteError(null);
+                                setSubWingToDelete(selectedSubWing);
+                              }}
+                              title={`Delete ${selectedSubWing.name}`}
+                              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Sub-Wing</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -961,16 +1027,6 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status:</span>
                         <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-[11px] font-semibold">
-                          <button
-                            onClick={() => setProposalFilter('pending')}
-                            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                              proposalFilter === 'pending'
-                                ? 'bg-white text-amber-700 shadow-2xs font-bold'
-                                : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                          >
-                            Pending ({selectedStats.pending})
-                          </button>
                           <button
                             onClick={() => setProposalFilter('approved')}
                             className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
@@ -980,6 +1036,16 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             }`}
                           >
                             Approved ({selectedStats.approved})
+                          </button>
+                          <button
+                            onClick={() => setProposalFilter('pending')}
+                            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                              proposalFilter === 'pending'
+                                ? 'bg-white text-amber-700 shadow-2xs font-bold'
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            Pending ({selectedStats.pending})
                           </button>
                           <button
                             onClick={() => setProposalFilter('rejected')}
@@ -1270,7 +1336,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             </button>
                           </div>
                         ) : (
-                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                             <button
                               onClick={() => {
                                 setSelectedSubWingId(wing.id);
@@ -1282,6 +1348,20 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                               <span>Review Proposals ({stats.total})</span>
                               <ChevronRight className="w-3.5 h-3.5" />
                             </button>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSubWingDeleteError(null);
+                                  setSubWingToDelete(wing);
+                                }}
+                                title={`Delete ${wing.name}`}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1553,6 +1633,97 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Sub-Wing Confirmation Modal */}
+      {subWingToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl border border-slate-100 my-auto">
+            {/* Header */}
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-bold text-slate-900 font-heading">
+                  Delete Sub-Wing?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Are you sure you want to permanently delete <strong className="text-slate-900">{subWingToDelete.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            {/* Error alert if any */}
+            {subWingDeleteError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{subWingDeleteError}</span>
+              </div>
+            )}
+
+            {/* Breakdown of data being removed */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs text-slate-600">
+              <p className="font-bold text-slate-800">
+                The following Sub-Wing data will be permanently removed:
+              </p>
+              {(() => {
+                const stats = getSubWingStats(subWingToDelete.id);
+                return (
+                  <ul className="space-y-1.5 list-disc pl-4 text-slate-600">
+                    <li>Sub-Wing account & login access ({subWingToDelete.email || 'Registered account'})</li>
+                    <li>Sub-Wing profile & president info ({subWingToDelete.president ? `President: ${subWingToDelete.president}` : 'Partner details'})</li>
+                    <li>
+                      Program proposals ({stats.total} total: {stats.pending} pending, {stats.approved} approved, {stats.rejected} rejected)
+                    </li>
+                    <li>Sub-Wing-specific credentials, proposal metadata, and portal records</li>
+                  </ul>
+                );
+              })()}
+            </div>
+
+            {/* Safety Notice */}
+            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Data Safety Guarantee:</strong> Main organization records, student points, treasury, awards, and independent official activities will remain completely untouched.
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingSubWing}
+                onClick={() => {
+                  setSubWingToDelete(null);
+                  setSubWingDeleteError(null);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingSubWing}
+                onClick={confirmDeleteSubWing}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingSubWing ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Deleting Sub-Wing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Sub-Wing</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
