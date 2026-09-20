@@ -4,14 +4,17 @@ import { AlertTriangle, Lock, ArrowLeft, RefreshCw, ExternalLink } from 'lucide-
 interface PortalUnavailableScreenProps {
   reason: 'invalid' | 'disabled' | 'missing' | 'expired';
   customMessage?: string;
+  message?: string;
   onRetry?: () => void;
 }
 
 export const PortalUnavailableScreen: React.FC<PortalUnavailableScreenProps> = ({
   reason,
   customMessage,
+  message,
   onRetry,
 }) => {
+  const effectiveMessage = customMessage || message;
   const getTitle = () => {
     switch (reason) {
       case 'disabled':
@@ -27,7 +30,7 @@ export const PortalUnavailableScreen: React.FC<PortalUnavailableScreenProps> = (
   };
 
   const getDescription = () => {
-    if (customMessage) return customMessage;
+    if (effectiveMessage) return effectiveMessage;
     switch (reason) {
       case 'disabled':
         return 'This institution Points Portal has been temporarily disabled by its administrator. External student and class submissions are paused until it is re-activated.';

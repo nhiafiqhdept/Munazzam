@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'public';
 export interface AuthUser {
   id: string;
   username: string;
+  name?: string;
   email?: string;
   role?: UserRole;
   created_at?: string;
@@ -168,6 +169,8 @@ export interface Program {
   submittedByEmail?: string;
   submittedAt?: string;
   resourcePerson?: string;
+  presenter_name?: string;
+  presenter_designation?: string;
   permissionStatus?: PermissionStatus;
   permissionId?: string;
 }
@@ -299,6 +302,7 @@ export interface LoanRepayment {
   amount: number;
   type: 'REPAY' | 'RECOVER';
   description?: string;
+  notes?: string;
   proof?: string;
   created_by?: string;
   created_at: string;

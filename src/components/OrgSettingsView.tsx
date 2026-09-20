@@ -31,8 +31,8 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
   const {
     currentOrg,
     updateOrganization,
-    exportDataAsJson,
-    importDataFromJson,
+    exportDataJson,
+    importDataJson,
     isAdmin,
     setIsAdmin,
     user,
@@ -134,7 +134,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
   };
 
   const handleExport = () => {
-    const jsonStr = exportDataAsJson();
+    const jsonStr = exportDataJson();
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -152,11 +152,11 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        const res = importDataFromJson(content);
-        if (res.success) {
+        const res = importDataJson(content);
+        if (res) {
           setSuccessMsg('Data imported and restored successfully!');
         } else {
-          setErrorMsg(res.error || 'Failed to parse backup JSON file.');
+          setErrorMsg('Failed to parse backup JSON file.');
         }
       } catch (err) {
         setErrorMsg('Invalid backup file format.');

@@ -3,34 +3,47 @@ import { X, ChevronLeft, ChevronRight, Download, Image as ImageIcon } from 'luci
 import { ProgramMedia } from '../types';
 
 interface MediaGalleryModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   mediaList: ProgramMedia[];
-  currentIndex: number;
-  onNavigate: (index: number) => void;
+  currentIndex?: number;
+  initialIndex?: number;
+  onNavigate?: (index: number) => void;
 }
 
 export const MediaGalleryModal: React.FC<MediaGalleryModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
   mediaList,
-  currentIndex,
+  currentIndex: controlledIndex,
+  initialIndex = 0,
   onNavigate,
 }) => {
+  const [internalIndex, setInternalIndex] = React.useState(controlledIndex ?? initialIndex);
+
+  React.useEffect(() => {
+    if (controlledIndex !== undefined) {
+      setInternalIndex(controlledIndex);
+    }
+  }, [controlledIndex]);
+
   if (!isOpen || mediaList.length === 0) return null;
 
-  const currentMedia = mediaList[currentIndex] || mediaList[0];
+  const activeIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
+  const currentMedia = mediaList[activeIndex] || mediaList[0];
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaList.length - 1;
-    onNavigate(prevIndex);
+    const prevIndex = activeIndex > 0 ? activeIndex - 1 : mediaList.length - 1;
+    if (onNavigate) onNavigate(prevIndex);
+    setInternalIndex(prevIndex);
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextIndex = currentIndex < mediaList.length - 1 ? currentIndex + 1 : 0;
-    onNavigate(nextIndex);
+    const nextIndex = activeIndex < mediaList.length - 1 ? activeIndex + 1 : 0;
+    if (onNavigate) onNavigate(nextIndex);
+    setInternalIndex(nextIndex);
   };
 
   return (
@@ -46,7 +59,7 @@ export const MediaGalleryModal: React.FC<MediaGalleryModalProps> = ({
         {/* Top Controls */}
         <div className="w-full flex items-center justify-between text-white pb-3 px-2">
           <div className="text-xs font-semibold text-slate-300">
-            Photo {currentIndex + 1} of {mediaList.length}
+            Photo {activeIndex + 1} of {mediaList.length}
           </div>
           <div className="flex items-center gap-2">
             <button

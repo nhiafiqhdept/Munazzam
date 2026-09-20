@@ -78,7 +78,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
       // 1. Attempt Server-side public API route
       try {
         const res = await fetch(`/api/public/college-permission/${encodeURIComponent(token)}`);
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
           const json = await res.json();
           if (json.success && json.permission) {
             fetchedPermData = json.permission;
@@ -94,23 +95,39 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
       // 2. If not found via server API, attempt direct Firestore query
       if (!fetchedPermData) {
-        const q = query(
-          collection(db, 'program_permissions'),
-          where('approvalToken', '==', token)
-        );
-        const snapshot = await getDocs(q);
+        try {
+          const q1 = query(
+            collection(db, 'program_permissions'),
+            where('approvalToken', '==', token)
+          );
+          const snap1 = await getDocs(q1);
 
-        if (!snapshot.empty) {
-          const docSnap = snapshot.docs[0];
-          fetchedDocId = docSnap.id;
-          fetchedPermData = docSnap.data();
-        } else {
-          // Fallback: check if the token itself is a direct permission document ID
-          const directDoc = await getDoc(doc(db, 'program_permissions', token));
-          if (directDoc.exists()) {
-            fetchedDocId = directDoc.id;
-            fetchedPermData = directDoc.data();
+          if (!snap1.empty) {
+            const docSnap = snap1.docs[0];
+            fetchedDocId = docSnap.id;
+            fetchedPermData = docSnap.data();
+          } else {
+            const q2 = query(
+              collection(db, 'program_permissions'),
+              where('approval_token', '==', token)
+            );
+            const snap2 = await getDocs(q2);
+
+            if (!snap2.empty) {
+              const docSnap = snap2.docs[0];
+              fetchedDocId = docSnap.id;
+              fetchedPermData = docSnap.data();
+            } else {
+              // Fallback: check if the token itself is a direct permission document ID
+              const directDoc = await getDoc(doc(db, 'program_permissions', token));
+              if (directDoc.exists()) {
+                fetchedDocId = directDoc.id;
+                fetchedPermData = directDoc.data();
+              }
+            }
           }
+        } catch (fsErr) {
+          console.warn('Direct Firestore permission lookup error:', fsErr);
         }
       }
 
@@ -201,37 +218,43 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   const fetchOrganizationData = async (orgId?: string) => {
     try {
       if (orgId) {
-        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
-        if (orgDoc.exists()) {
-          const data = orgDoc.data();
-          setOrganization((prev) => ({
-            ...prev,
-            id: orgDoc.id,
-            name: data.name || prev?.name || '',
-            college_name: data.college_name || prev?.college_name || '',
-            logo: data.logo || prev?.logo || '',
-            tagline: data.tagline || prev?.tagline || '',
-          }));
-          return;
-        }
-      }
+        // 1. Check accounts collection (where Munazzam profile is officially stored)
+        try {
+          const accDoc = await getDoc(doc(db, 'accounts', orgId));
+          if (accDoc.exists()) {
+            const data = accDoc.data();
+            const profile = data.profile || data;
+            setOrganization((prev) => ({
+              ...prev,
+              id: accDoc.id,
+              name: profile.name || profile.organizationName || data.name || prev?.name || '',
+              college_name: profile.college_name || profile.collegeName || prev?.college_name || '',
+              logo: profile.logo || profile.photoURL || prev?.logo || '',
+              tagline: profile.tagline || prev?.tagline || '',
+            }));
+            return;
+          }
+        } catch {}
 
-      // Fallback: fetch first organization in database
-      const orgsSnap = await getDocs(collection(db, 'organizations'));
-      if (!orgsSnap.empty) {
-        const firstDoc = orgsSnap.docs[0];
-        const data = firstDoc.data();
-        setOrganization((prev) => ({
-          ...prev,
-          id: firstDoc.id,
-          name: data.name || prev?.name || '',
-          college_name: data.college_name || prev?.college_name || '',
-          logo: data.logo || prev?.logo || '',
-          tagline: data.tagline || prev?.tagline || '',
-        }));
+        // 2. Check organizations collection as fallback
+        try {
+          const orgDoc = await getDoc(doc(db, 'organizations', orgId));
+          if (orgDoc.exists()) {
+            const data = orgDoc.data();
+            setOrganization((prev) => ({
+              ...prev,
+              id: orgDoc.id,
+              name: data.name || prev?.name || '',
+              college_name: data.college_name || prev?.college_name || '',
+              logo: data.logo || prev?.logo || '',
+              tagline: data.tagline || prev?.tagline || '',
+            }));
+            return;
+          }
+        } catch {}
       }
     } catch (orgErr) {
-      console.warn('Could not load organization details from Firestore:', orgErr);
+      console.warn('Could not load organization details:', orgErr);
     }
   };
 
@@ -240,6 +263,9 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
     const finalApproverName = approverName.trim() || approverDesignation;
+
+    let apiSucceeded = false;
+    let updatedPerm: any = null;
 
     try {
       const res = await fetch(`/api/public/college-permission/${encodeURIComponent(token)}/action`, {
@@ -258,16 +284,64 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         }),
       });
 
-      const json = await res.json();
-
-      if (res.ok && json.success && json.permission) {
-        setPermission(json.permission);
-        setActiveModal(null);
-        setActionSuccess('approved');
-      } else {
-        const msg = json.message || json.error || 'An error occurred while approving. Please try again.';
-        setSubmitErrorMessage(msg);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const json = await res.json();
+        if (json.success && json.permission) {
+          apiSucceeded = true;
+          updatedPerm = json.permission;
+        }
       }
+    } catch (apiErr) {
+      console.warn('API action approval fallback to direct Firestore:', apiErr);
+    }
+
+    if (apiSucceeded && updatedPerm) {
+      setPermission(updatedPerm);
+      setActiveModal(null);
+      setActionSuccess('approved');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Direct Firestore update fallback (essential for static deployments like Vercel)
+    try {
+      const targetDocId = docId || permission?.id || token;
+      if (!targetDocId) throw new Error('No target document identified.');
+
+      const now = new Date().toISOString();
+      const historyItem: PermissionHistoryItem = {
+        id: 'hist_' + Date.now(),
+        timestamp: now,
+        status: 'approved',
+        action: 'Permission officially approved by college authority',
+        actorName: finalApproverName,
+        actorRole: approverDesignation,
+        notes: approvalNotes.trim(),
+      };
+
+      const updateData: any = {
+        status: 'approved',
+        approvedBy: finalApproverName,
+        approverDesignation: approverDesignation,
+        approvedAt: now,
+        approvalNotes: approvalNotes.trim(),
+        approvalMethod: 'public_link',
+        updatedAt: now,
+        history: [...(permission?.history || []), historyItem],
+      };
+
+      await updateDoc(doc(db, 'program_permissions', targetDocId), updateData);
+
+      if (permission?.programId) {
+        await updateDoc(doc(db, 'programs', permission.programId), {
+          permissionStatus: 'approved',
+        }).catch(() => {});
+      }
+
+      setPermission((prev) => (prev ? { ...prev, ...updateData } : null));
+      setActiveModal(null);
+      setActionSuccess('approved');
     } catch (err: any) {
       console.error('Error approving permission:', err);
       setSubmitErrorMessage(err?.message || 'An error occurred while recording approval. Please try again.');
@@ -285,6 +359,9 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
     const finalReviewerName = approverName.trim() || approverDesignation;
+
+    let apiSucceeded = false;
+    let updatedPerm: any = null;
 
     try {
       const res = await fetch(`/api/public/college-permission/${encodeURIComponent(token)}/action`, {
@@ -304,16 +381,63 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         }),
       });
 
-      const json = await res.json();
-
-      if (res.ok && json.success && json.permission) {
-        setPermission(json.permission);
-        setActiveModal(null);
-        setActionSuccess('changes');
-      } else {
-        const msg = json.message || json.error || 'An error occurred while requesting changes. Please try again.';
-        setSubmitErrorMessage(msg);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const json = await res.json();
+        if (json.success && json.permission) {
+          apiSucceeded = true;
+          updatedPerm = json.permission;
+        }
       }
+    } catch (apiErr) {
+      console.warn('API action changes fallback to direct Firestore:', apiErr);
+    }
+
+    if (apiSucceeded && updatedPerm) {
+      setPermission(updatedPerm);
+      setActiveModal(null);
+      setActionSuccess('changes');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Direct Firestore update fallback
+    try {
+      const targetDocId = docId || permission?.id || token;
+      if (!targetDocId) throw new Error('No target document identified.');
+
+      const now = new Date().toISOString();
+      const historyItem: PermissionHistoryItem = {
+        id: 'hist_' + Date.now(),
+        timestamp: now,
+        status: 'changes_required',
+        action: 'Modifications requested by reviewing authority',
+        actorName: finalReviewerName,
+        actorRole: approverDesignation,
+        notes: changesNotes.trim(),
+      };
+
+      const updateData: any = {
+        status: 'changes_required',
+        changesRequestedBy: finalReviewerName,
+        approverDesignation: approverDesignation,
+        changesRequestedAt: now,
+        changesRequiredNotes: changesNotes.trim(),
+        updatedAt: now,
+        history: [...(permission?.history || []), historyItem],
+      };
+
+      await updateDoc(doc(db, 'program_permissions', targetDocId), updateData);
+
+      if (permission?.programId) {
+        await updateDoc(doc(db, 'programs', permission.programId), {
+          permissionStatus: 'changes_required',
+        }).catch(() => {});
+      }
+
+      setPermission((prev) => (prev ? { ...prev, ...updateData } : null));
+      setActiveModal(null);
+      setActionSuccess('changes');
     } catch (err: any) {
       console.error('Error requesting changes:', err);
       setSubmitErrorMessage(err?.message || 'An error occurred while submitting change request. Please try again.');
@@ -331,6 +455,9 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
     const finalRejecterName = approverName.trim() || approverDesignation;
+
+    let apiSucceeded = false;
+    let updatedPerm: any = null;
 
     try {
       const res = await fetch(`/api/public/college-permission/${encodeURIComponent(token)}/action`, {
@@ -350,16 +477,63 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         }),
       });
 
-      const json = await res.json();
-
-      if (res.ok && json.success && json.permission) {
-        setPermission(json.permission);
-        setActiveModal(null);
-        setActionSuccess('rejected');
-      } else {
-        const msg = json.message || json.error || 'An error occurred while recording rejection. Please try again.';
-        setSubmitErrorMessage(msg);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const json = await res.json();
+        if (json.success && json.permission) {
+          apiSucceeded = true;
+          updatedPerm = json.permission;
+        }
       }
+    } catch (apiErr) {
+      console.warn('API action reject fallback to direct Firestore:', apiErr);
+    }
+
+    if (apiSucceeded && updatedPerm) {
+      setPermission(updatedPerm);
+      setActiveModal(null);
+      setActionSuccess('rejected');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Direct Firestore update fallback
+    try {
+      const targetDocId = docId || permission?.id || token;
+      if (!targetDocId) throw new Error('No target document identified.');
+
+      const now = new Date().toISOString();
+      const historyItem: PermissionHistoryItem = {
+        id: 'hist_' + Date.now(),
+        timestamp: now,
+        status: 'rejected',
+        action: 'Permission request rejected by authority',
+        actorName: finalRejecterName,
+        actorRole: approverDesignation,
+        notes: rejectionReason.trim(),
+      };
+
+      const updateData: any = {
+        status: 'rejected',
+        rejectedBy: finalRejecterName,
+        approverDesignation: approverDesignation,
+        rejectedAt: now,
+        rejectionReason: rejectionReason.trim(),
+        updatedAt: now,
+        history: [...(permission?.history || []), historyItem],
+      };
+
+      await updateDoc(doc(db, 'program_permissions', targetDocId), updateData);
+
+      if (permission?.programId) {
+        await updateDoc(doc(db, 'programs', permission.programId), {
+          permissionStatus: 'rejected',
+        }).catch(() => {});
+      }
+
+      setPermission((prev) => (prev ? { ...prev, ...updateData } : null));
+      setActiveModal(null);
+      setActionSuccess('rejected');
     } catch (err: any) {
       console.error('Error rejecting permission:', err);
       setSubmitErrorMessage(err?.message || 'An error occurred while recording rejection. Please try again.');
@@ -623,11 +797,11 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                 <span>
-                  Submitted by: <strong className="text-slate-900 font-semibold">{permission.submittedBy.name}</strong>
+                  Submitted by: <strong className="text-slate-900 font-semibold">{typeof permission.submittedBy === 'object' ? (permission.submittedBy.name || 'Coordinator') : String(permission.submittedBy)}</strong>
                 </span>
               </div>
               <div className="text-slate-500">
-                Role: <span className="text-slate-800 font-semibold">{permission.submittedBy.designation || 'Program Coordinator'}</span>
+                Role: <span className="text-slate-800 font-semibold">{(typeof permission.submittedBy === 'object' && permission.submittedBy?.designation) ? permission.submittedBy.designation : 'Program Coordinator'}</span>
               </div>
             </div>
           )}
@@ -636,8 +810,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             <div className="pt-2 flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-100">
               <Award className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>
-                Recommended by: <strong className="font-semibold">{permission.recommendedBy.name}</strong>
-                {permission.recommendedBy.designation ? ` (${permission.recommendedBy.designation})` : ''}
+                Recommended by: <strong className="font-semibold">{typeof permission.recommendedBy === 'object' ? (permission.recommendedBy.name || 'Reviewer') : String(permission.recommendedBy)}</strong>
+                {typeof permission.recommendedBy === 'object' && permission.recommendedBy?.designation ? ` (${permission.recommendedBy.designation})` : ''}
               </span>
             </div>
           )}

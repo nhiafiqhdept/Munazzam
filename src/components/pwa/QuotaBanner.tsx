@@ -3,7 +3,14 @@ import { Database, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const QuotaBanner: React.FC = () => {
-  const { isQuotaExceeded } = useApp();
+  let isQuotaExceeded = false;
+  try {
+    const app = useApp();
+    isQuotaExceeded = Boolean(app?.isQuotaExceeded);
+  } catch {
+    // Gracefully ignore if used outside AppProvider (e.g. public portal routes)
+    return null;
+  }
   const [dismissed, setDismissed] = useState(false);
 
   if (!isQuotaExceeded || dismissed) {

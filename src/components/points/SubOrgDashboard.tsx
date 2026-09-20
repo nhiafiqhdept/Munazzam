@@ -247,7 +247,7 @@ export const SubOrgDashboard: React.FC = () => {
           requestedPoints: Number(requestedPoints) || 10,
           additionalNotes: additionalNotes.trim(),
           status: 'Submitted',
-          rank: selectedCat?.isRankBased ? selectedRank : undefined,
+          rank: (selectedCat?.isRankBased && selectedRank) ? (selectedRank as '1st' | '2nd' | '3rd') : undefined,
           rankBasedPoints: !!selectedCat?.isRankBased
         });
         setFormSuccess('Submission updated successfully.');
@@ -270,7 +270,7 @@ export const SubOrgDashboard: React.FC = () => {
           achieverStudentId: cleanAchieverStudentId,
           requestedPoints: Number(requestedPoints) || 10,
           additionalNotes: additionalNotes.trim(),
-          rank: selectedCat?.isRankBased ? selectedRank : undefined,
+          rank: (selectedCat?.isRankBased && selectedRank) ? (selectedRank as '1st' | '2nd' | '3rd') : undefined,
           rankBasedPoints: !!selectedCat?.isRankBased
         }, allFiles);
         setFormSuccess('Achievement successfully submitted to the Review Panel!');

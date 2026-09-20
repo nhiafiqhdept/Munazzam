@@ -3205,8 +3205,7 @@ export const AdminDashboard: React.FC = () => {
                                     <video 
                                       src={video.fileUrl} 
                                       controls 
-                                      className="w-full rounded-xl border border-slate-200 shadow-inner bg-black aspect-video max-h-56" 
-                                      referrerPolicy="no-referrer"
+                                      className="w-full rounded-xl border border-slate-200 shadow-inner bg-black aspect-video max-h-56"
                                     >
                                       Your browser does not support the video tag.
                                     </video>

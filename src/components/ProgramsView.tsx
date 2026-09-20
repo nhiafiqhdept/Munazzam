@@ -1602,17 +1602,20 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               <div className="space-y-1.5">
                 <span className="font-bold text-slate-700 text-xs block">Attached Media & Proofs</span>
                 <div className="grid grid-cols-3 gap-2">
-                  {selectedProposalForDetails.media.map((url, idx) => (
-                    <a
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="aspect-square rounded-xl overflow-hidden border border-slate-200 block hover:opacity-90"
-                    >
-                      <img src={url} alt={`proof-${idx}`} className="w-full h-full object-cover" />
-                    </a>
-                  ))}
+                  {selectedProposalForDetails.media.map((item, idx) => {
+                    const mediaUrl = typeof item === 'string' ? item : item.url;
+                    return (
+                      <a
+                        key={idx}
+                        href={mediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="aspect-square rounded-xl overflow-hidden border border-slate-200 block hover:opacity-90"
+                      >
+                        <img src={mediaUrl} alt={`proof-${idx}`} className="w-full h-full object-cover" />
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}

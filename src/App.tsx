@@ -38,6 +38,7 @@ import { LogOut } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
 import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const MainLayout: React.FC = () => {
   const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg } = useApp();
@@ -311,6 +312,7 @@ const MainLayout: React.FC = () => {
 function extractPublicPermissionToken(): string | null {
   if (typeof window === 'undefined') return null;
 
+  const href = window.location.href || '';
   const pathname = window.location.pathname || '';
   const search = window.location.search || '';
   const hash = window.location.hash || '';
@@ -325,7 +327,13 @@ function extractPublicPermissionToken(): string | null {
     }
   }
 
-  // 2. Fallback path matching: /permission/<token>
+  // 2. Comprehensive regex match for standard Munazzam permission tokens (cpt_...)
+  const cptMatch = href.match(/(cpt_[a-zA-Z0-9_-]+)/);
+  if (cptMatch && cptMatch[1]) {
+    return cptMatch[1].trim();
+  }
+
+  // 3. Fallback path matching: /permission/<token>
   const permPathPrefix = '/permission/';
   if (pathname.includes(permPathPrefix) && !pathname.includes('/public/college-permission/')) {
     const raw = pathname.substring(pathname.indexOf(permPathPrefix) + permPathPrefix.length);
@@ -335,7 +343,7 @@ function extractPublicPermissionToken(): string | null {
     }
   }
 
-  // 3. Hash-based route: #/public/college-permission/<token>
+  // 4. Hash-based route: #/public/college-permission/<token>
   if (hash.includes(publicPathPrefix)) {
     const raw = hash.substring(hash.indexOf(publicPathPrefix) + publicPathPrefix.length);
     const token = raw.split('/')[0].split('?')[0].split('#')[0];
@@ -344,20 +352,20 @@ function extractPublicPermissionToken(): string | null {
     }
   }
 
-  // 4. Query param: ?permission_token=<token>
-  if (search.includes('permission_token=')) {
+  // 5. Query param: ?permission_token=<token> or ?token=<token>
+  if (search.includes('permission_token=') || search.includes('token=')) {
     const params = new URLSearchParams(search);
-    const token = params.get('permission_token');
+    const token = params.get('permission_token') || params.get('token');
     if (token && token.trim()) {
       return token.trim();
     }
   }
 
-  // 5. Hash query param: #...permission_token=<token>
-  if (hash.includes('permission_token=')) {
-    const hashPart = hash.substring(hash.indexOf('permission_token='));
-    const params = new URLSearchParams(hashPart);
-    const token = params.get('permission_token');
+  // 6. Hash query param: #...permission_token=<token>
+  if (hash.includes('permission_token=') || hash.includes('token=')) {
+    const hashQuery = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : hash.substring(1);
+    const params = new URLSearchParams(hashQuery);
+    const token = params.get('permission_token') || params.get('token');
     if (token && token.trim()) {
       return token.trim();
     }
@@ -458,18 +466,19 @@ export function App() {
   // Bypasses all authentication, AppProvider, and protected route checks for public College Permission review
   if (publicPermissionToken) {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="College Permission Review Portal">
         <OfflineBanner />
-        <QuotaBanner />
         <PublicPermissionApprovalView token={publicPermissionToken} />
-      </>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <AppProvider>
-      <AuthenticatedApp />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AuthenticatedApp />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

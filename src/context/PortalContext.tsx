@@ -133,6 +133,7 @@ export interface SP_Organization {
   id: string;
   portalId: string;
   name: string;
+  shortCode?: string;
   className: string;
   logo: string;
   description: string;
@@ -176,6 +177,7 @@ export interface SP_Achievement {
   id: string;
   portalId: string;
   organizationId: string;
+  organizationName?: string;
   title: string;
   programName: string;
   categoryId: string;
@@ -217,6 +219,10 @@ export interface SP_Media {
   fileSize: number;
   mimeType: string;
   uploadedAt: string;
+  type?: string;
+  name?: string;
+  size?: number;
+  url?: string;
 }
 
 export interface SP_Transaction {
@@ -245,6 +251,8 @@ export interface SP_Competition {
   startDate: string;
   endDate: string;
   status: 'active' | 'completed' | 'draft';
+  concludedAt?: string;
+  conclusionDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -266,6 +274,8 @@ export interface SP_Award {
   description: string;
   evaluationPeriodId?: string;
   evaluationPeriod?: string;
+  organizationId?: string;
+  points?: number;
   recipientType?: 'class_organization' | 'individual';
   winnerOrganizationId?: string;
   winnerOrganizationName?: string;
@@ -364,6 +374,7 @@ export function getWinnerSubtext(winner: AwardWinner): string {
 export interface SP_Announcement {
   id: string;
   portalId: string;
+  organizationId?: string;
   title: string;
   content: string;
   publishedBy: string;
