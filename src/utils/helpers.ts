@@ -261,9 +261,8 @@ export function determineProgramStatusByDate(dateStr: string): 'upcoming' | 'com
 
 /**
  * Resolves the effective status for a program.
- * - Preserves 'ongoing' status if explicitly set.
- * - If program date is today or in the future, returns 'upcoming' (correcting any future records mistakenly saved as 'completed').
- * - If program date has passed, returns 'completed' (preserving historical records).
+ * - If an explicit status is saved ('completed' | 'upcoming' | 'ongoing'), it is treated as AUTHORITATIVE and returned directly.
+ * - If no status is saved on the record, derives the initial default status based on the program date.
  */
 export function getProgramEffectiveStatus(prog?: {
   date?: string;
@@ -272,16 +271,19 @@ export function getProgramEffectiveStatus(prog?: {
   subWingStatus?: string;
 }): 'upcoming' | 'completed' | 'ongoing' {
   if (!prog) return 'upcoming';
-  if (prog.status === 'ongoing') return 'ongoing';
 
-  if (prog.date) {
-    const dateBased = determineProgramStatusByDate(prog.date);
-    if (dateBased === 'upcoming') {
-      return 'upcoming';
-    } else {
-      return 'completed';
+  // If the record has a valid saved status, it is authoritative (manual Admin choice)
+  if (prog.status && typeof prog.status === 'string') {
+    const s = prog.status.trim().toLowerCase();
+    if (s === 'completed' || s === 'upcoming' || s === 'ongoing') {
+      return s as 'upcoming' | 'completed' | 'ongoing';
     }
   }
 
-  return (prog.status as any) || 'completed';
+  // Fallback: If no status was saved, determine default status by date
+  if (prog.date) {
+    return determineProgramStatusByDate(prog.date);
+  }
+
+  return 'upcoming';
 }

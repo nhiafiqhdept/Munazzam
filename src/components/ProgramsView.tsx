@@ -262,7 +262,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const handleApproveProposal = async (id: string) => {
     try {
       const found = subWingPrograms.find((p) => p.id === id);
-      const calculatedStatus = found ? determineProgramStatusByDate(found.date) : 'upcoming';
+      const calculatedStatus = found?.status || (found ? determineProgramStatusByDate(found.date) : 'upcoming');
       await updateDoc(doc(db, 'programs', id), { 
         subWingStatus: 'approved',
         status: calculatedStatus
