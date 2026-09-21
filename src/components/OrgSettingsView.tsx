@@ -44,6 +44,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
 
   const [name, setName] = useState('');
   const [collegeName, setCollegeName] = useState('');
+  const [searchableName, setSearchableName] = useState('');
   const [tagline, setTagline] = useState('');
   const [about, setAbout] = useState('');
   const [academicYear, setAcademicYear] = useState('');
@@ -61,6 +62,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
     if (currentOrg) {
       setName(currentOrg.name);
       setCollegeName(currentOrg.college_name);
+      setSearchableName(currentOrg.searchableName || '');
       setTagline(currentOrg.tagline || '');
       setAbout(currentOrg.about || '');
       setAcademicYear(currentOrg.academic_year || '');
@@ -82,7 +84,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
       
       // Auto save updated logo to current organization immediately
       if (currentOrg) {
-        updateOrganization({
+        await updateOrganization({
           id: currentOrg.id,
           name: currentOrg.name,
           college_name: currentOrg.college_name,
@@ -90,6 +92,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
           about: currentOrg.about,
           academic_year: currentOrg.academic_year,
           logo: url,
+          searchableName: searchableName,
         });
       }
     } catch (err: any) {
@@ -112,7 +115,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
     try {
       setIsSaving(true);
 
-      updateOrganization({
+      await updateOrganization({
         id: currentOrg.id,
         name: name.trim(),
         college_name: collegeName.trim(),
@@ -120,6 +123,7 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
         about: about.trim(),
         academic_year: academicYear.trim(),
         logo: logo,
+        searchableName: searchableName.trim().toUpperCase(),
       });
 
       setSuccessMsg('Profile changes saved successfully.');
@@ -299,6 +303,29 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
                 onChange={(e) => setCollegeName(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white"
               />
+            </div>
+
+            {/* Searchable Name */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Searchable Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={searchableName}
+                onChange={(e) => setSearchableName(e.target.value.toUpperCase())}
+                placeholder="e.g. NSU or DEPT"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white uppercase tracking-wider"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Used by the public to find this organization in Public View. Must be unique.
+              </p>
+              {!searchableName.trim() && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-medium">
+                  Set your Searchable Name to make this organization discoverable in Public View.
+                </div>
+              )}
             </div>
 
             {/* Tagline & Academic Session */}

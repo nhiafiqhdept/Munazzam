@@ -38,7 +38,27 @@ import { LogOut } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
 import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
+import { PublicOrganizationView } from './components/PublicOrganizationView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+
+function extractPublicOrgSearchableName(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash;
+  const search = window.location.search;
+
+  if (hash.includes('public_org=')) {
+    const queryStr = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : hash.substring(1);
+    const params = new URLSearchParams(queryStr);
+    const val = params.get('public_org');
+    if (val) return decodeURIComponent(val);
+  }
+  if (search.includes('public_org=')) {
+    const params = new URLSearchParams(search);
+    const val = params.get('public_org');
+    if (val) return decodeURIComponent(val);
+  }
+  return null;
+}
 
 const MainLayout: React.FC = () => {
   const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg } = useApp();
@@ -483,6 +503,16 @@ const AuthenticatedApp: React.FC = () => {
 export function App() {
   const isPublicRoute = isPublicCollegePermissionRoute();
   const publicPermissionToken = extractPublicPermissionToken();
+  const publicOrgSearchableName = extractPublicOrgSearchableName();
+
+  if (publicOrgSearchableName) {
+    return (
+      <ErrorBoundary fallbackTitle="Public Organization Portal">
+        <OfflineBanner />
+        <PublicOrganizationView searchableName={publicOrgSearchableName} />
+      </ErrorBoundary>
+    );
+  }
 
   // Bypasses all authentication, AppProvider, and protected route checks for public College Permission review
   if (isPublicRoute || publicPermissionToken) {

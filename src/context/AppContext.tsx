@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   collection,
+  getDocs,
   query,
   where,
   or,
@@ -480,6 +481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           isInitialized: isInitialized,
           about: profile.about || '',
           academic_year: profile.academic_year || '',
+          searchableName: profile.searchableName || '',
         };
         setOrganizations([orgObj]);
         setCurrentOrgId(uid);
@@ -907,6 +909,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user?.id) return;
     const now = new Date().toISOString();
     const accountRef = doc(db, 'accounts', user.id);
+
+    const newSearchableName = orgData.searchableName !== undefined
+      ? orgData.searchableName.trim().toUpperCase()
+      : (currentOrg?.searchableName || '');
+
+    if (newSearchableName) {
+      const querySnapshot = await getDocs(collection(db, 'accounts'));
+      for (const docSnap of querySnapshot.docs) {
+        if (docSnap.id !== user.id) {
+          const accData = docSnap.data();
+          const existingSearchName = (accData.profile?.searchableName || '').trim().toUpperCase();
+          if (existingSearchName === newSearchableName) {
+            throw new Error('That searchable name is already in use. Please choose another.');
+          }
+        }
+      }
+    }
+
     await updateDoc(accountRef, {
       updatedAt: now,
       profile: {
@@ -920,6 +940,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         website: orgData.website ?? currentOrg?.website,
         about: orgData.about ?? currentOrg?.about ?? '',
         academic_year: orgData.academic_year ?? currentOrg?.academic_year ?? '',
+        searchableName: newSearchableName,
       },
     });
   };

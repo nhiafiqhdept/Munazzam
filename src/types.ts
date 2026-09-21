@@ -24,6 +24,7 @@ export interface Organization {
   isInitialized?: boolean;
   about?: string;
   academic_year?: string;
+  searchableName?: string;
 }
 
 export interface Organizer {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, Mail, Eye, EyeOff, HelpCircle } from 'lucide-react';
+import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, Mail, Eye, EyeOff, HelpCircle, Search } from 'lucide-react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { getFirebaseErrorMessage } from '../utils/firebaseErrors';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
@@ -44,7 +44,49 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
 
-  const lastLogo = localStorage.getItem('last_org_logo') || '';
+  const [publicSearchQuery, setPublicSearchQuery] = useState('');
+  const [publicSearching, setPublicSearching] = useState(false);
+  const [publicSearchResult, setPublicSearchResult] = useState<{ searchableName: string; name: string } | null>(null);
+  const [publicSearchError, setPublicSearchError] = useState('');
+
+  const handlePublicSearch = async () => {
+    setPublicSearchError('');
+    setPublicSearchResult(null);
+    const queryTerm = publicSearchQuery.trim().toUpperCase();
+    if (!queryTerm) {
+      setPublicSearchError('Please enter a searchable organization name.');
+      return;
+    }
+
+    try {
+      setPublicSearching(true);
+      const querySnapshot = await getDocs(collection(db, 'accounts'));
+      let found = null;
+      for (const docSnap of querySnapshot.docs) {
+        const accData = docSnap.data();
+        const profile = accData.profile || {};
+        const sName = (profile.searchableName || '').trim().toUpperCase();
+        if (sName === queryTerm) {
+          found = {
+            searchableName: sName,
+            name: profile.name || 'Organization',
+          };
+          break;
+        }
+      }
+
+      if (found) {
+        setPublicSearchResult(found);
+      } else {
+        setPublicSearchError('Organization not found with that searchable name.');
+      }
+    } catch (err) {
+      console.error('Public search error:', err);
+      setPublicSearchError('Failed to search organization. Please try again.');
+    } finally {
+      setPublicSearching(false);
+    }
+  };
   const lastName = localStorage.getItem('last_org_name') || 'Munazzam Organization Portal';
 
   const clearErrors = () => {
@@ -414,6 +456,61 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             )}
           </button>
         </form>
+
+        {/* PUBLIC VIEW SECTION */}
+        <div className="mt-6 pt-6 border-t border-slate-200 mb-4">
+          <div className="text-center mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Public View</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Search and view an organization without signing in.</p>
+          </div>
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={publicSearchQuery}
+              onChange={(e) => setPublicSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handlePublicSearch();
+                }
+              }}
+              placeholder="Search organization..."
+              className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            />
+            <button
+              type="button"
+              onClick={handlePublicSearch}
+              disabled={publicSearching}
+              className="absolute right-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {publicSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+
+          {publicSearchResult && (
+            <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in">
+              <div>
+                <span className="font-bold text-emerald-900 text-xs block">{publicSearchResult.searchableName}</span>
+                <span className="text-slate-600 text-[11px] block">{publicSearchResult.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = `#public_org=${encodeURIComponent(publicSearchResult.searchableName)}`;
+                  window.location.reload();
+                }}
+                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                View Public Organization
+              </button>
+            </div>
+          )}
+
+          {publicSearchError && (
+            <p className="text-rose-600 text-xs mt-2 text-center font-medium animate-in fade-in">{publicSearchError}</p>
+          )}
+        </div>
 
         {/* Footer switcher link */}
         <div className="text-center w-full pt-2 border-t border-slate-100">
