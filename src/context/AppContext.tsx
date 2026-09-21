@@ -493,6 +493,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
         if (profile.name) localStorage.setItem('last_org_name', profile.name);
+
+        if (profile.searchableName) {
+          const sName = profile.searchableName.trim().toUpperCase();
+          setDoc(doc(db, 'public_organizations', sName), {
+            accountId: uid,
+            searchableName: sName,
+            name: profile.name || 'Organization',
+            college_name: profile.college_name || 'Main Campus',
+            tagline: profile.tagline || '',
+            logo: profile.logo || '',
+            established_year: profile.established_year || '',
+            description: profile.description || '',
+            email: profile.email || data.email || user.email || '',
+            website: profile.website || '',
+            about: profile.about || '',
+            academic_year: profile.academic_year || '',
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          }, { merge: true }).catch(() => {});
+        }
       }
       setOrgLoading(false);
     }, (err) => {
@@ -915,15 +934,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : (currentOrg?.searchableName || '');
 
     if (newSearchableName) {
-      const querySnapshot = await getDocs(collection(db, 'accounts'));
-      for (const docSnap of querySnapshot.docs) {
-        if (docSnap.id !== user.id) {
-          const accData = docSnap.data();
-          const existingSearchName = (accData.profile?.searchableName || '').trim().toUpperCase();
-          if (existingSearchName === newSearchableName) {
+      // 1. Direct O(1) check in public_organizations
+      try {
+        const pubSnap = await getDoc(doc(db, 'public_organizations', newSearchableName));
+        if (pubSnap.exists()) {
+          const pData = pubSnap.data();
+          if (pData.accountId && pData.accountId !== user.id) {
             throw new Error('That searchable name is already in use. Please choose another.');
           }
         }
+      } catch (pubErr: any) {
+        if (pubErr.message?.includes('already in use')) throw pubErr;
+      }
+
+      // 2. Fallback check across accounts if permitted
+      try {
+        const querySnapshot = await getDocs(collection(db, 'accounts'));
+        for (const docSnap of querySnapshot.docs) {
+          if (docSnap.id !== user.id) {
+            const accData = docSnap.data();
+            const existingSearchName = (accData.profile?.searchableName || '').trim().toUpperCase();
+            if (existingSearchName === newSearchableName) {
+              throw new Error('That searchable name is already in use. Please choose another.');
+            }
+          }
+        }
+      } catch (accErr: any) {
+        if (accErr.message?.includes('already in use')) throw accErr;
+        console.warn('Accounts uniqueness check bypassed or restricted:', accErr);
       }
     }
 
@@ -943,6 +981,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         searchableName: newSearchableName,
       },
     });
+
+    if (newSearchableName) {
+      try {
+        await setDoc(doc(db, 'public_organizations', newSearchableName), {
+          accountId: user.id,
+          searchableName: newSearchableName,
+          name: orgData.name ?? currentOrg?.name ?? 'Organization',
+          college_name: orgData.college_name ?? currentOrg?.college_name ?? 'Main Campus',
+          tagline: orgData.tagline ?? currentOrg?.tagline ?? '',
+          logo: orgData.logo ?? currentOrg?.logo ?? '',
+          established_year: orgData.established_year ?? currentOrg?.established_year ?? '',
+          description: orgData.description ?? currentOrg?.description ?? '',
+          email: orgData.email ?? currentOrg?.email ?? '',
+          website: orgData.website ?? currentOrg?.website ?? '',
+          about: orgData.about ?? currentOrg?.about ?? '',
+          academic_year: orgData.academic_year ?? currentOrg?.academic_year ?? '',
+          updatedAt: now,
+        }, { merge: true });
+
+        const oldSearchableName = (currentOrg?.searchableName || '').trim().toUpperCase();
+        if (oldSearchableName && oldSearchableName !== newSearchableName) {
+          await deleteDoc(doc(db, 'public_organizations', oldSearchableName)).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Could not sync to public_organizations:', err);
+      }
+    }
   };
 
   const deleteOrganization = async () => {

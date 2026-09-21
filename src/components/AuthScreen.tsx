@@ -60,18 +60,40 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
 
     try {
       setPublicSearching(true);
-      const querySnapshot = await getDocs(collection(db, 'accounts'));
-      let found = null;
-      for (const docSnap of querySnapshot.docs) {
-        const accData = docSnap.data();
-        const profile = accData.profile || {};
-        const sName = (profile.searchableName || '').trim().toUpperCase();
-        if (sName === queryTerm) {
+      let found: { searchableName: string; name: string } | null = null;
+
+      // 1. Direct fetch from public_organizations directory
+      try {
+        const pubDocSnap = await getDoc(doc(db, 'public_organizations', queryTerm));
+        if (pubDocSnap.exists()) {
+          const pData = pubDocSnap.data();
           found = {
-            searchableName: sName,
-            name: profile.name || 'Organization',
+            searchableName: pData.searchableName || queryTerm,
+            name: pData.name || 'Organization',
           };
-          break;
+        }
+      } catch (e) {
+        console.warn('public_organizations lookup error:', e);
+      }
+
+      // 2. Fallback to accounts collection scan
+      if (!found) {
+        try {
+          const querySnapshot = await getDocs(collection(db, 'accounts'));
+          for (const docSnap of querySnapshot.docs) {
+            const accData = docSnap.data();
+            const profile = accData.profile || {};
+            const sName = (profile.searchableName || '').trim().toUpperCase();
+            if (sName === queryTerm) {
+              found = {
+                searchableName: sName,
+                name: profile.name || 'Organization',
+              };
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn('accounts lookup error:', e);
         }
       }
 
@@ -80,9 +102,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       } else {
         setPublicSearchError('Organization not found with that searchable name.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Public search error:', err);
-      setPublicSearchError('Failed to search organization. Please try again.');
+      setPublicSearchError(err?.message || 'Failed to search organization. Please try again.');
     } finally {
       setPublicSearching(false);
     }

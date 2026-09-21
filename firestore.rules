@@ -9,13 +9,19 @@ service cloud.firestore {
 
     // Accounts collection indexed by Firebase UID
     match /accounts/{accountId} {
-      allow get: if true;
-      allow list, write: if request.auth != null && request.auth.uid == accountId;
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == accountId;
+    }
+
+    // Public organizations directory
+    match /public_organizations/{orgId} {
+      allow read, write: if true;
     }
 
     // Organizers collection isolated by accountId
     match /organizers/{organizerId} {
-      allow read, delete: if request.auth != null && resource.data.accountId == request.auth.uid;
+      allow read: if true;
+      allow delete: if request.auth != null && resource.data.accountId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.accountId == request.auth.uid;
       allow update: if request.auth != null && resource.data.accountId == request.auth.uid && request.resource.data.accountId == request.auth.uid;
     }

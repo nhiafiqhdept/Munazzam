@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Search, Calendar, Users, Award, FileText, LogOut, ArrowLeft, Shield } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Organization, Program, Organizer } from '../types';
 
@@ -23,33 +23,67 @@ export const PublicOrganizationView: React.FC<PublicOrganizationViewProps> = ({ 
         setLoading(true);
         setError('');
         const queryTerm = searchableName.trim().toUpperCase();
-        const querySnapshot = await getDocs(collection(db, 'accounts'));
         let foundOrg: Organization | null = null;
         let foundOrgId = '';
 
-        for (const docSnap of querySnapshot.docs) {
-          const accData = docSnap.data();
-          const profile = accData.profile || {};
-          const sName = (profile.searchableName || '').trim().toUpperCase();
-          if (sName === queryTerm) {
-            foundOrgId = docSnap.id;
+        // 1. Check public_organizations directory first
+        try {
+          const pubDocSnap = await getDoc(doc(db, 'public_organizations', queryTerm));
+          if (pubDocSnap.exists()) {
+            const pData = pubDocSnap.data();
+            foundOrgId = pData.accountId || '';
             foundOrg = {
-              id: docSnap.id,
-              name: profile.name || 'Organization',
-              college_name: profile.college_name || 'Main Campus',
-              logo: profile.logo || '',
-              tagline: profile.tagline || '',
-              established_year: profile.established_year || '',
-              description: profile.description || '',
-              email: profile.email || accData.email || '',
-              website: profile.website || '',
-              about: profile.about || '',
-              academic_year: profile.academic_year || '',
-              searchableName: sName,
-              created_at: accData.createdAt || '',
-              updated_at: accData.updatedAt || '',
+              id: foundOrgId,
+              name: pData.name || 'Organization',
+              college_name: pData.college_name || 'Main Campus',
+              logo: pData.logo || '',
+              tagline: pData.tagline || '',
+              established_year: pData.established_year || '',
+              description: pData.description || '',
+              email: pData.email || '',
+              website: pData.website || '',
+              about: pData.about || '',
+              academic_year: pData.academic_year || '',
+              searchableName: queryTerm,
+              created_at: pData.createdAt || pData.created_at || '',
+              updated_at: pData.updatedAt || pData.updated_at || '',
             };
-            break;
+          }
+        } catch (e) {
+          console.warn('public_organizations fetch failed:', e);
+        }
+
+        // 2. Fallback to accounts collection scan
+        if (!foundOrg) {
+          try {
+            const querySnapshot = await getDocs(collection(db, 'accounts'));
+            for (const docSnap of querySnapshot.docs) {
+              const accData = docSnap.data();
+              const profile = accData.profile || {};
+              const sName = (profile.searchableName || '').trim().toUpperCase();
+              if (sName === queryTerm) {
+                foundOrgId = docSnap.id;
+                foundOrg = {
+                  id: docSnap.id,
+                  name: profile.name || 'Organization',
+                  college_name: profile.college_name || 'Main Campus',
+                  logo: profile.logo || '',
+                  tagline: profile.tagline || '',
+                  established_year: profile.established_year || '',
+                  description: profile.description || '',
+                  email: profile.email || accData.email || '',
+                  website: profile.website || '',
+                  about: profile.about || '',
+                  academic_year: profile.academic_year || '',
+                  searchableName: sName,
+                  created_at: accData.createdAt || '',
+                  updated_at: accData.updatedAt || '',
+                };
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn('accounts fetch failed:', e);
           }
         }
 
@@ -61,22 +95,44 @@ export const PublicOrganizationView: React.FC<PublicOrganizationViewProps> = ({ 
 
         setOrg(foundOrg);
 
-        // Fetch programs for this organization
-        const progQuery = query(collection(db, 'programs'), where('organization_id', '==', foundOrgId));
-        const progSnap = await getDocs(progQuery);
+        // Fetch programs for this organization (supports both accountId and organization_id)
         const progList: Program[] = [];
-        progSnap.forEach((d) => {
-          progList.push({ id: d.id, ...d.data() } as Program);
-        });
+        try {
+          const progQuery = query(collection(db, 'programs'), where('accountId', '==', foundOrgId));
+          const progSnap = await getDocs(progQuery);
+          progSnap.forEach((d) => {
+            progList.push({ id: d.id, ...d.data() } as Program);
+          });
+          if (progList.length === 0) {
+            const fallbackQuery = query(collection(db, 'programs'), where('organization_id', '==', foundOrgId));
+            const fallbackSnap = await getDocs(fallbackQuery);
+            fallbackSnap.forEach((d) => {
+              progList.push({ id: d.id, ...d.data() } as Program);
+            });
+          }
+        } catch (pErr) {
+          console.warn('Error fetching public programs:', pErr);
+        }
         setPrograms(progList.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()));
 
-        // Fetch organizers for this organization
-        const orgQuery = query(collection(db, 'organizers'), where('organization_id', '==', foundOrgId));
-        const orgSnap = await getDocs(orgQuery);
+        // Fetch organizers for this organization (supports both accountId and organization_id)
         const orgList: Organizer[] = [];
-        orgSnap.forEach((d) => {
-          orgList.push({ id: d.id, ...d.data() } as Organizer);
-        });
+        try {
+          const orgQuery = query(collection(db, 'organizers'), where('accountId', '==', foundOrgId));
+          const orgSnap = await getDocs(orgQuery);
+          orgSnap.forEach((d) => {
+            orgList.push({ id: d.id, ...d.data() } as Organizer);
+          });
+          if (orgList.length === 0) {
+            const fallbackQuery = query(collection(db, 'organizers'), where('organization_id', '==', foundOrgId));
+            const fallbackSnap = await getDocs(fallbackQuery);
+            fallbackSnap.forEach((d) => {
+              orgList.push({ id: d.id, ...d.data() } as Organizer);
+            });
+          }
+        } catch (oErr) {
+          console.warn('Error fetching public organizers:', oErr);
+        }
         setOrganizers(orgList.sort((a, b) => (a.display_order || 0) - (b.display_order || 0)));
 
       } catch (err) {

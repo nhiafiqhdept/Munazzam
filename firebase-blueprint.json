@@ -378,9 +378,34 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "accountId", "status"]
+    },
+    "PublicOrganization": {
+      "title": "PublicOrganization",
+      "description": "Public directory document indexed by uppercase searchableName for public discovery",
+      "type": "object",
+      "properties": {
+        "searchableName": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "college_name": { "type": "string" },
+        "tagline": { "type": "string" },
+        "logo": { "type": "string" },
+        "established_year": { "type": "string" },
+        "description": { "type": "string" },
+        "about": { "type": "string" },
+        "academic_year": { "type": "string" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["searchableName", "accountId", "name"]
     }
   },
   "firestore": {
+    "/public_organizations/{searchableName}": {
+      "schema": "PublicOrganization",
+      "description": "Public organization profiles indexed by searchableName"
+    },
     "/sub_wing_portals/{portalId}": {
       "schema": "SubWingPortal",
       "description": "Global configuration document lookup mapping portalId to parent accountId"
