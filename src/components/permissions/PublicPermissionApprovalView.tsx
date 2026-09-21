@@ -6,13 +6,10 @@ import {
   Clock,
   MapPin,
   Users,
-  UserCheck,
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Printer,
   Sparkles,
-  Award,
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -55,6 +52,34 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   const openModal = (type: 'approve' | 'reject' | 'changes') => {
     setSubmitErrorMessage(null);
     setActiveModal(type);
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!permission) return;
+    const currentUrl = window.location.href;
+    const name = permission.approvedBy || '';
+    const desig = permission.approverDesignation || '';
+    const approverStr = (!name && !desig) ? 'Approved Authority' :
+      (!name) ? desig :
+      (!desig || name.toLowerCase() === desig.toLowerCase()) ? name : `${name} (${desig})`;
+
+    const orgDisplayName = organization?.college_name || organization?.name || 'College Department';
+
+    const text = `*College Program Permission*\n\n` +
+      `✓ *Officially Approved*\n\n` +
+      `*Program:* ${permission.programName || 'Untitled Program'}\n` +
+      `*Conducted by:* ${permission.conductedBy || orgDisplayName}\n` +
+      `*Date:* ${permission.date ? formatDate(permission.date) : 'Scheduled'}\n` +
+      `*Time:* ${permission.timeFrom ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}` : 'Scheduled'}\n` +
+      `*Venue:* ${permission.venue || 'College Campus'}\n` +
+      `*Target Audience:* ${permission.audience || 'Students'}\n\n` +
+      `*Approved by:* ${approverStr}\n` +
+      `${permission.approvedAt ? `*Approval Date:* ${formatDate(permission.approvedAt)}\n\n` : '\n'}` +
+      `*View Official Approval:*\n${currentUrl}\n\n` +
+      `_Powered by Munazzam Institutional Reporting & Analytics_`;
+
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   useEffect(() => {
@@ -608,105 +633,80 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   const orgLogoSrc = organization?.logo || '';
 
   return (
-    <div className="min-h-screen bg-slate-100 py-6 sm:py-10 px-3 sm:px-6 lg:px-8 font-sans text-slate-900">
-      <div className="max-w-4xl mx-auto space-y-5">
+    <div className="min-h-[100dvh] bg-slate-50/70 py-4 sm:py-8 px-3 sm:px-6 lg:px-8 font-sans text-slate-900">
+      <div className="max-w-xl mx-auto space-y-4">
         
-        {/* Main Document Card */}
-        <div className="bg-white rounded-2xl p-5 sm:p-8 shadow-sm border border-slate-200/90 space-y-6">
+        {/* Main Compact Document Container */}
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
           
-          {/* ==================== 1. NEW PROFESSIONAL HEADER ==================== */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-            {/* Left: Organization Crest & Title */}
-            <div className="flex items-center gap-3.5 sm:gap-4">
+          {/* ==================== 1. HEADER AREA ==================== */}
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-3.5 min-w-0">
               {orgLogoSrc ? (
                 <img
                   src={orgLogoSrc}
                   alt={orgDisplayName}
-                  className="w-12 h-12 sm:w-14 sm:h-14 object-contain rounded-xl border border-slate-200 bg-white p-1 shadow-2xs shrink-0"
+                  className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl border border-slate-200 bg-white p-1 shadow-2xs shrink-0"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-50 border border-slate-200 text-emerald-800 flex items-center justify-center shrink-0">
-                  <Building className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-800" />
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-50 border border-slate-200 text-emerald-800 flex items-center justify-center shrink-0">
+                  <Building className="w-5 h-5 text-emerald-800" />
                 </div>
               )}
               
               <div className="min-w-0">
-                <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug truncate">
+                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate leading-tight">
                   {orgDisplayName}
                 </h1>
-                <p className="text-xs sm:text-sm font-semibold text-emerald-800">
+                <p className="text-xs sm:text-sm font-semibold text-emerald-700 leading-tight mt-0.5">
                   College Program Permission
                 </p>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Official Institutional Approval Request
-                </p>
               </div>
             </div>
 
-            {/* Right: Current Status Badge */}
-            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Current Status
-              </span>
-              <PermissionStatusBadge status={permission.status} size="md" />
-            </div>
+            {/* Approved Badge */}
+            {(isFinalized && permission.status === 'approved') || actionSuccess === 'approved' ? (
+              <div className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-bold shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Approved</span>
+              </div>
+            ) : null}
           </div>
 
-          {/* ==================== 2. OUTCOME BANNER (IF FINALIZED OR CHANGES REQUIRED) ==================== */}
-          {actionSuccess === 'approved' || (isFinalized && permission.status === 'approved') ? (
-            <div className="p-4 rounded-xl bg-emerald-50/90 border border-emerald-200 flex items-start gap-3 text-emerald-950">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          {/* ==================== 2. OUTCOME BANNER (IF REJECTED OR CHANGES REQUIRED) ==================== */}
+          {actionSuccess === 'rejected' || (isFinalized && permission.status === 'rejected') ? (
+            <div className="p-3.5 rounded-xl bg-rose-50/85 border border-rose-200 flex items-start gap-2.5 text-rose-950">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <h4 className="text-xs sm:text-sm font-bold text-emerald-900">
-                  ✓ Permission Sanctioned & Officially Approved
-                </h4>
-                <p className="text-xs text-emerald-800">
-                  This program has been officially approved for conduction by{' '}
-                  <span className="font-bold">{permission.approvedBy || 'the Approving Authority'}</span>
-                  {permission.approverDesignation ? ` (${permission.approverDesignation})` : ''}
-                  {permission.approvedAt ? ` on ${formatDate(permission.approvedAt)}` : ''}.
-                </p>
-                {permission.approvalNotes && (
-                  <div className="text-xs bg-white/90 p-2.5 rounded-lg border border-emerald-200/80 text-emerald-900 italic mt-1.5">
-                    "{permission.approvalNotes}"
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : actionSuccess === 'rejected' || (isFinalized && permission.status === 'rejected') ? (
-            <div className="p-4 rounded-xl bg-rose-50/90 border border-rose-200 flex items-start gap-3 text-rose-950">
-              <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h4 className="text-xs sm:text-sm font-bold text-rose-900">
-                  ✕ Permission Request Not Approved / Rejected
+                <h4 className="text-xs font-bold text-rose-900">
+                  Permission Request Rejected
                 </h4>
                 <p className="text-xs text-rose-800">
-                  This permission request was rejected
-                  {permission.rejectedBy ? ` by ${permission.rejectedBy}` : ''}
+                  Rejected{permission.rejectedBy ? ` by ${permission.rejectedBy}` : ''}
                   {permission.approverDesignation ? ` (${permission.approverDesignation})` : ''}
                   {permission.rejectedAt ? ` on ${formatDate(permission.rejectedAt)}` : ''}.
                 </p>
                 {permission.rejectionReason && (
-                  <div className="text-xs bg-white/90 p-2.5 rounded-lg border border-rose-200/80 text-rose-900 mt-1.5">
-                    <span className="font-bold">Official Reason: </span>
+                  <div className="text-xs bg-white/90 p-2 rounded-lg border border-rose-200 text-rose-900 mt-1">
+                    <span className="font-bold">Reason: </span>
                     {permission.rejectionReason}
                   </div>
                 )}
               </div>
             </div>
           ) : actionSuccess === 'changes' || isChangesRequired ? (
-            <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200 flex items-start gap-3 text-amber-950">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl bg-amber-50/85 border border-amber-200 flex items-start gap-2.5 text-amber-950">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <h4 className="text-xs sm:text-sm font-bold text-amber-900">
-                  ↻ Modifications Requested by Authority
+                <h4 className="text-xs font-bold text-amber-900">
+                  Modifications Requested
                 </h4>
                 <p className="text-xs text-amber-800">
-                  The organizers have been requested to update this proposal before final sanction.
+                  The organizers have been requested to adjust this proposal.
                 </p>
                 {permission.changesRequiredNotes && (
-                  <div className="text-xs bg-white/90 p-2.5 rounded-lg border border-amber-200/80 text-amber-900 mt-1.5">
+                  <div className="text-xs bg-white/90 p-2 rounded-lg border border-amber-200 text-amber-900 mt-1">
                     <span className="font-bold">Required Adjustments: </span>
                     {permission.changesRequiredNotes}
                   </div>
@@ -715,122 +715,128 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
           ) : null}
 
-          {/* ==================== 3. PROFESSIONAL PROGRAM TITLE SECTION ==================== */}
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          {/* ==================== 3. PROGRAM TITLE HIGHLIGHT ==================== */}
+          <div className="bg-slate-50/90 border-l-4 border-emerald-600 px-3.5 py-2.5 rounded-r-xl space-y-0.5 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Program Title
             </span>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              {permission.programName || 'Fin form'}
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+              {permission.programName || 'Untitled Program'}
             </h2>
           </div>
 
-          {/* ==================== 4. ESSENTIAL INFORMATION GRID ==================== */}
-          {/* 
-              Desktop: Balanced 3-column / 2-row layout.
-              Row 1: Conducted By | Date | Time
-              Row 2: Venue / Location | Target Audience
-              (Category, Resource Person, and Objectives are REMOVED with zero gaps)
-          */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-            {/* Card 1: Conducted By */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <Building className="w-3.5 h-3.5 text-slate-400" />
-                <span>Conducted By</span>
+          {/* ==================== 4. COMPACT INFORMATION ROWS ==================== */}
+          <div className="divide-y divide-slate-100/90">
+            
+            {/* Row: Conducted By */}
+            <div className="py-2.5 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Building className="w-3.5 h-3.5" />
               </div>
-              <div className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                {permission.conductedBy || orgDisplayName}
-              </div>
-            </div>
-
-            {/* Card 2: Date */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Date</span>
-              </div>
-              <div className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                {permission.date ? formatDate(permission.date) : 'Date Scheduled'}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Conducted By
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {permission.conductedBy || orgDisplayName}
+                </div>
               </div>
             </div>
 
-            {/* Card 3: Time */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Time</span>
+            {/* Row: Date */}
+            <div className="py-2.5 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Calendar className="w-3.5 h-3.5" />
               </div>
-              <div className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                {permission.timeFrom
-                  ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}`
-                  : 'Scheduled Time'}
-              </div>
-            </div>
-
-            {/* Card 4: Venue / Location */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1 sm:col-span-1 md:col-span-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>Venue / Location</span>
-              </div>
-              <div className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                {permission.venue || 'College Campus'}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Date
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {permission.date ? formatDate(permission.date) : 'Date Scheduled'}
+                </div>
               </div>
             </div>
 
-            {/* Card 5: Target Audience */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1 sm:col-span-1 md:col-span-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                <span>Target Audience</span>
+            {/* Row: Time */}
+            <div className="py-2.5 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Clock className="w-3.5 h-3.5" />
               </div>
-              <div className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                {permission.audience || 'College Students & Faculty'}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Time
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {permission.timeFrom
+                    ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}`
+                    : 'Scheduled Time'}
+                </div>
+              </div>
+            </div>
+
+            {/* Row: Venue */}
+            <div className="py-2.5 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <MapPin className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Venue / Location
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {permission.venue || 'College Campus'}
+                </div>
+              </div>
+            </div>
+
+            {/* Row: Target Audience */}
+            <div className="py-2.5 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Users className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Target Audience
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  {permission.audience || 'College Students & Faculty'}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ==================== 5. SUBMISSION INFORMATION METADATA ==================== */}
-          {permission.submittedBy && (
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>
-                  Submitted by: <strong className="text-slate-900 font-semibold">{typeof permission.submittedBy === 'object' ? (permission.submittedBy.name || 'Coordinator') : String(permission.submittedBy)}</strong>
-                </span>
-              </div>
-              <div className="text-slate-500">
-                Role: <span className="text-slate-800 font-semibold">{(typeof permission.submittedBy === 'object' && permission.submittedBy?.designation) ? permission.submittedBy.designation : 'Program Coordinator'}</span>
-              </div>
-            </div>
-          )}
-
-          {permission.recommendedBy && (
-            <div className="pt-2 flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-100">
-              <Award className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>
-                Recommended by: <strong className="font-semibold">{typeof permission.recommendedBy === 'object' ? (permission.recommendedBy.name || 'Reviewer') : String(permission.recommendedBy)}</strong>
-                {typeof permission.recommendedBy === 'object' && permission.recommendedBy?.designation ? ` (${permission.recommendedBy.designation})` : ''}
-              </span>
+          {/* Standalone WhatsApp Share Button (When Approved) */}
+          {((isFinalized && permission.status === 'approved') || actionSuccess === 'approved') && (
+            <div className="pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleWhatsAppShare}
+                className="w-full min-h-[48px] py-3 px-4 bg-[#25D366] hover:bg-[#20ba5a] active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                </svg>
+                <span>Share via WhatsApp</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* ==================== 6. APPROVAL DECISION AREA ==================== */}
+        {/* ==================== 6. APPROVAL DECISION AREA (PENDING / REJECTED / CHANGES) ==================== */}
         {!isFinalized && !actionSuccess ? (
-          <div className="bg-white rounded-2xl p-5 sm:p-7 shadow-sm border border-slate-200/90 space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+            <div className="border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-bold text-slate-900">
                 Approval Decision
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Please review the program information above before submitting your decision.
+              <p className="text-xs text-slate-400 mt-0.5">
+                Please review the program details above before submitting your official decision.
               </p>
             </div>
 
             {/* Approver Details Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Your Full Name (Optional)
@@ -840,7 +846,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
                   placeholder="e.g., Dr. Abdul Rahman"
                   value={approverName}
                   onChange={(e) => setApproverName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
                 />
               </div>
 
@@ -851,7 +857,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
                 <select
                   value={approverDesignation}
                   onChange={(e) => setApproverDesignation(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
                 >
                   <option value="Principal">Principal</option>
                   <option value="Vice Principal">Vice Principal</option>
@@ -863,13 +869,13 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               </div>
             </div>
 
-            {/* Action Buttons: Desktop Horizontal / Mobile Stacked Full-Width */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
               {/* 1. Approve Button */}
               <button
                 type="button"
                 onClick={() => openModal('approve')}
-                className="flex-1 min-h-[44px] py-3 px-4 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[46px] py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>✓ Approve Permission</span>
@@ -879,7 +885,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               <button
                 type="button"
                 onClick={() => openModal('changes')}
-                className="flex-1 min-h-[44px] py-3 px-4 bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[46px] py-2.5 px-4 bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
               >
                 <AlertTriangle className="w-4 h-4" />
                 <span>↻ Request Changes</span>
@@ -889,39 +895,18 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               <button
                 type="button"
                 onClick={() => openModal('reject')}
-                className="flex-1 min-h-[44px] py-3 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[46px] py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
               >
                 <XCircle className="w-4 h-4" />
                 <span>✕ Reject Permission</span>
               </button>
             </div>
           </div>
-        ) : (
-          /* Decision Finalized Information Box */
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/90 text-center space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 mx-auto">
-              <ShieldCheck className="w-5 h-5 text-emerald-700" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-900">
-              Permission Request Decision Finalized
-            </h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              This approval record is permanently registered in the institutional governance audit trail.
-            </p>
-            <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 transition-colors cursor-pointer mt-1"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print Sanction Record</span>
-            </button>
-          </div>
-        )}
+        ) : null}
 
-        {/* ==================== 7. FOOTER ==================== */}
-        <div className="text-center text-slate-500 text-xs py-4 space-y-0.5">
-          <p className="font-semibold text-slate-600">Powered by Munazzam</p>
-          <p className="text-[11px] text-slate-400">Institutional Reporting & Analytics</p>
+        {/* Footer */}
+        <div className="text-center text-slate-400 text-xs py-2">
+          <p className="font-semibold text-slate-500">Munazzam Institutional Reporting & Analytics</p>
         </div>
       </div>
 

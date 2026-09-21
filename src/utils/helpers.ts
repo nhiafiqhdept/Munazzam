@@ -81,14 +81,62 @@ export function getVideoFilename(url: string, caption?: string): string {
   return `video_${Date.now()}.mp4`;
 }
 
+// Compress and resize image files to prevent oversized base64 strings exceeding Firestore 1MB document limit
+export function compressImageFile(file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      fileToDataUrl(file).then(resolve).catch(reject);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        resolve(e.target?.result as string);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // Upload file to server and return URL with progress support
 export async function uploadFile(
   file: File, 
   onProgress?: (percent: number) => void
 ): Promise<string> {
-  // Convert images and files instantly to Data URL for instant response
+  // Convert images with compression instantly to Data URL for instant response
   try {
-    const dataUrl = await fileToDataUrl(file);
+    const dataUrl = await compressImageFile(file);
     if (onProgress) onProgress(100);
     return dataUrl;
   } catch {
@@ -97,7 +145,7 @@ export async function uploadFile(
 
   const token = localStorage.getItem('org_token');
   if (!token) {
-    return fileToDataUrl(file);
+    return compressImageFile(file);
   }
 
   return new Promise((resolve, reject) => {
@@ -121,14 +169,14 @@ export async function uploadFile(
           const data = JSON.parse(xhr.responseText);
           resolve(data.url);
         } catch (err) {
-          resolve(fileToDataUrl(file));
+          resolve(compressImageFile(file));
         }
       } else {
-        resolve(fileToDataUrl(file));
+        resolve(compressImageFile(file));
       }
     };
 
-    xhr.onerror = () => resolve(fileToDataUrl(file));
+    xhr.onerror = () => resolve(compressImageFile(file));
     xhr.send(formData);
   });
 }

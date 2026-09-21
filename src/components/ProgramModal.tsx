@@ -475,7 +475,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Program Name */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -491,45 +491,46 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* Program Category (Optional Account Combobox) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Program Category <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
-              </label>
-              {category && (
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                  {category}
-                </span>
-              )}
+          {/* ROW 1: PROGRAM CATEGORY | SUB CATEGORY (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Program Category <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                </label>
+                {category && (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 truncate max-w-[120px]">
+                    {category}
+                  </span>
+                )}
+              </div>
+              <ProgramCategoryCombobox
+                value={category}
+                onChange={(catName, catId) => {
+                  setCategory(catName);
+                  setCategoryId(catId || '');
+                }}
+              />
             </div>
-            <ProgramCategoryCombobox
-              value={category}
-              onChange={(catName, catId) => {
-                setCategory(catName);
-                setCategoryId(catId || '');
-              }}
-            />
-          </div>
 
-          {/* Sub Category (Optional Account Combobox) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
-              </label>
-              {subCategory && (
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                  {subCategory}
-                </span>
-              )}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                </label>
+                {subCategory && (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 truncate max-w-[120px]">
+                    {subCategory}
+                  </span>
+                )}
+              </div>
+              <ProgramSubCategoryCombobox
+                value={subCategory}
+                onChange={(subCat) => setSubCategory(subCat)}
+                categoryContext={category}
+                placeholder="Select or enter..."
+              />
             </div>
-            <ProgramSubCategoryCombobox
-              value={subCategory}
-              onChange={(subCat) => setSubCategory(subCat)}
-              categoryContext={category}
-              placeholder="Select or enter sub category..."
-            />
           </div>
 
           {/* Resource Person / Faculty (Optional) */}
@@ -546,8 +547,8 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* Date, Time & Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* ROW 2: DATE | TIME DURATION (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Date <span className="text-rose-500">*</span>
@@ -562,7 +563,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                     setStatus(determineProgramStatusByDate(newDate));
                   }
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
                 required
               />
             </div>
@@ -576,45 +577,47 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 placeholder="09:30 AM – 01:00 PM"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
               />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e: any) => setStatus(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
-              >
-                <option value="completed">Completed</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="ongoing">Ongoing</option>
-              </select>
             </div>
           </div>
 
-          {/* Place Held & Audience */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Place Held <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={place}
-                onChange={(e) => setPlace(e.target.value)}
-                placeholder="Main Auditorium, Central Block"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
-                required
-              />
-            </div>
+          {/* Status */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Status
+            </label>
+            <select
+              value={status}
+              onChange={(e: any) => setStatus(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
+            >
+              <option value="completed">Completed</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="ongoing">Ongoing</option>
+            </select>
+          </div>
 
+          {/* Place Held */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Place Held <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={place}
+              onChange={(e) => setPlace(e.target.value)}
+              placeholder="Main Auditorium, Central Block"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
+              required
+            />
+          </div>
+
+          {/* ROW 3: FOR WHOM? (TARGET AUDIENCE) | ATTENDANCE COUNT (OPTIONAL) (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                For Whom? (Target Audience) <span className="text-rose-500">*</span>
+                For Whom? <span className="text-rose-500">*</span>
               </label>
               <select
                 value={isCustomAudience ? 'custom' : audience}
@@ -626,14 +629,14 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                     setAudience(e.target.value);
                   }
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white mb-2"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white mb-2"
               >
                 {DEFAULT_AUDIENCES.map((aud) => (
                   <option key={aud} value={aud}>
                     {aud}
                   </option>
                 ))}
-                <option value="custom">Other / Custom Audience...</option>
+                <option value="custom">Other / Custom...</option>
               </select>
 
               {isCustomAudience && (
@@ -641,26 +644,25 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
                   type="text"
                   value={customAudience}
                   onChange={(e) => setCustomAudience(e.target.value)}
-                  placeholder="e.g. Department Scholars & Research Fellows"
+                  placeholder="e.g. Department Scholars"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm"
                   required
                 />
               )}
             </div>
-          </div>
 
-          {/* Attendance Count */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Attendance Count (Optional)
-            </label>
-            <input
-              type="number"
-              value={attendanceCount}
-              onChange={(e) => setAttendanceCount(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="e.g. 150"
-              className="w-full sm:w-1/2 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
-            />
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Attendance <span className="text-slate-400 font-normal">(Opt.)</span>
+              </label>
+              <input
+                type="number"
+                value={attendanceCount}
+                onChange={(e) => setAttendanceCount(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="e.g. 150"
+                className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white"
+              />
+            </div>
           </div>
 
           {/* Description */}
@@ -669,7 +671,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               Description & Report <span className="text-rose-500">*</span>
             </label>
             <textarea
-              rows={5}
+              rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Provide comprehensive report of the program, key sessions, speakers, and outcomes..."
