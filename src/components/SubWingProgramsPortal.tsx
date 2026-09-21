@@ -628,7 +628,7 @@ export const SubWingProgramsPortal: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700">
-                      PROGRAM CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                      PROGRAM CATEGORY
                     </label>
                     <input
                       type="text"
@@ -641,7 +641,7 @@ export const SubWingProgramsPortal: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-700">
-                      SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                      SUB CATEGORY
                     </label>
                     <input
                       type="text"
@@ -690,7 +690,7 @@ export const SubWingProgramsPortal: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">RESOURCE PERSON / FACULTY <span className="text-slate-400 text-[10px] font-normal normal-case">(OPTIONAL)</span></label>
+                  <label className="text-xs font-bold text-slate-700">RESOURCE PERSON / FACULTY</label>
                   <input
                     type="text"
                     value={progResourcePerson}

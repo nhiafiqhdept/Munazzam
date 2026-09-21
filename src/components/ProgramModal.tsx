@@ -494,15 +494,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
           {/* ROW 1: PROGRAM CATEGORY | SUB CATEGORY (2x2 Grid) */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="mb-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Program Category <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                  Program Category
                 </label>
-                {category && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 truncate max-w-[120px]">
-                    {category}
-                  </span>
-                )}
               </div>
               <ProgramCategoryCombobox
                 value={category}
@@ -514,15 +509,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="mb-1">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  SUB CATEGORY <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                  SUB CATEGORY
                 </label>
-                {subCategory && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 truncate max-w-[120px]">
-                    {subCategory}
-                  </span>
-                )}
               </div>
               <ProgramSubCategoryCombobox
                 value={subCategory}
@@ -533,10 +523,10 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             </div>
           </div>
 
-          {/* Resource Person / Faculty (Optional) */}
+          {/* Resource Person / Faculty */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              RESOURCE PERSON / FACULTY <span className="text-slate-400 text-[10px] font-normal normal-case">(OPTIONAL)</span>
+              RESOURCE PERSON / FACULTY
             </label>
             <input
               type="text"
@@ -613,7 +603,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* ROW 3: FOR WHOM? (TARGET AUDIENCE) | ATTENDANCE COUNT (OPTIONAL) (2x2 Grid) */}
+          {/* ROW 3: FOR WHOM? (TARGET AUDIENCE) | ATTENDANCE COUNT (2x2 Grid) */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -653,7 +643,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Attendance <span className="text-slate-400 font-normal">(Opt.)</span>
+                Attendance
               </label>
               <input
                 type="number"
@@ -680,11 +670,11 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* Program Poster (Optional) */}
+          {/* Program Poster */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Program Poster <span className="text-slate-400 text-[10px] font-normal normal-case">(Optional)</span>
+                Program Poster
               </label>
               {(posterTab === 'url' ? customPosterUrl : poster) && (
                 <button

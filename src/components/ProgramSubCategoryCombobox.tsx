@@ -170,7 +170,7 @@ export const ProgramSubCategoryCombobox: React.FC<ProgramSubCategoryComboboxProp
           >
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-slate-300" />
-              <span>— No Sub Category (Optional) —</span>
+              <span>— No Sub Category —</span>
             </span>
             {!value && <Check className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
           </button>
