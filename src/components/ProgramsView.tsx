@@ -35,6 +35,7 @@ import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where, dele
 import bcrypt from 'bcryptjs';
 import { PermissionStatusBadge } from './permissions/PermissionStatusBadge';
 import { ProgramPermissionsView } from './permissions/ProgramPermissionsView';
+import { ProgramCard } from './ProgramCard';
 
 interface ProgramsViewProps {
   onOpenAddModal: () => void;
@@ -436,8 +437,8 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   <h1 className="text-base sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
                     Programs & Activities
                   </h1>
-                  <p className="text-xs text-slate-500 hidden sm:block mt-0.5 truncate">
-                    Official register of seminars, workshops, and academic events for {currentOrg.name}.
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    Manage, track, and review institutional programs and activities.
                   </p>
                 </div>
               </div>
@@ -455,25 +456,48 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             </div>
 
             {/* Search & Filter Toolbar */}
-            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1 border-t border-slate-100">
-              <div className="relative flex-1 w-full">
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="relative w-full">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   id="search-programs-input"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search programs by title, venue, audience..."
+                  placeholder="Search programs, categories, venues..."
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                {/* Status Filter Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'upcoming', label: 'Upcoming' },
+                    { id: 'completed', label: 'Completed' },
+                    { id: 'ongoing', label: 'Ongoing' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedStatus(tab.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        selectedStatus === tab.id
+                          ? 'bg-emerald-700 text-white shadow-xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Category Selector */}
                 {programCategories.length > 0 && (
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
+                    className="w-full sm:w-auto px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
                   >
                     <option value="all">All Categories</option>
                     {programCategories.map((cat) => (
@@ -484,17 +508,6 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                     <option value="uncategorized">Uncategorized</option>
                   </select>
                 )}
-
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="completed">Completed</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="ongoing">Ongoing</option>
-                </select>
               </div>
             </div>
           </div>
@@ -507,12 +520,12 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-slate-800">
-                  {hasActiveFilters ? 'No Programs Match Your Search' : 'No Programs Recorded Yet'}
+                  {hasActiveFilters ? 'No Programs Found' : 'No Programs Yet'}
                 </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                   {hasActiveFilters
-                    ? 'Try adjusting your search terms or status filter to find recorded events.'
-                    : 'Click "Add Program" in the header to record your organization\'s first event.'}
+                    ? 'Try changing your search or filters to find recorded events.'
+                    : 'Create your first program to get started.'}
                 </p>
               </div>
               {hasActiveFilters && (
@@ -530,158 +543,28 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPrograms.map((prog) => {
-                return (
-                  <div
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredPrograms.map((prog) => (
+                  <ProgramCard
                     key={prog.id}
-                    id={`program-item-${prog.id}`}
-                    className="bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-2xs hover:shadow-lg transition-all flex flex-col justify-between group"
-                  >
-                    {/* Top Section */}
-                    <div>
-                      {/* Poster Image Area */}
-                      <div
-                        className="relative h-48 bg-slate-900 overflow-hidden cursor-pointer"
-                        onClick={() => viewProgramDetails(prog.id)}
-                      >
-                        <img
-                          src={prog.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80'}
-                          alt={prog.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                    program={prog}
+                    onViewDetails={viewProgramDetails}
+                    onEdit={onOpenEditModal}
+                    onDelete={(p) => setDeleteTarget(p)}
+                    isAdmin={isAdmin}
+                    wingFallback={currentOrg.name}
+                  />
+                ))}
+              </div>
 
-                        {/* Status Badge */}
-                        <span
-                          className={`absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xs uppercase tracking-wider flex items-center gap-1 shadow-sm ${
-                            getProgramEffectiveStatus(prog) === 'upcoming'
-                              ? 'bg-sky-500/90 text-white border border-sky-400/40'
-                              : getProgramEffectiveStatus(prog) === 'ongoing'
-                              ? 'bg-amber-500/90 text-white border border-amber-400/40'
-                              : 'bg-emerald-600/90 text-white border border-emerald-400/40'
-                          }`}
-                        >
-                          {getProgramEffectiveStatus(prog) === 'upcoming' && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          )}
-                          {getProgramEffectiveStatus(prog)}
-                        </span>
-
-                        {/* Proof Count */}
-                        {prog.media && prog.media.length > 0 && (
-                          <span className="absolute top-3 right-3 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                            <Camera className="w-3 h-3" />
-                            <span>{prog.media.length} Proofs</span>
-                          </span>
-                        )}
-
-                        {/* Date Badge */}
-                        <div className="absolute bottom-3 left-3 right-3 text-white">
-                          <p className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>{formatDate(prog.date)}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Body Content */}
-                      <div className="p-5 space-y-3">
-                        <h3
-                          onClick={() => viewProgramDetails(prog.id)}
-                          className="text-base font-bold text-slate-900 font-heading leading-snug hover:text-emerald-700 cursor-pointer transition-colors line-clamp-2"
-                        >
-                          {prog.name}
-                        </h3>
-
-                        <div className="space-y-1.5 text-xs text-slate-600">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>{formatDate(prog.date)}</span>
-                          </div>
-                          {prog.place && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{prog.place}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {prog.description && (
-                          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                            {prog.description}
-                          </p>
-                        )}
-
-                        <div className="pt-2 flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                              getProgramEffectiveStatus(prog) === 'upcoming'
-                                ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                                : getProgramEffectiveStatus(prog) === 'ongoing'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            }`}
-                          >
-                            {getProgramEffectiveStatus(prog)}
-                          </span>
-                          {prog.category && (
-                            <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md">
-                              {prog.category}
-                            </span>
-                          )}
-                          {prog.subCategory && (
-                            <span className="text-[11px] font-medium text-slate-700 bg-slate-100/90 border border-slate-200 px-2.5 py-0.5 rounded-md">
-                              {prog.subCategory}
-                            </span>
-                          )}
-                          <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                            For: {prog.audience}
-                          </span>
-                          {prog.subWingName && (
-                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md">
-                              Sub-Wing: {prog.subWingName}
-                            </span>
-                          )}
-                          {prog.permissionStatus && prog.permissionStatus !== 'not_requested' && (
-                            <PermissionStatusBadge status={prog.permissionStatus} size="sm" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer Controls */}
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                      <button
-                        onClick={() => viewProgramDetails(prog.id)}
-                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 hover:underline"
-                      >
-                        <span>View Record & Proofs</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-
-                      {isAdmin && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => onOpenEditModal(prog)}
-                            className="p-1.5 text-slate-600 hover:text-emerald-700 rounded-lg hover:bg-white transition-colors"
-                            title="Edit Program"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(prog)}
-                            className="p-1.5 text-slate-600 hover:text-rose-600 rounded-lg hover:bg-white transition-colors"
-                            title="Delete Program"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Pagination / Results Footer */}
+              <div className="flex items-center justify-between px-2 pt-2 text-xs text-slate-500 font-medium">
+                <span>
+                  Showing {filteredPrograms.length} of {programs.length} {programs.length === 1 ? 'program' : 'programs'}
+                </span>
+                <span>Munazzam Institutional Management</span>
+              </div>
             </div>
           )}
         </>

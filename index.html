@@ -5,32 +5,102 @@
     <script>
       // Filter benign Vite development websocket connection notices in sandboxed container preview
       (function() {
+        var NativeWebSocket = window.WebSocket;
+        if (NativeWebSocket) {
+          window.WebSocket = function(url, protocols) {
+            var protoStr = Array.isArray(protocols) ? protocols.join(',') : (protocols || '');
+            var urlStr = String(url || '');
+            if (
+              protoStr.indexOf('vite-hmr') !== -1 ||
+              protoStr.indexOf('vite-ping') !== -1 ||
+              urlStr.indexOf('token=') !== -1 ||
+              urlStr.indexOf('24678') !== -1
+            ) {
+              var target = new EventTarget();
+              target.binaryType = 'blob';
+              target.readyState = 1; // OPEN
+              target.bufferedAmount = 0;
+              target.extensions = '';
+              target.protocol = 'vite-hmr';
+              target.url = urlStr;
+              target.send = function() {};
+              target.close = function() {};
+              target.onopen = null;
+              target.onmessage = null;
+              target.onerror = null;
+              target.onclose = null;
+              setTimeout(function() {
+                try {
+                  var ev = new Event('open');
+                  if (typeof target.onopen === 'function') target.onopen(ev);
+                  target.dispatchEvent(ev);
+                } catch(e) {}
+              }, 10);
+              return target;
+            }
+            return new NativeWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = NativeWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+
         var origError = console.error;
         var origWarn = console.warn;
         var origInfo = console.info;
+        var origLog = console.log;
 
-        function isViteHmrMessage(arg) {
+        function isViteMessage(arg) {
           if (!arg) return false;
-          var str = typeof arg === 'string' ? arg : (arg.message || String(arg));
-          return str.indexOf('[vite] failed to connect to websocket') !== -1 ||
-                 str.indexOf('[vite] Direct websocket connection') !== -1 ||
-                 str.indexOf('[vite] connecting...') !== -1 ||
-                 str.indexOf('WebSocket (failing)') !== -1 ||
+          var str = '';
+          try {
+            str = typeof arg === 'string' ? arg : (arg.message || arg.stack || JSON.stringify(arg) || String(arg));
+          } catch(e) {
+            str = String(arg);
+          }
+          return str.indexOf('[vite]') !== -1 ||
+                 str.indexOf('WebSocket') !== -1 ||
                  str.indexOf('vite-ping') !== -1;
         }
 
+        function hasViteArg(args) {
+          for (var i = 0; i < args.length; i++) {
+            if (isViteMessage(args[i])) return true;
+          }
+          return false;
+        }
+
         console.error = function() {
-          if (isViteHmrMessage(arguments[0])) return;
+          if (hasViteArg(arguments)) return;
           return origError.apply(console, arguments);
         };
         console.warn = function() {
-          if (isViteHmrMessage(arguments[0])) return;
+          if (hasViteArg(arguments)) return;
           return origWarn.apply(console, arguments);
         };
         console.info = function() {
-          if (isViteHmrMessage(arguments[0])) return;
+          if (hasViteArg(arguments)) return;
           return origInfo.apply(console, arguments);
         };
+        console.log = function() {
+          if (hasViteArg(arguments)) return;
+          return origLog.apply(console, arguments);
+        };
+
+        window.addEventListener('error', function(e) {
+          if (isViteMessage(e.message) || isViteMessage(e.filename) || isViteMessage(e.error)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          if (isViteMessage(e.reason)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
