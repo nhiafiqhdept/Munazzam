@@ -42,7 +42,7 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   onOpenAddLoan,
   onOpenAddAccount,
 }) => {
-  const { accounts, incomes, expenses, transfers, loans, loanRepayments, programs, setActiveTab } = useApp();
+  const { accounts, incomes, expenses, transfers, loans, loanRepayments, programs, setActiveTab, isAdmin } = useApp();
 
   // Calculate balances for each account
   const getAccountBalance = (accountId: string) => {
@@ -134,40 +134,42 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
         </div>
 
         {/* Action Button Matrix: 2x2 on Mobile, Inline Row on Desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
-          <button
-            id="treasury-record-income-btn"
-            onClick={onOpenAddIncome}
-            className="w-full px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <ArrowDownLeft className="w-4 h-4 text-emerald-200 shrink-0" />
-            <span className="whitespace-nowrap">Record Income</span>
-          </button>
-          <button
-            id="treasury-record-expense-btn"
-            onClick={onOpenAddExpense}
-            className="w-full px-3.5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <ArrowUpRight className="w-4 h-4 text-rose-200 shrink-0" />
-            <span className="whitespace-nowrap">Record Expense</span>
-          </button>
-          <button
-            id="treasury-transfer-funds-btn"
-            onClick={onOpenAddTransfer}
-            className="w-full px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <ArrowLeftRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <span className="whitespace-nowrap">Transfer Funds</span>
-          </button>
-          <button
-            id="treasury-add-loan-btn"
-            onClick={onOpenAddLoan}
-            className="w-full px-3.5 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <Landmark className="w-4 h-4 text-amber-200 shrink-0" />
-            <span className="whitespace-nowrap">Add Loan</span>
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
+            <button
+              id="treasury-record-income-btn"
+              onClick={onOpenAddIncome}
+              className="w-full px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <ArrowDownLeft className="w-4 h-4 text-emerald-200 shrink-0" />
+              <span className="whitespace-nowrap">Record Income</span>
+            </button>
+            <button
+              id="treasury-record-expense-btn"
+              onClick={onOpenAddExpense}
+              className="w-full px-3.5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <ArrowUpRight className="w-4 h-4 text-rose-200 shrink-0" />
+              <span className="whitespace-nowrap">Record Expense</span>
+            </button>
+            <button
+              id="treasury-transfer-funds-btn"
+              onClick={onOpenAddTransfer}
+              className="w-full px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <ArrowLeftRight className="w-4 h-4 text-slate-300 shrink-0" />
+              <span className="whitespace-nowrap">Transfer Funds</span>
+            </button>
+            <button
+              id="treasury-add-loan-btn"
+              onClick={onOpenAddLoan}
+              className="w-full px-3.5 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Landmark className="w-4 h-4 text-amber-200 shrink-0" />
+              <span className="whitespace-nowrap">Add Loan</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Financial Summary Cards Grid */}

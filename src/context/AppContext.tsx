@@ -92,6 +92,8 @@ interface AppContextType {
   loginUser: (token: string, user: AuthUser) => void;
   logoutUser: () => Promise<void>;
   isQuotaExceeded: boolean;
+  isPublicView: boolean;
+  exitPublicView: () => void;
 
   organizations: Organization[];
   currentOrg: Organization | undefined;
@@ -197,10 +199,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppProvider: React.FC<{
+  children: React.ReactNode;
+  isPublicView?: boolean;
+  publicOrgQuery?: string | null;
+}> = ({ children, isPublicView = false, publicOrgQuery = null }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [authLoading, setAuthLoading] = useState<boolean>(!isPublicView);
   const [orgLoading, setOrgLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState<boolean>(false);
@@ -321,9 +327,418 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(true);
+  const [isAdminState, setIsAdminState] = useState<boolean>(!isPublicView);
+  const isAdmin = !isPublicView && isAdminState;
+  const setIsAdmin = useCallback((val: boolean) => {
+    if (!isPublicView) {
+      setIsAdminState(val);
+    }
+  }, [isPublicView]);
+
   const [adminPin, setAdminPin] = useState<string>('1234');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+
+  const exitPublicView = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+      const url = new URL(window.location.href);
+      url.searchParams.delete('public_org');
+      url.searchParams.delete('public_org_id');
+      window.location.href = url.origin + url.pathname;
+    }
+  }, []);
+
+  // Connection test per skill requirements
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error('Firestore connection offline check:', error.message);
+        }
+      }
+    }
+    testConnection();
+  }, []);
+
+  // Public View Data Synchronizer
+  useEffect(() => {
+    if (!isPublicView || !publicOrgQuery) return;
+
+    let isMounted = true;
+    setOrgLoading(true);
+
+    const loadPublicOrgData = async () => {
+      try {
+        const queryTerm = publicOrgQuery.trim();
+        const upperQuery = queryTerm.toUpperCase();
+        let targetAccountId: string | null = null;
+        let initialOrgData: any = null;
+
+        // 1. Check in public_organizations index doc
+        try {
+          const pubSnap = await getDoc(doc(db, 'public_organizations', upperQuery));
+          if (pubSnap.exists()) {
+            const data = pubSnap.data();
+            targetAccountId = data.accountId || data.id || null;
+            initialOrgData = data;
+          }
+        } catch (e) {
+          console.warn('public_organizations check failed:', e);
+        }
+
+        // 2. Direct account ID lookup
+        if (!targetAccountId) {
+          try {
+            const accSnap = await getDoc(doc(db, 'accounts', queryTerm));
+            if (accSnap.exists()) {
+              targetAccountId = queryTerm;
+              const p = accSnap.data()?.profile || {};
+              initialOrgData = {
+                accountId: queryTerm,
+                name: p.name || 'Organization',
+                college_name: p.college_name || 'Main Campus',
+                logo: p.logo || '',
+                tagline: p.tagline || '',
+                established_year: p.established_year || '',
+                description: p.description || '',
+                email: p.email || accSnap.data()?.email || '',
+                website: p.website || '',
+                about: p.about || '',
+                academic_year: p.academic_year || '',
+                searchableName: p.searchableName || queryTerm,
+              };
+            }
+          } catch (e) {}
+        }
+
+        // 3. Query accounts collection for searchableName
+        if (!targetAccountId) {
+          try {
+            const qAcc = query(collection(db, 'accounts'), where('profile.searchableName', '==', upperQuery));
+            const snap = await getDocs(qAcc);
+            if (!snap.empty) {
+              const docSnap = snap.docs[0];
+              targetAccountId = docSnap.id;
+              const p = docSnap.data()?.profile || {};
+              initialOrgData = {
+                accountId: docSnap.id,
+                name: p.name || 'Organization',
+                college_name: p.college_name || 'Main Campus',
+                logo: p.logo || '',
+                tagline: p.tagline || '',
+                established_year: p.established_year || '',
+                description: p.description || '',
+                email: p.email || docSnap.data()?.email || '',
+                website: p.website || '',
+                about: p.about || '',
+                academic_year: p.academic_year || '',
+                searchableName: p.searchableName || queryTerm,
+              };
+            }
+          } catch (e) {}
+        }
+
+        if (!targetAccountId) {
+          if (isMounted) {
+            setOrganizations([]);
+            setOrgLoading(false);
+          }
+          return;
+        }
+
+        const orgObj: Organization = {
+          id: targetAccountId,
+          name: initialOrgData?.name || 'Organization',
+          college_name: initialOrgData?.college_name || 'Main Campus',
+          logo: initialOrgData?.logo || '',
+          tagline: initialOrgData?.tagline || '',
+          established_year: initialOrgData?.established_year || '',
+          description: initialOrgData?.description || '',
+          email: initialOrgData?.email || '',
+          website: initialOrgData?.website || '',
+          about: initialOrgData?.about || '',
+          academic_year: initialOrgData?.academic_year || '',
+          searchableName: initialOrgData?.searchableName || upperQuery,
+          created_at: initialOrgData?.createdAt || new Date().toISOString(),
+          updated_at: initialOrgData?.updatedAt || new Date().toISOString(),
+          isInitialized: true,
+        };
+
+        if (isMounted) {
+          setOrganizations([orgObj]);
+          setCurrentOrgId(targetAccountId);
+        }
+
+        // Fetch Organizers for this org
+        try {
+          const qOrg = query(collection(db, 'organizers'), where('accountId', '==', targetAccountId));
+          const orgSnap = await getDocs(qOrg);
+          const list: Organizer[] = [];
+          orgSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              name: d.name || '',
+              photo: d.photo || '',
+              position: d.position || '',
+              display_order: d.display_order ?? 0,
+              email: d.email || '',
+              phone: d.phone || '',
+              bio: d.bio || '',
+              academic_year: d.academic_year || '',
+              created_at: d.created_at || '',
+              updated_at: d.updated_at || '',
+            });
+          });
+          list.sort((a, b) => a.display_order - b.display_order);
+          if (isMounted) setOrganizers(list);
+        } catch (err) {
+          console.warn('Error loading public organizers:', err);
+        }
+
+        // Fetch Program Categories
+        try {
+          const qCat = query(collection(db, 'program_categories'), where('accountId', '==', targetAccountId));
+          const catSnap = await getDocs(qCat);
+          const list: ProgramCategory[] = [];
+          catSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              name: d.name || '',
+              created_at: d.createdAt || d.created_at || '',
+              updated_at: d.updatedAt || d.updated_at || '',
+            });
+          });
+          list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+          if (isMounted) setProgramCategories(list);
+        } catch (err) {
+          console.warn('Error loading public categories:', err);
+        }
+
+        // Fetch Programs (Official only)
+        try {
+          const qProg = query(collection(db, 'programs'), where('accountId', '==', targetAccountId));
+          const progSnap = await getDocs(qProg);
+          const list: Program[] = [];
+          progSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            // In public view, omit unapproved proposals
+            if (d.subWingId && d.subWingStatus !== 'approved') return;
+
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              name: d.name || '',
+              category_id: d.categoryId || d.category_id || '',
+              category: d.category || '',
+              subCategory: d.subCategory || d.sub_category || '',
+              date: d.date || '',
+              time: d.time || '',
+              place: d.place || '',
+              audience: d.audience || '',
+              description: d.description || '',
+              poster: d.poster || '',
+              media: d.media || [],
+              status: getProgramEffectiveStatus({ date: d.date, status: d.status, subWingId: d.subWingId, subWingStatus: d.subWingStatus }),
+              attendance_count: d.attendance_count || 0,
+              created_at: d.created_at || d.createdAt || '',
+              updated_at: d.updated_at || d.updatedAt || '',
+              subWingId: d.subWingId || undefined,
+              subWingName: d.subWingName || undefined,
+              subWingStatus: d.subWingStatus || undefined,
+              submittedByEmail: d.submittedByEmail || undefined,
+              submittedAt: d.submittedAt || d.submitted_at || undefined,
+              resourcePerson: d.resourcePerson || '',
+              permissionStatus: d.permissionStatus || 'not_requested',
+              permissionId: d.permissionId || undefined,
+            });
+          });
+          list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
+          if (isMounted) {
+            setPrograms(list);
+            setSubWingPrograms([]);
+          }
+        } catch (err) {
+          console.warn('Error loading public programs:', err);
+        }
+
+        // Fetch Financial Accounts (Read-Only for Treasury Dashboard)
+        try {
+          const qAccs = query(collection(db, 'financial_accounts'), where('accountId', '==', targetAccountId));
+          const accSnap = await getDocs(qAccs);
+          const list: FinancialAccount[] = [];
+          accSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              name: d.name || '',
+              type: d.type || 'cash',
+              opening_balance: Number(d.opening_balance || 0),
+              description: d.description || '',
+              is_active: d.is_active !== false,
+              created_at: d.created_at || '',
+              updated_at: d.updated_at || '',
+            });
+          });
+          if (isMounted) setAccounts(list);
+        } catch (err) {
+          console.warn('Error loading public accounts:', err);
+        }
+
+        // Fetch Incomes
+        try {
+          const qInc = query(collection(db, 'incomes'), where('accountId', '==', targetAccountId));
+          const incSnap = await getDocs(qInc);
+          const list: Income[] = [];
+          incSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              account_id: d.account_id || '',
+              category: d.category || 'General',
+              source: d.source || '',
+              date: d.date || '',
+              amount: Number(d.amount || 0),
+              description: d.description || '',
+              receipt: d.receipt || d.proof || '',
+              reference_number: d.reference_number || d.receipt_no || '',
+              program_id: d.program_id || '',
+              created_by: d.created_by || '',
+              created_at: d.created_at || '',
+              updated_at: d.updated_at || '',
+            });
+          });
+          if (isMounted) setIncomes(list);
+        } catch (err) {
+          console.warn('Error loading public incomes:', err);
+        }
+
+        // Fetch Expenses
+        try {
+          const qExp = query(collection(db, 'expenses'), where('accountId', '==', targetAccountId));
+          const expSnap = await getDocs(qExp);
+          const list: Expense[] = [];
+          expSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              account_id: d.account_id || '',
+              category: d.category || 'General',
+              date: d.date || '',
+              amount: Number(d.amount || 0),
+              description: d.description || '',
+              receipt: d.receipt || d.proof || '',
+              reference_number: d.reference_number || d.bill_no || '',
+              program_id: d.program_id || '',
+              paid_to: d.paid_to || '',
+              created_by: d.created_by || '',
+              created_at: d.created_at || '',
+              updated_at: d.updated_at || '',
+            });
+          });
+          if (isMounted) setExpenses(list);
+        } catch (err) {
+          console.warn('Error loading public expenses:', err);
+        }
+
+        // Fetch Transfers
+        try {
+          const qTr = query(collection(db, 'transfers'), where('accountId', '==', targetAccountId));
+          const trSnap = await getDocs(qTr);
+          const list: AccountTransfer[] = [];
+          trSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              from_account_id: d.from_account_id || '',
+              to_account_id: d.to_account_id || '',
+              amount: Number(d.amount || 0),
+              date: d.date || '',
+              description: d.description || d.notes || '',
+              reference_number: d.reference_number || '',
+              created_by: d.created_by || '',
+              created_at: d.created_at || '',
+            });
+          });
+          if (isMounted) setTransfers(list);
+        } catch (err) {}
+
+        // Fetch Loans
+        try {
+          const qLoans = query(collection(db, 'loans'), where('accountId', '==', targetAccountId));
+          const loanSnap = await getDocs(qLoans);
+          const list: Loan[] = [];
+          loanSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              type: d.type || 'LENT',
+              person_or_organization: d.person_or_organization || d.person_name || '',
+              original_amount: Number(d.original_amount || 0),
+              outstanding_amount: Number(d.outstanding_amount || 0),
+              date: d.date || '',
+              due_date: d.due_date || '',
+              purpose: d.purpose || d.description || '',
+              account_id: d.account_id || '',
+              description: d.description || '',
+              proof: d.proof || '',
+              status: d.status || 'OUTSTANDING',
+              created_by: d.created_by || '',
+              created_at: d.created_at || '',
+              updated_at: d.updated_at || '',
+            });
+          });
+          if (isMounted) setLoans(list);
+        } catch (err) {}
+
+        // Fetch Repayments
+        try {
+          const qRep = query(collection(db, 'repayments'), where('accountId', '==', targetAccountId));
+          const repSnap = await getDocs(qRep);
+          const list: LoanRepayment[] = [];
+          repSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              loan_id: d.loan_id || '',
+              organization_id: targetAccountId!,
+              account_id: d.account_id || '',
+              date: d.date || '',
+              amount: Number(d.amount || 0),
+              type: d.type || 'REPAY',
+              description: d.description || '',
+              proof: d.proof || '',
+              created_by: d.created_by || '',
+              created_at: d.created_at || '',
+            });
+          });
+          if (isMounted) setLoanRepayments(list);
+        } catch (err) {}
+      } catch (err) {
+        console.error('Error during public organization load:', err);
+      } finally {
+        if (isMounted) {
+          setOrgLoading(false);
+        }
+      }
+    };
+
+    loadPublicOrgData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isPublicView, publicOrgQuery]);
 
   // Connection test per skill requirements
   useEffect(() => {
@@ -2217,6 +2632,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         exportDataJson,
         importDataJson,
         isQuotaExceeded,
+        isPublicView,
+        exitPublicView,
       }}
     >
       {children}

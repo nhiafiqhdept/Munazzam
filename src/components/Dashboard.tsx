@@ -19,6 +19,7 @@ import {
   Sparkles,
   ShieldCheck,
   TrendingUp,
+  Trophy,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatDate, DEFAULT_ORG_LOGO } from '../utils/helpers';
@@ -41,6 +42,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
     setActiveTab,
     viewProgramDetails,
     isAdmin,
+    isPublicView,
   } = useApp();
 
   if (!currentOrg) return null;
@@ -88,14 +90,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
       count: `₹${totalBalance.toLocaleString('en-IN')}`,
       btnLabel: 'Open Treasury',
     },
-    {
-      id: 'settings',
-      title: 'Organization Profile',
-      description: 'Update organization credentials, academic identity, and data backups.',
-      icon: Settings,
-      count: 'Settings',
-      btnLabel: 'Configure',
-    },
+    isPublicView
+      ? {
+          id: 'student-points',
+          title: 'Student Points Portal',
+          description: 'Live institutional standings, honors, and activity points.',
+          icon: Trophy,
+          count: 'Standings',
+          btnLabel: 'View Points',
+        }
+      : {
+          id: 'settings',
+          title: 'Organization Profile',
+          description: 'Update organization credentials, academic identity, and data backups.',
+          icon: Settings,
+          count: 'Settings',
+          btnLabel: 'Configure',
+        },
   ];
 
   return (

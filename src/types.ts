@@ -327,4 +327,5 @@ export interface AppState {
   programs: Program[];
   isAdmin: boolean;
   adminPin: string;
+  isPublicView?: boolean;
 }

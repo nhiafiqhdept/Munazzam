@@ -147,6 +147,51 @@ function getDecorativeIcon(prog: Program) {
   return Sparkles;
 }
 
+/**
+ * Formats date into uppercase format e.g. "21 SEPTEMBER 2026"
+ */
+function formatThumbnailDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    let date: Date;
+    if (typeof dateStr === 'string' && dateStr.includes('-') && !dateStr.includes('T')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        date = new Date(year, month, day, 0, 0, 0, 0);
+      } else {
+        date = new Date(dateStr);
+      }
+    } else if (typeof dateStr === 'string' && dateStr.includes('/') && !dateStr.includes('T')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        let month = parseInt(parts[0], 10) - 1;
+        let day = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        if (parts[0].length === 4) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10) - 1;
+          day = parseInt(parts[2], 10);
+        }
+        date = new Date(year, month, day, 0, 0, 0, 0);
+      } else {
+        date = new Date(dateStr);
+      }
+    } else {
+      date = new Date(dateStr);
+    }
+    if (isNaN(date.getTime())) return dateStr.toUpperCase();
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`.toUpperCase();
+  } catch {
+    return (dateStr || '').toUpperCase();
+  }
+}
+
 export const ProgramCard: React.FC<ProgramCardProps> = ({
   program,
   onViewDetails,
@@ -155,47 +200,10 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
   isAdmin = false,
   wingFallback,
 }) => {
-  const hasUploadedPoster = isValidUploadedPoster(program.poster);
   const theme = getCardTheme(program);
   const IconComponent = getDecorativeIcon(program);
   const effectiveStatus = getProgramEffectiveStatus(program);
-
-  // Top badge text logic: preserves Sub-Wing Proposal origin or status
-  const topBadgeText = (() => {
-    if (program.subWingName) {
-      return `${program.subWingName} Proposal`;
-    }
-    if (program.subWingStatus) {
-      return 'Sub-Wing Proposal';
-    }
-    if (effectiveStatus === 'upcoming') {
-      return 'Upcoming Program';
-    }
-    if (effectiveStatus === 'ongoing') {
-      return 'Ongoing Activity';
-    }
-    if (program.category) {
-      return program.category;
-    }
-    return 'Official Program';
-  })();
-
-  // Optional subtitle logic: only display if available, no fake text
-  const subtitle = (() => {
-    if (program.subCategory && program.subCategory.trim()) {
-      return program.subCategory.trim();
-    }
-    if (program.resourcePerson && program.resourcePerson.trim()) {
-      return program.resourcePerson.trim();
-    }
-    if (program.presenter_name && program.presenter_name.trim()) {
-      return program.presenter_name.trim();
-    }
-    if (program.audience && program.audience.trim() && program.audience !== 'General') {
-      return program.audience.trim();
-    }
-    return null;
-  })();
+  const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
 
   // Category / Wing badge at bottom-left
   const wingBadgeText = (
@@ -211,106 +219,70 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
       className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full group"
     >
       {/* ============================================================== */}
-      {/* 1. VISUAL HEADER AREA (40-45% height)                          */}
+      {/* 1. VISUAL HEADER AREA (Always Generated Design Thumbnail)      */}
       {/* ============================================================== */}
       <div
         className="relative h-48 sm:h-52 w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-4"
         onClick={() => onViewDetails(program.id)}
       >
-        {hasUploadedPoster ? (
-          /* STATE B: UPLOADED POSTER */
-          <>
-            <img
-              src={program.poster}
-              alt={program.name}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            {/* Subtle contrast gradient over poster to ensure badge readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40 pointer-events-none" />
+        {/* Rich Gradient Canvas */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
 
-            {/* Top Row with Badge & Proofs */}
-            <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-              <span className="px-2.5 py-1 rounded-full bg-black/45 backdrop-blur-md border border-white/20 text-white text-[10px] font-semibold tracking-wide uppercase shadow-xs">
-                {topBadgeText}
-              </span>
+        {/* Subtle Decorative Dotted Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.14] pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
+          }}
+        />
 
-              {program.media && program.media.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
-                  <Camera className="w-3 h-3" />
-                  <span>{program.media.length}</span>
-                </span>
-              )}
-            </div>
+        {/* Ambient Radial Glow */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
+          style={{
+            background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
+          }}
+        />
 
-            {/* Empty center for real poster so content isn't obscured */}
-            <div className="relative z-10" />
+        {/* Top Row: Status Pill Badge */}
+        <div className="relative z-10 flex items-center justify-between gap-2 w-full">
+          <span
+            className={`px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%]`}
+          >
+            {statusBadgeText}
+          </span>
 
-            {/* Bottom shadow overlay anchor */}
-            <div className="relative z-10" />
-          </>
-        ) : (
-          /* STATE A: DESIGNED FALLBACK CARD (STITCH REFERENCE EXACT) */
-          <>
-            {/* Rich Gradient Canvas */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
+          {program.media && program.media.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
+              <Camera className="w-3 h-3" />
+              <span>{program.media.length}</span>
+            </span>
+          )}
+        </div>
 
-            {/* Subtle Decorative Dotted Pattern */}
-            <div
-              className="absolute inset-0 opacity-[0.14] pointer-events-none"
-              style={{
-                backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-                backgroundSize: '16px 16px',
-              }}
-            />
+        {/* Center Content: Icon + Main Title + Program Date */}
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center px-2 py-1">
+          {/* Subtle Decorative Center Icon */}
+          <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center text-white/90 mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
+            <IconComponent className="w-3.5 h-3.5" />
+          </div>
 
-            {/* Ambient Radial Glow */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
-              style={{
-                background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
-              }}
-            />
+          {/* Large Bold Uppercase Program Title */}
+          <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-white text-center leading-tight line-clamp-2 px-2 drop-shadow-sm font-heading">
+            {program.name}
+          </h2>
 
-            {/* Top Row: Pill Badge */}
-            <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-              <span
-                className={`px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%]`}
-              >
-                {topBadgeText}
-              </span>
+          {/* Program Date below program name */}
+          {program.date && (
+            <p className="text-[10px] sm:text-[11px] font-semibold tracking-widest text-white/70 uppercase text-center mt-1 truncate max-w-[90%]">
+              {formatThumbnailDate(program.date)}
+            </p>
+          )}
+        </div>
 
-              {program.media && program.media.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
-                  <Camera className="w-3 h-3" />
-                  <span>{program.media.length}</span>
-                </span>
-              )}
-            </div>
-
-            {/* Center Content: Icon + Main Title + Subtitle */}
-            <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center px-2 py-1">
-              {/* Subtle Decorative Center Icon */}
-              <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center text-white/90 mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
-                <IconComponent className="w-3.5 h-3.5" />
-              </div>
-
-              {/* Large Bold Uppercase Program Title */}
-              <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-white text-center leading-tight line-clamp-2 px-2 drop-shadow-sm font-heading">
-                {program.name}
-              </h2>
-
-              {/* Small Subtitle (if available) */}
-              {subtitle && (
-                <p className="text-[10px] sm:text-[11px] font-semibold tracking-widest text-white/70 uppercase text-center mt-1 truncate max-w-[90%]">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-
-            {/* Bottom spacer to preserve proportion */}
-            <div className="relative z-10 h-1" />
-          </>
-        )}
+        {/* Bottom spacer to preserve proportion */}
+        <div className="relative z-10 h-1" />
       </div>
 
       {/* ============================================================== */}

@@ -268,7 +268,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         className="w-full max-w-[420px] bg-white rounded-3xl border border-slate-200/60 shadow-xl px-6 py-10 sm:p-10 flex flex-col items-center"
       >
         {/* Munazzam App Icon & Branding */}
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-5">
           <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border border-emerald-500/30 p-2 flex items-center justify-center overflow-hidden mb-3.5 shadow-md shrink-0">
             <img
               src="/icon-192x192.png"
@@ -286,6 +286,65 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
             Organization Management Platform
           </span>
         </div>
+
+        {/* Organization Search Bar (Single integrated search, directly below branding) */}
+        <div className="w-full mb-6">
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              id="org-search-input"
+              type="text"
+              value={publicSearchQuery}
+              onChange={(e) => {
+                setPublicSearchQuery(e.target.value);
+                if (publicSearchError) setPublicSearchError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handlePublicSearch();
+                }
+              }}
+              placeholder="Search organization..."
+              className="w-full pl-10 pr-22 py-2.5 bg-slate-50 border border-slate-200/90 rounded-2xl text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all placeholder:text-slate-400"
+            />
+            <button
+              id="org-search-btn"
+              type="button"
+              onClick={handlePublicSearch}
+              disabled={publicSearching}
+              className="absolute right-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+            >
+              {publicSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+
+          {publicSearchResult && (
+            <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="min-w-0 flex-1">
+                <span className="font-bold text-emerald-950 text-xs block truncate">{publicSearchResult.searchableName}</span>
+                <span className="text-slate-600 text-[11px] block truncate">{publicSearchResult.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = `#public_org=${encodeURIComponent(publicSearchResult.searchableName)}`;
+                  window.location.reload();
+                }}
+                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+              >
+                Open View
+              </button>
+            </div>
+          )}
+
+          {publicSearchError && (
+            <p className="text-rose-600 text-xs mt-2 text-center font-medium animate-in fade-in">{publicSearchError}</p>
+          )}
+        </div>
+
+        {/* Subtle Divider */}
+        <div className="w-full border-t border-slate-200/80 mb-6" />
 
         {/* Heading */}
         <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 text-center mb-1">
@@ -479,63 +538,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        {/* PUBLIC VIEW SECTION */}
-        <div className="mt-6 pt-6 border-t border-slate-200 mb-4">
-          <div className="text-center mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Public View</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Search and view an organization without signing in.</p>
-          </div>
-          <div className="relative flex items-center">
-            <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={publicSearchQuery}
-              onChange={(e) => setPublicSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handlePublicSearch();
-                }
-              }}
-              placeholder="Search organization..."
-              className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            />
-            <button
-              type="button"
-              onClick={handlePublicSearch}
-              disabled={publicSearching}
-              className="absolute right-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {publicSearching ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-
-          {publicSearchResult && (
-            <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-in fade-in">
-              <div>
-                <span className="font-bold text-emerald-900 text-xs block">{publicSearchResult.searchableName}</span>
-                <span className="text-slate-600 text-[11px] block">{publicSearchResult.name}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.hash = `#public_org=${encodeURIComponent(publicSearchResult.searchableName)}`;
-                  window.location.reload();
-                }}
-                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                View Public Organization
-              </button>
-            </div>
-          )}
-
-          {publicSearchError && (
-            <p className="text-rose-600 text-xs mt-2 text-center font-medium animate-in fade-in">{publicSearchError}</p>
-          )}
-        </div>
-
         {/* Footer switcher link */}
-        <div className="text-center w-full pt-2 border-t border-slate-100">
+        <div className="text-center w-full pt-4 border-t border-slate-100">
           <p className="text-sm font-semibold text-slate-600">
             {isRegister ? (
               <>
