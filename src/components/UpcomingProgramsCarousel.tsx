@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Program } from '../types';
-import { ProgramThumbnail } from './ProgramCard';
+import { ProgramThumbnail, getThemesForProgramList } from './ProgramCard';
 
 interface UpcomingProgramsCarouselProps {
   programs: Program[];
@@ -21,6 +21,10 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
         return dateA - dateB;
       });
   }, [programs]);
+
+  const programThemes = React.useMemo(() => {
+    return getThemesForProgramList(upcomingPrograms);
+  }, [upcomingPrograms]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -99,7 +103,12 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
       >
         {/* Render ONLY the exact Program Thumbnail */}
         <div className="w-full transition-all duration-300 transform">
-          <ProgramThumbnail program={currentProgram} onViewDetails={onViewDetails} />
+          <ProgramThumbnail
+            program={currentProgram}
+            onViewDetails={onViewDetails}
+            theme={programThemes[currentIndex]}
+            positionIndex={currentIndex}
+          />
         </div>
 
         {/* Pagination Indicators (Below Thumbnail) */}

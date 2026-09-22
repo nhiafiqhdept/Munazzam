@@ -35,7 +35,7 @@ import { doc, updateDoc, addDoc, setDoc, collection, getDocs, query, where, dele
 import bcrypt from 'bcryptjs';
 import { PermissionStatusBadge } from './permissions/PermissionStatusBadge';
 import { ProgramPermissionsView } from './permissions/ProgramPermissionsView';
-import { ProgramCard } from './ProgramCard';
+import { ProgramCard, getThemesForProgramList } from './ProgramCard';
 
 interface ProgramsViewProps {
   onOpenAddModal: () => void;
@@ -545,19 +545,26 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredPrograms.map((prog) => (
-                  <ProgramCard
-                    key={prog.id}
-                    program={prog}
-                    onViewDetails={viewProgramDetails}
-                    onEdit={onOpenEditModal}
-                    onDelete={(p) => setDeleteTarget(p)}
-                    isAdmin={isAdmin}
-                    wingFallback={currentOrg.name}
-                  />
-                ))}
-              </div>
+              {(() => {
+                const officialThemes = getThemesForProgramList(filteredPrograms);
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredPrograms.map((prog, idx) => (
+                      <ProgramCard
+                        key={prog.id}
+                        program={prog}
+                        onViewDetails={viewProgramDetails}
+                        onEdit={onOpenEditModal}
+                        onDelete={(p) => setDeleteTarget(p)}
+                        isAdmin={isAdmin}
+                        wingFallback={currentOrg.name}
+                        positionIndex={idx}
+                        theme={officialThemes[idx]}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Pagination / Results Footer */}
               <div className="flex items-center justify-between px-2 pt-2 text-xs text-slate-500 font-medium">
