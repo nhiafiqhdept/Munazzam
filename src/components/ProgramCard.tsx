@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Calendar,
   ArrowRight,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Program } from '../types';
 import { formatDate, getProgramEffectiveStatus } from '../utils/helpers';
+import { useApp } from '../context/AppContext';
 
 interface ProgramCardProps {
   program: Program;
@@ -200,10 +201,33 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
   isAdmin = false,
   wingFallback,
 }) => {
+  const { updateProgram, isPublicView } = useApp();
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const theme = getCardTheme(program);
   const IconComponent = getDecorativeIcon(program);
   const effectiveStatus = getProgramEffectiveStatus(program);
   const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
+
+  const canEditStatus = isAdmin && !isPublicView;
+
+  const handleBadgeClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!canEditStatus || isTogglingStatus) return;
+
+    setIsTogglingStatus(true);
+    const nextStatus = effectiveStatus === 'completed' ? 'upcoming' : 'completed';
+    try {
+      await updateProgram({
+        id: program.id,
+        status: nextStatus,
+      });
+    } catch (err) {
+      console.error('Failed to toggle program status:', err);
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  };
 
   // Category / Wing badge at bottom-left
   const wingBadgeText = (
@@ -247,11 +271,23 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
 
         {/* Top Row: Status Pill Badge */}
         <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-          <span
-            className={`px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%]`}
+          <button
+            type="button"
+            onClick={handleBadgeClick}
+            disabled={!canEditStatus || isTogglingStatus}
+            title={
+              canEditStatus
+                ? `Click to change status to ${effectiveStatus === 'completed' ? 'UPCOMING' : 'COMPLETED'}`
+                : `Program status: ${statusBadgeText}`
+            }
+            className={`px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] transition-all ${
+              canEditStatus
+                ? 'cursor-pointer hover:bg-black/60 hover:scale-105 active:scale-95 hover:border-white/40 ring-1 ring-white/10'
+                : 'cursor-default'
+            } ${isTogglingStatus ? 'opacity-70 animate-pulse' : ''}`}
           >
             {statusBadgeText}
-          </span>
+          </button>
 
           {program.media && program.media.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">

@@ -171,12 +171,16 @@ export const PrintableApprovalRequest: React.FC<PrintableApprovalRequestProps> =
                 </div>
 
                 {/* 5. Time Schedule */}
-                {(permission.timeFrom || permission.timeTill) && (
+                {(permission.time || permission.timeFrom || permission.timeTill) && (
                   <div className="grid grid-cols-12 p-2.5">
                     <div className="col-span-4 font-bold text-slate-700">TIME SCHEDULE:</div>
                     <div className="col-span-8 font-medium text-slate-900">
-                      {permission.timeFrom ? `From: ${permission.timeFrom}` : ''}
-                      {permission.timeTill ? ` Till: ${permission.timeTill}` : ''}
+                      {permission.time || (
+                        <>
+                          {permission.timeFrom ? `From: ${permission.timeFrom}` : ''}
+                          {permission.timeTill ? ` Till: ${permission.timeTill}` : ''}
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

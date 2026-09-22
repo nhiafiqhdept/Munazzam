@@ -28,23 +28,15 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
 }) => {
   const { currentOrg, requestProgramPermission, updateProgramPermission, user } = useApp();
 
-  // Parsing time from program.time if available (e.g. "10:00 AM - 1:00 PM" or "10:00 AM")
-  const defaultTimeFrom = () => {
+  // Loading existing combined time range from existingPermission or program
+  const defaultTime = () => {
+    if (existingPermission?.time) return existingPermission.time;
+    if (existingPermission?.timeFrom && existingPermission?.timeTill) {
+      return `${existingPermission.timeFrom} – ${existingPermission.timeTill}`;
+    }
     if (existingPermission?.timeFrom) return existingPermission.timeFrom;
-    if (program.time) {
-      const parts = program.time.split('-');
-      return parts[0]?.trim() || '';
-    }
-    return '10:00 AM';
-  };
-
-  const defaultTimeTill = () => {
-    if (existingPermission?.timeTill) return existingPermission.timeTill;
-    if (program.time) {
-      const parts = program.time.split('-');
-      return parts[1]?.trim() || '';
-    }
-    return '1:00 PM';
+    if (program.time) return program.time;
+    return '10:00 AM – 01:00 PM';
   };
 
   const defaultConductedBy = () => {
@@ -58,8 +50,7 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
   const [category, setCategory] = useState(existingPermission?.category || program.category || '');
   const [subCategory, setSubCategory] = useState(existingPermission?.subCategory || program.subCategory || '');
   const [date, setDate] = useState(existingPermission?.date || program.date);
-  const [timeFrom, setTimeFrom] = useState(defaultTimeFrom());
-  const [timeTill, setTimeTill] = useState(defaultTimeTill());
+  const [time, setTime] = useState(defaultTime());
   const [venue, setVenue] = useState(existingPermission?.venue || program.place || '');
   const [audience, setAudience] = useState(existingPermission?.audience || program.audience || 'Students');
   const [resourcePerson, setResourcePerson] = useState(existingPermission?.resourcePerson || program.resourcePerson || '');
@@ -129,8 +120,9 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
       category: category.trim(),
       subCategory: subCategory.trim(),
       date,
-      timeFrom: timeFrom.trim(),
-      timeTill: timeTill.trim(),
+      time: time.trim(),
+      timeFrom: time.trim(),
+      timeTill: '',
       venue: venue.trim(),
       audience: audience.trim(),
       resourcePerson: resourcePerson.trim(),
@@ -332,23 +324,12 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Time From</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">TIME</label>
                 <input
                   type="text"
-                  value={timeFrom}
-                  onChange={(e) => setTimeFrom(e.target.value)}
-                  placeholder="e.g. 10:00 AM"
-                  className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Time Till</label>
-                <input
-                  type="text"
-                  value={timeTill}
-                  onChange={(e) => setTimeTill(e.target.value)}
-                  placeholder="e.g. 1:00 PM"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  placeholder="e.g. 10:00 AM – 01:00 PM"
                   className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>

@@ -415,11 +415,6 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                     Upcoming
                   </span>
-                ) : effectiveStatus === 'ongoing' ? (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                    Ongoing
-                  </span>
                 ) : (
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
                     Completed
@@ -559,11 +554,6 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                   Upcoming
                 </span>
-              ) : effectiveStatus === 'ongoing' ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  Ongoing
-                </span>
               ) : (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
                   Completed
@@ -680,13 +670,15 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                 This program currently has no formal college permission file on record. You can generate an approval request for the Principal or configured college authority.
               </p>
             </div>
-            <button
-              onClick={() => setShowPermissionRequestModal(true)}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Request College Permission</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowPermissionRequestModal(true)}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Request College Permission</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -836,23 +828,25 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowPermissionRequestModal(true)}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FileEdit className="w-3.5 h-3.5" />
-                  <span>{permission.status === 'changes_required' ? 'Edit & Resubmit' : 'Edit Request'}</span>
-                </button>
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowPermissionRequestModal(true)}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <FileEdit className="w-3.5 h-3.5" />
+                    <span>{permission.status === 'changes_required' ? 'Edit & Resubmit' : 'Edit Request'}</span>
+                  </button>
 
-                <button
-                  onClick={() => setShowPermissionReviewModal(true)}
-                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Review & Decision</span>
-                </button>
-              </div>
+                  <button
+                    onClick={() => setShowPermissionReviewModal(true)}
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Review & Decision</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

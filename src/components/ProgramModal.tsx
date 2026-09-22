@@ -58,7 +58,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   const [customAudience, setCustomAudience] = useState('');
   const [isCustomAudience, setIsCustomAudience] = useState(false);
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<'completed' | 'upcoming' | 'ongoing'>('completed');
+  const [status, setStatus] = useState<'completed' | 'upcoming'>('completed');
   const [attendanceCount, setAttendanceCount] = useState<number | ''>('');
   const [resourcePerson, setResourcePerson] = useState('');
 
@@ -584,7 +584,6 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             >
               <option value="completed">Completed</option>
               <option value="upcoming">Upcoming</option>
-              <option value="ongoing">Ongoing</option>
             </select>
           </div>
 

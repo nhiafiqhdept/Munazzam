@@ -97,6 +97,7 @@ export interface ProgramPermission {
   category?: string;
   subCategory?: string;
   date: string;
+  time?: string;
   timeFrom?: string;
   timeTill?: string;
   venue: string;
@@ -160,7 +161,7 @@ export interface Program {
   description: string;
   poster: string;
   media: ProgramMedia[];
-  status?: 'completed' | 'upcoming' | 'ongoing';
+  status?: 'completed' | 'upcoming';
   attendance_count?: number;
   created_at: string;
   updated_at: string;

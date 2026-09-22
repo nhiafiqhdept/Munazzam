@@ -53,6 +53,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     viewProgramDetails,
     deleteProgram,
     isAdmin,
+    isPublicView,
     subWings,
     subWingPrograms,
     programPermissions,
@@ -109,7 +110,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
         if (!snapshot.empty) {
           const docSnap = snapshot.docs[0];
           setPublicPortalId(docSnap.id);
-        } else {
+        } else if (!isPublicView && isAdmin) {
           // Generate a clean random alphanumeric portal ID
           const newPortalId = `swp_${currentOrg.id.slice(0, 8)}_${Math.random().toString(36).substring(2, 8)}`;
           const payload = cleanFirestorePayload({
@@ -122,7 +123,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           setPublicPortalId(newPortalId);
         }
       } catch (err) {
-        console.error('Error syncing sub-wing portal:', err);
+        console.warn('Sub-wing portal sync notice:', err);
       } finally {
         setPortalLoading(false);
       }
@@ -476,7 +477,6 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                     { id: 'all', label: 'All' },
                     { id: 'upcoming', label: 'Upcoming' },
                     { id: 'completed', label: 'Completed' },
-                    { id: 'ongoing', label: 'Ongoing' },
                   ].map((tab) => (
                     <button
                       key={tab.id}

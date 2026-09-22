@@ -34,11 +34,10 @@ import { TransferModal } from './components/treasury/TransferModal';
 import { LoanModal } from './components/treasury/LoanModal';
 import { RepaymentModal } from './components/treasury/RepaymentModal';
 import { Organizer, Program, FinancialAccount, Loan } from './types';
-import { LogOut } from 'lucide-react';
+import { LogOut, AlertCircle } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
 import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
-import { PublicOrganizationView } from './components/PublicOrganizationView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 function extractPublicOrgSearchableName(): string | null {
@@ -61,7 +60,7 @@ function extractPublicOrgSearchableName(): string | null {
 }
 
 const MainLayout: React.FC = () => {
-  const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg } = useApp();
+  const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg, isPublicView, exitPublicView } = useApp();
 
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -86,28 +85,32 @@ const MainLayout: React.FC = () => {
   const [repaymentLoan, setRepaymentLoan] = useState<Loan | null>(null);
 
   const handleOpenAddOrganizer = () => {
+    if (isPublicView) return;
     setOrganizerToEdit(null);
     setIsOrganizerModalOpen(true);
   };
 
   const handleOpenEditOrganizer = (organizer: Organizer) => {
+    if (isPublicView) return;
     setOrganizerToEdit(organizer);
     setIsOrganizerModalOpen(true);
   };
 
   const handleOpenAddProgram = () => {
+    if (isPublicView) return;
     setProgramToEdit(null);
     setIsProgramModalOpen(true);
   };
 
   const handleOpenEditProgram = (program: Program) => {
+    if (isPublicView) return;
     setProgramToEdit(program);
     setIsProgramModalOpen(true);
   };
 
   const isTreasuryTab = activeTab.startsWith('treasury');
 
-  if (!hasConfiguredOrg) {
+  if (!hasConfiguredOrg && !isPublicView) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col justify-between items-center p-6 text-white relative">
         <div className="w-full max-w-7xl mx-auto flex justify-between items-center">
@@ -146,8 +149,8 @@ const MainLayout: React.FC = () => {
       {/* Persistent Bottom Navigation Bar */}
       <Navigation />
 
-      {/* Treasury Sub-Navigation if in treasury section */}
-      {isTreasuryTab && <TreasuryNav />}
+      {/* Treasury Sub-Navigation if in treasury section and not public view */}
+      {isTreasuryTab && !isPublicView && <TreasuryNav />}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32">
@@ -176,7 +179,7 @@ const MainLayout: React.FC = () => {
           <ProgramDetailsView onOpenEditModal={handleOpenEditProgram} />
         )}
 
-        {activeTab === 'settings' && (
+        {activeTab === 'settings' && !isPublicView && (
           <OrgSettingsView
             onOpenNewOrgModal={() => setIsOnboardingOpen(true)}
             onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
@@ -184,7 +187,7 @@ const MainLayout: React.FC = () => {
         )}
 
         {/* Treasury Views */}
-        {activeTab === 'treasury-dashboard' && (
+        {(activeTab === 'treasury-dashboard' || (isPublicView && isTreasuryTab)) && (
           <TreasuryDashboardView
             onOpenAddIncome={() => setIsIncomeModalOpen(true)}
             onOpenAddExpense={() => setIsExpenseModalOpen(true)}
@@ -197,7 +200,7 @@ const MainLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'treasury-accounts' && (
+        {activeTab === 'treasury-accounts' && !isPublicView && (
           <AccountsView
             onOpenAddModal={() => {
               setAccountToEdit(null);
@@ -210,21 +213,21 @@ const MainLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'treasury-income' && (
+        {activeTab === 'treasury-income' && !isPublicView && (
           <IncomeView
             onOpenAddModal={() => setIsIncomeModalOpen(true)}
             onViewTransaction={() => {}}
           />
         )}
 
-        {activeTab === 'treasury-expenses' && (
+        {activeTab === 'treasury-expenses' && !isPublicView && (
           <ExpenseView
             onOpenAddModal={() => setIsExpenseModalOpen(true)}
             onViewTransaction={() => {}}
           />
         )}
 
-        {activeTab === 'treasury-loans' && (
+        {activeTab === 'treasury-loans' && !isPublicView && (
           <LoansView
             onOpenAddLoan={() => setIsLoanModalOpen(true)}
             onOpenRepayment={(loan) => {
@@ -234,17 +237,17 @@ const MainLayout: React.FC = () => {
           />
         )}
 
-        {activeTab === 'treasury-transfers' && (
+        {activeTab === 'treasury-transfers' && !isPublicView && (
           <TransfersView onOpenAddTransfer={() => setIsTransferModalOpen(true)} />
         )}
 
-        {activeTab === 'treasury-events' && <EventsView />}
+        {activeTab === 'treasury-events' && !isPublicView && <EventsView />}
 
-        {activeTab === 'treasury-ledger' && <LedgerView />}
+        {activeTab === 'treasury-ledger' && !isPublicView && <LedgerView />}
 
-        {activeTab === 'treasury-cashbook' && <CashBookView />}
+        {activeTab === 'treasury-cashbook' && !isPublicView && <CashBookView />}
 
-        {activeTab === 'treasury-reports' && <ReportsView />}
+        {activeTab === 'treasury-reports' && !isPublicView && <ReportsView />}
 
         {activeTab === 'student-points' && <StudentPointsPortal />}
       </main>
@@ -257,73 +260,92 @@ const MainLayout: React.FC = () => {
               {currentOrg?.name} • {currentOrg?.college_name}
             </p>
             <p className="text-[11px] text-slate-400">
-              Academic Organization Program Management & Treasury System • Multi-Account Financial Control
+              {isPublicView
+                ? 'Munazzam Academic Platform • Public Directory & Read-Only Workspace'
+                : 'Academic Organization Program Management & Treasury System • Multi-Account Financial Control'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-slate-600 font-medium">Logged in as: <strong className="text-slate-900">{user?.username || user?.email}</strong></span>
-            <button
-              onClick={logoutUser}
-              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs flex items-center gap-1 transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Logout</span>
-            </button>
-          </div>
+          {isPublicView ? (
+            <div className="flex items-center gap-3">
+              <span className="text-slate-600 font-medium">Mode: <strong className="text-emerald-700">Public Read-Only</strong></span>
+              <button
+                onClick={exitPublicView}
+                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Exit to Sign In</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-slate-600 font-medium">Logged in as: <strong className="text-slate-900">{user?.username || user?.email}</strong></span>
+              <button
+                onClick={logoutUser}
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </footer>
 
-      {/* Modals */}
-      <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        isInitialSetup={organizations.length === 0}
-      />
+      {/* Modals - Only active when not in public view */}
+      {!isPublicView && (
+        <>
+          <OnboardingModal
+            isOpen={isOnboardingOpen}
+            onClose={() => setIsOnboardingOpen(false)}
+            isInitialSetup={organizations.length === 0}
+          />
 
-      <AdminLoginModal
-        isOpen={isAdminLoginOpen}
-        onClose={() => setIsAdminLoginOpen(false)}
-      />
+          <AdminLoginModal
+            isOpen={isAdminLoginOpen}
+            onClose={() => setIsAdminLoginOpen(false)}
+          />
 
-      <OrganizerModal
-        isOpen={isOrganizerModalOpen}
-        onClose={() => {
-          setIsOrganizerModalOpen(false);
-          setOrganizerToEdit(null);
-        }}
-        organizerToEdit={organizerToEdit}
-      />
+          <OrganizerModal
+            isOpen={isOrganizerModalOpen}
+            onClose={() => {
+              setIsOrganizerModalOpen(false);
+              setOrganizerToEdit(null);
+            }}
+            organizerToEdit={organizerToEdit}
+          />
 
-      <ProgramModal
-        isOpen={isProgramModalOpen}
-        onClose={() => {
-          setIsProgramModalOpen(false);
-          setProgramToEdit(null);
-        }}
-        programToEdit={programToEdit}
-      />
+          <ProgramModal
+            isOpen={isProgramModalOpen}
+            onClose={() => {
+              setIsProgramModalOpen(false);
+              setProgramToEdit(null);
+            }}
+            programToEdit={programToEdit}
+          />
 
-      {/* Treasury Modals */}
-      <IncomeModal isOpen={isIncomeModalOpen} onClose={() => setIsIncomeModalOpen(false)} />
-      <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
-      <AccountModal
-        isOpen={isAccountModalOpen}
-        onClose={() => {
-          setIsAccountModalOpen(false);
-          setAccountToEdit(null);
-        }}
-        editingAccount={accountToEdit}
-      />
-      <TransferModal isOpen={isTransferModalOpen} onClose={() => setIsTransferModalOpen(false)} />
-      <LoanModal isOpen={isLoanModalOpen} onClose={() => setIsLoanModalOpen(false)} />
-      <RepaymentModal
-        isOpen={isRepaymentModalOpen}
-        onClose={() => {
-          setIsRepaymentModalOpen(false);
-          setRepaymentLoan(null);
-        }}
-        loan={repaymentLoan}
-      />
+          {/* Treasury Modals */}
+          <IncomeModal isOpen={isIncomeModalOpen} onClose={() => setIsIncomeModalOpen(false)} />
+          <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
+          <AccountModal
+            isOpen={isAccountModalOpen}
+            onClose={() => {
+              setIsAccountModalOpen(false);
+              setAccountToEdit(null);
+            }}
+            editingAccount={accountToEdit}
+          />
+          <TransferModal isOpen={isTransferModalOpen} onClose={() => setIsTransferModalOpen(false)} />
+          <LoanModal isOpen={isLoanModalOpen} onClose={() => setIsLoanModalOpen(false)} />
+          <RepaymentModal
+            isOpen={isRepaymentModalOpen}
+            onClose={() => {
+              setIsRepaymentModalOpen(false);
+              setRepaymentLoan(null);
+            }}
+            loan={repaymentLoan}
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -415,7 +437,7 @@ function extractPublicPermissionToken(): string | null {
 }
 
 const AuthenticatedApp: React.FC = () => {
-  const { token, user, authLoading, orgLoading, loginUser } = useApp();
+  const { token, user, authLoading, orgLoading, loginUser, isPublicView, organizations, exitPublicView } = useApp();
 
   const isSuborgPortal = window.location.search.includes('suborg=true') || 
                          window.location.hash.includes('suborg=true') || 
@@ -477,6 +499,36 @@ const AuthenticatedApp: React.FC = () => {
     );
   }
 
+  if (isPublicView) {
+    if (organizations.length === 0) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center max-w-md shadow-xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold font-heading text-slate-900">Organization Not Found</h2>
+            <p className="text-xs text-slate-500">The requested organization could not be located in the public directory.</p>
+            <button
+              onClick={exitPublicView}
+              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+            >
+              Return to Login & Search
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <OfflineBanner />
+        <QuotaBanner />
+        <MainLayout />
+      </>
+    );
+  }
+
   if (!token || !user) {
     return (
       <>
@@ -507,9 +559,10 @@ export function App() {
 
   if (publicOrgSearchableName) {
     return (
-      <ErrorBoundary fallbackTitle="Public Organization Portal">
-        <OfflineBanner />
-        <PublicOrganizationView searchableName={publicOrgSearchableName} />
+      <ErrorBoundary fallbackTitle="Munazzam Public Workspace">
+        <AppProvider isPublicView={true} publicOrgQuery={publicOrgSearchableName}>
+          <AuthenticatedApp />
+        </AppProvider>
       </ErrorBoundary>
     );
   }

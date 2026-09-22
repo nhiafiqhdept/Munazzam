@@ -172,6 +172,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         category: fetchedPermData.category || '',
         subCategory: fetchedPermData.subCategory || '',
         date: fetchedPermData.date || '',
+        time: fetchedPermData.time || fetchedPermData.timeFrom || '',
         timeFrom: fetchedPermData.timeFrom || '',
         timeTill: fetchedPermData.timeTill || '',
         venue: fetchedPermData.venue || '',
@@ -768,9 +769,10 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
                   Time
                 </div>
                 <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                  {permission.timeFrom
-                    ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}`
-                    : 'Scheduled Time'}
+                  {permission.time ||
+                    (permission.timeFrom
+                      ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}`
+                      : 'Scheduled Time')}
                 </div>
               </div>
             </div>
