@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Mail, Phone, GraduationCap, Shield, Edit2, User } from 'lucide-react';
+import { X, Mail, Phone, GraduationCap, Shield, Edit2, User, Trash2 } from 'lucide-react';
 import { Organizer } from '../types';
 
 interface OrganizerDetailsModalProps {
@@ -7,6 +7,7 @@ interface OrganizerDetailsModalProps {
   onClose: () => void;
   organizer: Organizer | null;
   onEdit: (organizer: Organizer) => void;
+  onDelete: (organizer: Organizer) => void;
   isAdmin: boolean;
 }
 
@@ -15,6 +16,7 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
   onClose,
   organizer,
   onEdit,
+  onDelete,
   isAdmin,
 }) => {
   if (!isOpen || !organizer) return null;
@@ -114,22 +116,34 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
             <button
               onClick={onClose}
-              className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+              className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
             >
-              Close Profile
+              Close
             </button>
             
             {isAdmin && (
-              <button
-                onClick={() => {
-                  onEdit(organizer);
-                  onClose();
-                }}
-                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit Profile</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onDelete(organizer);
+                    onClose();
+                  }}
+                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onEdit(organizer);
+                    onClose();
+                  }}
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

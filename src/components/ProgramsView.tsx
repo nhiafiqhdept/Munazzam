@@ -373,11 +373,12 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const totalSubWings = allSubWings.length;
   const pendingSubWingsCount = allSubWings.filter((sw) => sw.status === 'pending').length;
   const pendingProposalsCount = subWingPrograms.filter((p) => p.subWingStatus === 'pending').length;
+  const effectiveTab = isPublicView ? 'official' : activeTab;
 
   return (
     <div className="space-y-4 pb-12">
       {/* Tab Switcher for Admin */}
-      {isAdmin && (
+      {isAdmin && !isPublicView && (
         <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
           <button
             onClick={() => setActiveTab('official')}
@@ -424,7 +425,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       )}
 
       {/* VIEW A: OFFICIAL PROGRAMS & ACTIVITIES */}
-      {activeTab === 'official' && (
+      {effectiveTab === 'official' && (
         <>
           {/* Executive Combined Header & Toolbar Card */}
           <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
@@ -571,7 +572,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       )}
 
       {/* VIEW B: SUB-WING PROGRAMS & PROPOSALS */}
-      {activeTab === 'subwings' && (
+      {effectiveTab === 'subwings' && !isPublicView && (
         <div className="space-y-6">
           {/* Executive Overview & Link Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -1548,7 +1549,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
       )}
 
       {/* VIEW C: COLLEGE PROGRAM PERMISSIONS */}
-      {activeTab === 'permissions' && (
+      {effectiveTab === 'permissions' && !isPublicView && (
         <ProgramPermissionsView />
       )}
 

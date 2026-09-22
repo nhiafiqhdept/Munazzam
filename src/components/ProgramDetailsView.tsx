@@ -167,6 +167,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
     addProgramMedia,
     deleteProgramMedia,
     isAdmin,
+    isPublicView,
     incomes,
     expenses,
     programPermissions,
@@ -635,8 +636,9 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       </div>
 
       {/* 3. COLLEGE PERMISSION & APPROVAL DOSSIER */}
-      <div className="bg-white p-6 md:p-8 rounded-[18px] md:rounded-3xl border border-slate-200 shadow-2xs space-y-5 mx-1">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      {!isPublicView && (
+        <div className="bg-white p-6 md:p-8 rounded-[18px] md:rounded-3xl border border-slate-200 shadow-2xs space-y-5 mx-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
@@ -851,6 +853,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
           </div>
         )}
       </div>
+      )}
 
       {/* 4. DOCUMENTATION PROOFS & GALLERY (Desktop) */}
       <div className="hidden md:block space-y-6">
