@@ -153,7 +153,7 @@ const MainLayout: React.FC = () => {
       {isTreasuryTab && !isPublicView && <TreasuryNav />}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32">
+      <main className="flex-1 max-w-7xl lg:max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32 lg:pb-16">
         {activeTab === 'dashboard' && (
           <Dashboard
             onOpenAddProgram={handleOpenAddProgram}

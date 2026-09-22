@@ -373,55 +373,189 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const totalSubWings = allSubWings.length;
   const pendingSubWingsCount = allSubWings.filter((sw) => sw.status === 'pending').length;
   const pendingProposalsCount = subWingPrograms.filter((p) => p.subWingStatus === 'pending').length;
+  const pendingPermissionsCount = programPermissions.filter((p) => p.status === 'pending').length;
   const effectiveTab = isPublicView ? 'official' : activeTab;
 
   return (
     <div className="space-y-4 pb-12">
       {/* Tab Switcher for Admin */}
       {isAdmin && !isPublicView && (
-        <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
-          <button
-            onClick={() => setActiveTab('official')}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'official'
-                ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
+        <>
+          {/* Mobile Institutional Navigation Menu (< lg) */}
+          <nav
+            aria-label="Programs & Activities Menu"
+            className="lg:hidden w-full bg-white rounded-xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100 overflow-hidden"
           >
-            <CalendarDays className="w-4 h-4" />
-            <span>Official Programs & Activities</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('subwings')}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
-              activeTab === 'subwings'
-                ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Sub-Wing Program Proposals</span>
-            {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('permissions')}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
-              activeTab === 'permissions'
-                ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>College Permissions</span>
-            {programPermissions.filter((p) => p.status === 'pending').length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
-                {programPermissions.filter((p) => p.status === 'pending').length}
-              </span>
-            )}
-          </button>
-        </div>
+            {/* 1. Official Programs & Activities */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('official')}
+              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+                activeTab === 'official'
+                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
+                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText
+                  className={`w-4.5 h-4.5 shrink-0 ${
+                    activeTab === 'official' ? 'text-emerald-700' : 'text-slate-400'
+                  }`}
+                />
+                <span
+                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                    activeTab === 'official'
+                      ? 'text-emerald-950 font-bold'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  Official Programs & Activities
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {activeTab === 'official' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
+                )}
+                <ChevronRight
+                  className={`w-4 h-4 ${
+                    activeTab === 'official' ? 'text-emerald-700' : 'text-slate-300'
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* 2. Sub-Wing Program Proposals */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('subwings')}
+              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+                activeTab === 'subwings'
+                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
+                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Layers
+                  className={`w-4.5 h-4.5 shrink-0 ${
+                    activeTab === 'subwings' ? 'text-emerald-700' : 'text-slate-400'
+                  }`}
+                />
+                <span
+                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                    activeTab === 'subwings'
+                      ? 'text-emerald-950 font-bold'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  Sub-Wing Program Proposals
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
+                  <span className="px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">
+                    {pendingSubWingsCount + pendingProposalsCount}
+                  </span>
+                )}
+                {activeTab === 'subwings' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
+                )}
+                <ChevronRight
+                  className={`w-4 h-4 ${
+                    activeTab === 'subwings' ? 'text-emerald-700' : 'text-slate-300'
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* 3. College Permissions */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('permissions')}
+              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+                activeTab === 'permissions'
+                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
+                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <ShieldCheck
+                  className={`w-4.5 h-4.5 shrink-0 ${
+                    activeTab === 'permissions' ? 'text-emerald-700' : 'text-slate-400'
+                  }`}
+                />
+                <span
+                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                    activeTab === 'permissions'
+                      ? 'text-emerald-950 font-bold'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  College Permissions
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {pendingPermissionsCount > 0 && (
+                  <span className="px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">
+                    {pendingPermissionsCount}
+                  </span>
+                )}
+                {activeTab === 'permissions' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
+                )}
+                <ChevronRight
+                  className={`w-4 h-4 ${
+                    activeTab === 'permissions' ? 'text-emerald-700' : 'text-slate-300'
+                  }`}
+                />
+              </div>
+            </button>
+          </nav>
+
+          {/* Desktop Tab Switcher (Unchanged) */}
+          <div className="hidden lg:flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
+            <button
+              onClick={() => setActiveTab('official')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'official'
+                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span>Official Programs & Activities</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('subwings')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
+                activeTab === 'subwings'
+                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>Sub-Wing Program Proposals</span>
+              {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('permissions')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
+                activeTab === 'permissions'
+                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>College Permissions</span>
+              {pendingPermissionsCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
+                  {pendingPermissionsCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </>
       )}
 
       {/* VIEW A: OFFICIAL PROGRAMS & ACTIVITIES */}

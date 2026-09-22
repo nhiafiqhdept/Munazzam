@@ -30,6 +30,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
   const [isPaused, setIsPaused] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
   const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const totalSlides = upcomingPrograms.length;
 
@@ -41,6 +42,14 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     }
   }, []);
 
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    };
+  }, []);
+
   // Reset index if out of bounds
   useEffect(() => {
     if (currentIndex >= totalSlides && totalSlides > 0) {
@@ -48,19 +57,27 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     }
   }, [totalSlides, currentIndex]);
 
-  // Autoplay handler (1.5s interval if 2+ slides and no reduced motion)
+  // Autoplay handler (approximately 1.2s interval if 2+ slides and no reduced motion)
+  // Ensures strictly only one interval timer runs at any time
   useEffect(() => {
+    if (autoplayTimerRef.current) {
+      clearInterval(autoplayTimerRef.current);
+      autoplayTimerRef.current = null;
+    }
+
     if (totalSlides <= 1 || isPaused || prefersReducedMotion.current) {
-      if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
       return;
     }
 
     autoplayTimerRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalSlides);
-    }, 1500);
+    }, 1200);
 
     return () => {
-      if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
+      if (autoplayTimerRef.current) {
+        clearInterval(autoplayTimerRef.current);
+        autoplayTimerRef.current = null;
+      }
     };
   }, [totalSlides, isPaused]);
 
@@ -70,8 +87,23 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
 
   const currentProgram = upcomingPrograms[currentIndex] || upcomingPrograms[0];
 
+  const pauseTemporarily = (durationMs: number = 2000) => {
+    setIsPaused(true);
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current);
+    }
+    resumeTimerRef.current = setTimeout(() => {
+      setIsPaused(false);
+      resumeTimerRef.current = null;
+    }, durationMs);
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = null;
+    }
     setIsPaused(true);
   };
 
@@ -89,20 +121,26 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     }
     touchStartXRef.current = null;
     // Resume autoplay after brief pause
-    setTimeout(() => setIsPaused(false), 2000);
+    pauseTemporarily(2000);
   };
 
   return (
     <section className="w-full">
       <div
         className="relative w-full group select-none transition-all duration-300"
-        onMouseEnter={() => setIsPaused(true)}
+        onMouseEnter={() => {
+          if (resumeTimerRef.current) {
+            clearTimeout(resumeTimerRef.current);
+            resumeTimerRef.current = null;
+          }
+          setIsPaused(true);
+        }}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Render ONLY the exact Program Thumbnail */}
-        <div className="w-full transition-all duration-300 transform">
+        {/* Render ONLY the exact Program Thumbnail with smooth 300ms transition */}
+        <div className="w-full transition-all duration-300 ease-in-out transform">
           <ProgramThumbnail
             program={currentProgram}
             onViewDetails={onViewDetails}
@@ -120,8 +158,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                 type="button"
                 onClick={() => {
                   setCurrentIndex(idx);
-                  setIsPaused(true);
-                  setTimeout(() => setIsPaused(false), 3000);
+                  pauseTemporarily(2500);
                 }}
                 className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                   currentIndex === idx

@@ -36,12 +36,29 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isSettingsActive = activeTab === 'settings';
 
+  const desktopNavTabs = [
+    { id: 'dashboard' as const, label: 'Dashboard' },
+    { id: 'organizers' as const, label: 'Organizers' },
+    { id: 'programs' as const, label: 'Programs' },
+    { id: 'treasury-dashboard' as const, label: 'Treasury' },
+    { id: 'student-points' as const, label: 'Points' },
+  ];
+
+  const isNavActive = (id: string) => {
+    if (id === 'dashboard') return activeTab === 'dashboard';
+    if (id === 'organizers') return activeTab === 'organizers';
+    if (id === 'programs') return activeTab === 'programs' || activeTab === 'program_details' || activeTab === 'program-details';
+    if (id === 'treasury-dashboard') return activeTab.startsWith('treasury');
+    if (id === 'student-points') return activeTab === 'student-points';
+    return false;
+  };
+
   return (
     <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs backdrop-blur-md bg-white/95">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-start sm:items-center justify-between py-2.5 sm:py-3.5 gap-3 sm:gap-4">
+      <div className="max-w-7xl lg:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-start sm:items-center justify-between py-2.5 sm:py-3.5 lg:py-4 gap-3 sm:gap-4">
           {/* Main Brand Identity Section */}
-          <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 lg:gap-4 min-w-0">
             {/* Organization Logo */}
             <div className="relative group shrink-0 mt-0.5 sm:mt-0">
               <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-slate-50 border-2 border-emerald-600/30 p-1 shadow-xs flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
@@ -138,6 +155,29 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Center: Desktop Navigation Bar (Desktop Only) */}
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+            {desktopNavTabs.map((tab) => {
+              const active = isNavActive(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer select-none whitespace-nowrap ${
+                    active
+                      ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/60'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
 
           {/* Upper Right Corner: Academic Year Pill & Settings / Exit Public Button */}
           <div className="flex items-center gap-2 shrink-0 pt-0.5">

@@ -582,7 +582,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
       {/* 1. VISUAL HEADER AREA                                          */}
       {/* ============================================================== */}
       <div
-        className="relative h-48 sm:h-52 w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-4"
+        className="relative h-48 sm:h-52 lg:h-[280px] w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-4 lg:p-6"
         onClick={() => onViewDetails(program.id)}
       >
         {hasRealPoster ? (
@@ -649,18 +649,18 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
         {/* Center Content: Icon + Main Title + Program Date */}
         <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center px-2 py-1">
           {/* Subtle Decorative Center Icon */}
-          <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center text-white/90 mb-1.5 shadow-2xs group-hover:scale-105 transition-transform">
-            <IconComponent className="w-3.5 h-3.5" />
+          <div className="w-7 h-7 lg:w-9 lg:h-9 rounded-full bg-white/10 backdrop-blur-xs border border-white/20 flex items-center justify-center text-white/90 mb-1.5 lg:mb-2 shadow-2xs group-hover:scale-105 transition-transform">
+            <IconComponent className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
           </div>
 
           {/* Large Bold Uppercase Program Title */}
-          <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-white text-center leading-tight line-clamp-2 px-2 drop-shadow-sm font-heading">
+          <h2 className="text-base sm:text-lg lg:text-2xl font-black uppercase tracking-wider text-white text-center leading-tight line-clamp-2 px-2 drop-shadow-sm font-heading">
             {program.name}
           </h2>
 
           {/* Program Date below program name */}
           {program.date && (
-            <p className="text-[10px] sm:text-[11px] font-semibold tracking-widest text-white/80 uppercase text-center mt-1 truncate max-w-[90%]">
+            <p className="text-[10px] sm:text-[11px] lg:text-xs font-semibold tracking-widest text-white/80 uppercase text-center mt-1 lg:mt-1.5 truncate max-w-[90%]">
               {formatThumbnailDate(program.date)}
             </p>
           )}
