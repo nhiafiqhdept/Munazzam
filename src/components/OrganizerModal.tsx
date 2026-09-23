@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Shield, Mail, Phone, Upload, X, Check, Image as ImageIcon, Crop } from 'lucide-react';
 import { Organizer } from '../types';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, DEFAULT_POSITIONS } from '../utils/helpers';
+import { fileToDataUrl, DEFAULT_POSITIONS, optimizeImageFile, isImageFile } from '../utils/helpers';
 import { ImageCropModal } from './ImageCropModal';
 
 interface OrganizerModalProps {
@@ -88,11 +88,15 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
     try {
       setIsUploading(true);
       setError('');
-      const dataUrl = await fileToDataUrl(file);
-      setTempImageForCrop(dataUrl);
+      // Step 1: Optimize photo client-side before feeding into crop modal
+      const optimized = await optimizeImageFile(file, {
+        maxDimension: 1200,
+        targetMaxSizeBytes: 500 * 1024,
+      });
+      setTempImageForCrop(optimized.dataUrl);
       setIsCropModalOpen(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to process image file.');
+      setError(err.message || 'Failed to process image file. Please try another image.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

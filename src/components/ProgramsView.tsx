@@ -1563,11 +1563,11 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
             {/* Poster Preview if available */}
             {selectedProposalForDetails.poster && (
-              <div className="rounded-2xl overflow-hidden border border-slate-200 max-h-56 bg-slate-100 flex items-center justify-center">
+              <div className="rounded-2xl overflow-hidden border border-slate-200 min-h-[160px] max-h-72 bg-slate-950 flex items-center justify-center p-2">
                 <img
                   src={selectedProposalForDetails.poster}
                   alt={selectedProposalForDetails.name}
-                  className="w-full h-full object-cover"
+                  className="max-h-68 w-auto max-w-full object-contain rounded-xl"
                 />
               </div>
             )}

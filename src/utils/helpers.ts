@@ -1,3 +1,6 @@
+import { optimizeImageFile, isImageFile, OptimizedImageResult } from './imageOptimizer';
+export * from './imageOptimizer';
+
 export function generateId(prefix: string = 'id'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -81,77 +84,63 @@ export function getVideoFilename(url: string, caption?: string): string {
   return `video_${Date.now()}.mp4`;
 }
 
-// Compress and resize image files to prevent oversized base64 strings exceeding Firestore 1MB document limit
-export function compressImageFile(file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      fileToDataUrl(file).then(resolve).catch(reject);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(e.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
-      };
-      img.onerror = () => {
-        resolve(e.target?.result as string);
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// Compress and resize image files to prevent oversized strings exceeding storage limits
+export async function compressImageFile(
+  file: File,
+  maxWidth = 1600,
+  maxHeight = 1600,
+  quality = 0.85
+): Promise<string> {
+  if (!isImageFile(file)) {
+    return fileToDataUrl(file);
+  }
+  try {
+    const result = await optimizeImageFile(file, {
+      maxDimension: Math.max(maxWidth, maxHeight),
+      initialQuality: quality,
+      targetMaxSizeBytes: 500 * 1024,
+    });
+    return result.dataUrl;
+  } catch (err) {
+    console.warn('Image optimization fallback in compressImageFile:', err);
+    return fileToDataUrl(file);
+  }
 }
 
 // Upload file to server and return URL with progress support
+// Automatically optimizes any image file before uploading
 export async function uploadFile(
   file: File, 
   onProgress?: (percent: number) => void
 ): Promise<string> {
-  // Convert images with compression instantly to Data URL for instant response
-  try {
-    const dataUrl = await compressImageFile(file);
-    if (onProgress) onProgress(100);
-    return dataUrl;
-  } catch {
-    // Fallback to server XHR upload if needed
+  let fileToUpload = file;
+  let optimizedDataUrl = '';
+
+  // Step 1, 2, 3, 4: Automatic image optimization BEFORE upload
+  if (isImageFile(file)) {
+    try {
+      const optimized = await optimizeImageFile(file, {
+        maxDimension: 1600,
+        targetMaxSizeBytes: 500 * 1024,
+      });
+      fileToUpload = optimized.file;
+      optimizedDataUrl = optimized.dataUrl;
+    } catch (optErr) {
+      console.warn('Pre-upload image optimization notice:', optErr);
+    }
   }
 
+  // Instant response via optimized Data URL if offline or without token
   const token = localStorage.getItem('org_token');
   if (!token) {
-    return compressImageFile(file);
+    if (onProgress) onProgress(100);
+    return optimizedDataUrl || fileToDataUrl(fileToUpload);
   }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
 
     xhr.open('POST', '/api/upload');
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -169,14 +158,14 @@ export async function uploadFile(
           const data = JSON.parse(xhr.responseText);
           resolve(data.url);
         } catch (err) {
-          resolve(compressImageFile(file));
+          resolve(optimizedDataUrl || fileToDataUrl(fileToUpload));
         }
       } else {
-        resolve(compressImageFile(file));
+        resolve(optimizedDataUrl || fileToDataUrl(fileToUpload));
       }
     };
 
-    xhr.onerror = () => resolve(compressImageFile(file));
+    xhr.onerror = () => resolve(optimizedDataUrl || fileToDataUrl(fileToUpload));
     xhr.send(formData);
   });
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, X, FileText } from 'lucide-react';
 import { Program, Organization } from '../types';
 import { formatDate } from '../utils/helpers';
+import { renderReportMarkdown } from '../utils/reportGenerator';
 import { useApp } from '../context/AppContext';
 
 interface PrintActivityReportProps {
@@ -167,8 +168,8 @@ export const PrintActivityReport: React.FC<PrintActivityReportProps> = ({
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
               Detailed Activity Summary & Proceedings
             </h3>
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-              {program.description}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed">
+              {renderReportMarkdown(program.description)}
             </div>
           </div>
 

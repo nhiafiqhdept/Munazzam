@@ -15,7 +15,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { uploadFile, DEFAULT_ORG_LOGO } from '../utils/helpers';
+import { uploadFile, DEFAULT_ORG_LOGO, optimizeImageFile, isImageFile } from '../utils/helpers';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { PWAInstallModal } from './pwa/PWAInstallModal';
 
@@ -76,11 +76,29 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!isImageFile(file)) {
+      setErrorMsg('Please select a valid image file (PNG, WebP, JPEG) for the organization logo.');
+      return;
+    }
+
     try {
       setIsUploading(true);
       setErrorMsg('');
-      const url = await uploadFile(file);
-      setLogo(url);
+
+      // Step 1: Optimize logo preserving transparency (Max 1200px, WebP/PNG, target ~500 KB)
+      const optimized = await optimizeImageFile(file, {
+        maxDimension: 1200,
+        targetMaxSizeBytes: 500 * 1024,
+        preserveTransparency: true,
+      });
+
+      // Step 2: Show immediate preview using optimized image
+      setLogo(optimized.dataUrl);
+
+      // Step 3: Upload the optimized file
+      const url = await uploadFile(optimized.file);
+      const finalLogo = url || optimized.dataUrl;
+      setLogo(finalLogo);
       
       // Auto save updated logo to current organization immediately
       if (currentOrg) {
@@ -91,14 +109,15 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
           tagline: currentOrg.tagline,
           about: currentOrg.about,
           academic_year: currentOrg.academic_year,
-          logo: url,
+          logo: finalLogo,
           searchableName: searchableName,
         });
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to upload logo.');
+      setErrorMsg(err.message || 'Failed to optimize or upload logo. Please try again.');
     } finally {
       setIsUploading(false);
+      if (e.target) e.target.value = '';
     }
   };
 

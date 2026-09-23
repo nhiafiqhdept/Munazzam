@@ -6,7 +6,7 @@ import {
   User, UserCheck, Pencil, Lock, LogOut
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { formatDate, generateId, uploadFile } from '../../utils/helpers';
+import { formatDate, generateId, uploadFile, optimizeImageFile, isImageFile } from '../../utils/helpers';
 import { ViewerDashboard } from './ViewerDashboard';
 
 export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'notifications';
@@ -148,15 +148,36 @@ export const SubOrgDashboard: React.FC = () => {
     const files = Array.from(e.target.files) as File[];
     
     for (const file of files) {
-      const url = await uploadFile(file);
-      setQueuedPhotos(prev => [...prev, {
-        id: generateId('temp_pho'),
-        file,
-        name: file.name,
-        size: file.size,
-        url
-      }]);
+      if (!isImageFile(file)) continue;
+      try {
+        // Step 1: Optimize photo proof individually
+        const optimized = await optimizeImageFile(file, {
+          maxDimension: 1600,
+          targetMaxSizeBytes: 500 * 1024,
+        });
+
+        // Step 2: Upload optimized file
+        const url = await uploadFile(optimized.file);
+        setQueuedPhotos(prev => [...prev, {
+          id: generateId('temp_pho'),
+          file: optimized.file,
+          name: optimized.fileName,
+          size: optimized.optimizedSize,
+          url: url || optimized.dataUrl, // Uses optimized preview
+        }]);
+      } catch (err) {
+        console.warn('Fallback on sub-org photo optimization:', err);
+        const url = await uploadFile(file);
+        setQueuedPhotos(prev => [...prev, {
+          id: generateId('temp_pho'),
+          file,
+          name: file.name,
+          size: file.size,
+          url,
+        }]);
+      }
     }
+    if (e.target) e.target.value = '';
   };
 
   const handleVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

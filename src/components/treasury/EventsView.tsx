@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Program, Income, Expense } from '../../types';
+import { ProgramThumbnail } from '../ProgramCard';
 import { IncomeModal } from './IncomeModal';
 import { ExpenseModal } from './ExpenseModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -212,22 +213,15 @@ export const EventsView: React.FC = () => {
                   key={prog.id}
                   className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xs hover:shadow-xs transition-all flex flex-col"
                 >
-                  {/* Poster or visual header */}
-                  <div className="h-40 bg-slate-100 relative overflow-hidden shrink-0 border-b border-slate-100">
-                    {prog.poster ? (
-                      <img
-                        src={prog.poster}
-                        alt={prog.name}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1.5 bg-gradient-to-br from-slate-50 to-slate-100">
-                        <Calendar className="w-8 h-8 text-slate-300" />
-                        <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-400">No Program Poster</span>
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/95 backdrop-blur-xs rounded-lg text-[10px] font-bold shadow-2xs text-slate-700">
+                  {/* Generated Program Thumbnail visual header */}
+                  <div className="h-40 relative overflow-hidden shrink-0 border-b border-slate-100">
+                    <ProgramThumbnail
+                      program={prog}
+                      interactive={false}
+                      className="h-full w-full rounded-none border-0 shadow-none"
+                      showStatusBadge={false}
+                    />
+                    <div className="absolute top-3 right-3 z-20 px-2.5 py-1 bg-black/40 backdrop-blur-md rounded-lg text-[10px] font-bold shadow-2xs text-white border border-white/20">
                       {prog.date}
                     </div>
                   </div>
@@ -327,12 +321,12 @@ export const EventsView: React.FC = () => {
         {/* Poster + Header details */}
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-xs flex flex-col md:flex-row">
           {currentEvent.poster && (
-            <div className="w-full md:w-64 h-48 md:h-auto shrink-0 border-r border-slate-100 relative">
+            <div className="w-full md:w-64 min-h-[180px] bg-slate-900 shrink-0 border-r border-slate-100 relative flex items-center justify-center p-2">
               <img
                 src={currentEvent.poster}
                 alt={currentEvent.name}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+                className="max-h-56 w-auto max-w-full object-contain rounded-xl"
               />
             </div>
           )}

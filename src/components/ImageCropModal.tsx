@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { ZoomIn, ZoomOut, RotateCcw, RotateCw, RefreshCw, Check, X, Eye, Image as ImageIcon } from 'lucide-react';
 import { getCroppedImg } from '../utils/cropImage';
-import { uploadFile } from '../utils/helpers';
+import { uploadFile, optimizeImage } from '../utils/helpers';
 
 interface ImageCropModalProps {
   isOpen: boolean;
@@ -89,19 +89,23 @@ export const ImageCropModal: React.FC<ImageCropModalProps> = ({
       setError('');
 
       // Generate cropped profile image at 400x400
-      const { blob, dataUrl } = await getCroppedImg(imageSrc, croppedAreaPixels, rotation, 400);
+      const { dataUrl } = await getCroppedImg(imageSrc, croppedAreaPixels, rotation, 400);
 
-      // Create File object for server upload
-      const file = new File([blob], `organizer_profile_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      // Smart optimize the cropped image into WebP format (< 150 KB)
+      const optimized = await optimizeImage(dataUrl, {
+        maxDimension: 400,
+        targetMaxSizeBytes: 150 * 1024,
+        initialQuality: 0.88,
+      }, `organizer_profile_${Date.now()}.webp`);
 
       try {
-        const url = await uploadFile(file, (percent) => setUploadProgress(percent));
-        onCropComplete(url, file);
+        const url = await uploadFile(optimized.file, (percent) => setUploadProgress(percent));
+        onCropComplete(url, optimized.file);
         onClose();
         return;
       } catch (uploadErr) {
-        // Fallback to optimized dataUrl if upload endpoint fails or not logged in
-        onCropComplete(dataUrl, file);
+        // Fallback to optimized dataUrl if upload endpoint fails or offline
+        onCropComplete(optimized.dataUrl, optimized.file);
         onClose();
       }
     } catch (err: any) {

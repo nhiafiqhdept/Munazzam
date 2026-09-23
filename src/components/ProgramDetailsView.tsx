@@ -36,7 +36,11 @@ import {
   getVideoFilename,
   fileToDataUrl,
   getProgramEffectiveStatus,
+  optimizeImageFile,
+  isImageFile,
 } from '../utils/helpers';
+import { ProgramThumbnail, isValidUploadedPoster } from './ProgramCard';
+import { renderReportMarkdown } from '../utils/reportGenerator';
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { PrintActivityReport } from './PrintActivityReport';
 import { ConfirmModal } from './ConfirmModal';
@@ -196,6 +200,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
   const [activePlayingVideo, setActivePlayingVideo] = useState<ProgramMedia | null>(null);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [showPosterZoom, setShowPosterZoom] = useState(false);
 
   const handleDownloadVideo = async (url: string, filename: string) => {
     try {
@@ -266,6 +271,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
   const videoList = (program.media || []).filter((m) => m.type === 'video');
   const documentList = (program.media || []).filter((m) => m.type === 'document' || m.type === 'link');
   const effectiveStatus = getProgramEffectiveStatus(program);
+  const hasRealPoster = isValidUploadedPoster(program.poster);
 
   const handleMediaFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -274,13 +280,25 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
     try {
       setIsUploadingMedia(true);
       setMediaError('');
-      const dataUrl = await fileToDataUrl(file);
-      setMediaUrl(dataUrl);
-      if (!mediaCaption) setMediaCaption(file.name);
+
+      if (isImageFile(file) || mediaType === 'photo') {
+        // Automatically optimize image (max 1600px, WebP/JPEG, ~500 KB)
+        const optimized = await optimizeImageFile(file, {
+          maxDimension: 1600,
+          targetMaxSizeBytes: 500 * 1024,
+        });
+        setMediaUrl(optimized.dataUrl);
+        if (!mediaCaption) setMediaCaption(optimized.fileName);
+      } else {
+        const dataUrl = await fileToDataUrl(file);
+        setMediaUrl(dataUrl);
+        if (!mediaCaption) setMediaCaption(file.name);
+      }
     } catch (err: any) {
-      setMediaError(err.message || 'File upload failed.');
+      setMediaError(err.message || 'File optimization/upload failed. Please try again.');
     } finally {
       setIsUploadingMedia(false);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -397,13 +415,44 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
       {/* 1. HERO POSTER & PROGRAM BANNER (Desktop) */}
       <div className="hidden md:block bg-slate-900 rounded-3xl overflow-hidden shadow-xl border border-slate-800 text-white relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-          {/* Large Poster Display */}
-          <div className="lg:col-span-5 relative bg-slate-950 min-h-[300px] lg:min-h-[440px] flex items-center justify-center overflow-hidden">
-            <img
-              src={program.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop&q=80'}
-              alt={program.name}
-              className="w-full h-full object-cover max-h-[500px]"
-            />
+          {/* Visual Display: Actual Uploaded Poster OR Exact Same Generated Program Thumbnail */}
+          <div className="lg:col-span-5 relative bg-slate-950 min-h-[340px] lg:min-h-[460px] flex items-center justify-center overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-800">
+            {hasRealPoster ? (
+              <div
+                className="relative w-full h-full min-h-[340px] lg:min-h-[460px] flex items-center justify-center p-4 lg:p-6 overflow-hidden group cursor-pointer"
+                onClick={() => setShowPosterZoom(true)}
+                title="Click to view full poster"
+              >
+                {/* Ambient subtle blur matching the poster */}
+                <div
+                  className="absolute inset-0 bg-cover bg-center blur-2xl opacity-25 scale-110 pointer-events-none"
+                  style={{ backgroundImage: `url(${program.poster})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-slate-950/40 pointer-events-none" />
+
+                {/* Actual Uploaded Program Poster - Preserving original aspect ratio, never cropped or distorted */}
+                <img
+                  src={program.poster}
+                  alt={`${program.name} Poster`}
+                  className="relative z-10 max-h-[460px] w-auto max-w-full object-contain rounded-2xl shadow-2xl transition-transform duration-300 group-hover:scale-[1.01]"
+                />
+
+                {/* Hover View Badge */}
+                <div className="absolute bottom-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 shadow-lg">
+                  <ExternalLink className="w-3 h-3" />
+                  <span>View Poster</span>
+                </div>
+              </div>
+            ) : (
+              /* No Poster Case: Exact Same Generated Thumbnail Component as Listing */
+              <div className="w-full h-full min-h-[340px] lg:min-h-[460px] flex items-stretch">
+                <ProgramThumbnail
+                  program={program}
+                  interactive={false}
+                  className="h-full min-h-[340px] lg:min-h-[460px] w-full rounded-none border-0 shadow-none"
+                />
+              </div>
+            )}
           </div>
 
           {/* Program Key Details */}
@@ -537,14 +586,42 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
 
       {/* 1. HERO CARD (Mobile Redesign) */}
       <div className="md:hidden bg-white rounded-[20px] border border-slate-200 shadow-sm overflow-hidden flex flex-col mx-1">
-        {/* Mobile Poster */}
-        <div className="aspect-[16/10] bg-slate-100 overflow-hidden">
-          <img
-            src={program.poster || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80'}
-            alt={program.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {/* Mobile Visual Header: Actual Uploaded Poster OR Exact Same Generated Program Thumbnail */}
+        {hasRealPoster ? (
+          <div
+            className="relative bg-slate-950 flex items-center justify-center p-3.5 overflow-hidden min-h-[260px] border-b border-slate-100 cursor-pointer group"
+            onClick={() => setShowPosterZoom(true)}
+            title="Click to view full poster"
+          >
+            {/* Ambient subtle blur */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-2xl opacity-25 scale-110 pointer-events-none"
+              style={{ backgroundImage: `url(${program.poster})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent pointer-events-none" />
+
+            {/* Actual Uploaded Program Poster - Preserving original aspect ratio */}
+            <img
+              src={program.poster}
+              alt={`${program.name} Poster`}
+              className="relative z-10 max-h-[380px] w-auto max-w-full object-contain rounded-xl shadow-md transition-transform duration-200 active:scale-95"
+            />
+
+            <div className="absolute bottom-2.5 right-2.5 z-20 bg-black/50 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/10 flex items-center gap-1">
+              <ExternalLink className="w-2.5 h-2.5" />
+              <span>Poster</span>
+            </div>
+          </div>
+        ) : (
+          /* No Poster Case: Exact Same Generated Thumbnail Component as Listing */
+          <div className="relative overflow-hidden w-full">
+            <ProgramThumbnail
+              program={program}
+              interactive={false}
+              className="h-56 w-full rounded-t-[20px] rounded-b-none border-0 shadow-none"
+            />
+          </div>
+        )}
 
         {/* Mobile Banner Info */}
         <div className="p-5 space-y-4">
@@ -630,8 +707,8 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <h2 className="text-base md:text-lg font-bold text-slate-900 font-heading pb-2 border-b border-slate-100 flex items-center gap-2">
           <span>Program Description & Report</span>
         </h2>
-        <div className="text-slate-700 text-sm md:text-base leading-relaxed whitespace-pre-line font-sans">
-          {program.description}
+        <div className="text-slate-700 text-sm md:text-base leading-relaxed font-sans">
+          {renderReportMarkdown(program.description)}
         </div>
       </div>
 
@@ -1412,6 +1489,50 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
           permission={permission}
           onClose={() => setShowSharePermissionModal(false)}
         />
+      )}
+
+      {/* Full-Screen Poster Zoom Lightbox Modal */}
+      {showPosterZoom && hasRealPoster && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+          onClick={() => setShowPosterZoom(false)}
+        >
+          <div
+            className="relative max-w-4xl w-full flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between pb-3 text-white">
+              <span className="text-xs sm:text-sm font-semibold truncate max-w-[70%]">
+                {program.name} - Program Poster
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={program.poster}
+                  download={`${program.name.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Open original / download"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPosterZoom(false)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <img
+              src={program.poster}
+              alt={`${program.name} Poster`}
+              className="max-h-[82vh] max-w-full object-contain rounded-2xl shadow-2xl"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

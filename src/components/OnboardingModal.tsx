@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, GraduationCap, Upload, Trash2, Check, Image as ImageIcon, School, Globe, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, uploadFile } from '../utils/helpers';
+import { fileToDataUrl, uploadFile, optimizeImageFile, isImageFile } from '../utils/helpers';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -45,15 +45,35 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!isImageFile(file)) {
+      setError('Please choose a valid image file (PNG, WebP, JPEG) for the logo.');
+      return;
+    }
+
     try {
       setIsUploading(true);
       setError('');
-      const url = await uploadFile(file);
-      setLogo(url);
+
+      // Optimize logo with transparency preservation (Max 1200px, WebP/PNG, target ~500 KB)
+      const optimized = await optimizeImageFile(file, {
+        maxDimension: 1200,
+        targetMaxSizeBytes: 500 * 1024,
+        preserveTransparency: true,
+      });
+
+      // Preview immediately using optimized image
+      setLogo(optimized.dataUrl);
+
+      // Upload optimized file
+      const url = await uploadFile(optimized.file);
+      if (url) {
+        setLogo(url);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to upload image. Please choose a valid image file.');
     } finally {
       setIsUploading(false);
+      if (e.target) e.target.value = '';
     }
   };
 

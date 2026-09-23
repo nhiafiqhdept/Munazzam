@@ -401,11 +401,23 @@ interface ProgramCardProps {
 
 export const ProgramThumbnail: React.FC<{
   program: Program;
-  onViewDetails: (id: string) => void;
+  onViewDetails?: (id: string) => void;
   wingFallback?: string;
   positionIndex?: number;
   theme?: CardTheme;
-}> = ({ program, onViewDetails, wingFallback, positionIndex, theme: themeProp }) => {
+  className?: string;
+  interactive?: boolean;
+  showStatusBadge?: boolean;
+}> = ({
+  program,
+  onViewDetails,
+  wingFallback,
+  positionIndex,
+  theme: themeProp,
+  className = '',
+  interactive = true,
+  showStatusBadge = true,
+}) => {
   const { updateProgram, isPublicView, isAdmin } = useApp();
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const theme = themeProp || getCardTheme(program, positionIndex);
@@ -413,7 +425,6 @@ export const ProgramThumbnail: React.FC<{
   const effectiveStatus = getProgramEffectiveStatus(program);
   const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
   const canEditStatus = isAdmin && !isPublicView;
-  const hasRealPoster = isValidUploadedPoster(program.poster);
 
   const handleBadgeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -434,72 +445,69 @@ export const ProgramThumbnail: React.FC<{
     }
   };
 
+  const isClickable = interactive && typeof onViewDetails === 'function';
+
   return (
     <div
       id={`program-thumbnail-${program.id}`}
-      className="relative h-52 sm:h-56 md:h-64 w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-5 rounded-2xl shadow-md border border-slate-200/90 group"
-      onClick={() => onViewDetails(program.id)}
+      className={`relative h-52 sm:h-56 md:h-64 w-full overflow-hidden select-none flex flex-col justify-between p-5 rounded-2xl shadow-md border border-slate-200/90 group ${
+        isClickable ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''
+      } ${className}`}
+      onClick={() => {
+        if (isClickable && onViewDetails) {
+          onViewDetails(program.id);
+        }
+      }}
     >
-      {hasRealPoster ? (
-        <>
-          <img
-            src={program.poster!}
-            alt={program.name}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/50" />
-        </>
-      ) : (
-        <>
-          {/* Rich Gradient Canvas */}
-          <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
+      {/* Rich Gradient Canvas */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
 
-          {/* Subtle Decorative Dotted Pattern */}
-          <div
-            className="absolute inset-0 opacity-[0.14] pointer-events-none"
-            style={{
-              backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-              backgroundSize: '16px 16px',
-            }}
-          />
+      {/* Subtle Decorative Dotted Pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.14] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+          backgroundSize: '16px 16px',
+        }}
+      />
 
-          {/* Ambient Radial Glow */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
-            style={{
-              background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
-            }}
-          />
-        </>
-      )}
+      {/* Ambient Radial Glow */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
+        style={{
+          background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
+        }}
+      />
 
       {/* Top Row: Status Pill Badge */}
-      <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-        <button
-          type="button"
-          onClick={handleBadgeClick}
-          disabled={!canEditStatus || isTogglingStatus}
-          title={
-            canEditStatus
-              ? `Click to change status to ${effectiveStatus === 'completed' ? 'UPCOMING' : 'COMPLETED'}`
-              : `Program status: ${statusBadgeText}`
-          }
-          className={`px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] transition-all ${
-            canEditStatus
-              ? 'cursor-pointer hover:bg-black/60 hover:scale-105 active:scale-95 hover:border-white/40 ring-1 ring-white/10'
-              : 'cursor-default'
-          } ${isTogglingStatus ? 'opacity-70 animate-pulse' : ''}`}
-        >
-          {statusBadgeText}
-        </button>
+      {showStatusBadge && (
+        <div className="relative z-10 flex items-center justify-between gap-2 w-full">
+          <button
+            type="button"
+            onClick={handleBadgeClick}
+            disabled={!canEditStatus || isTogglingStatus}
+            title={
+              canEditStatus
+                ? `Click to change status to ${effectiveStatus === 'completed' ? 'UPCOMING' : 'COMPLETED'}`
+                : `Program status: ${statusBadgeText}`
+            }
+            className={`px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] transition-all ${
+              canEditStatus
+                ? 'cursor-pointer hover:bg-black/60 hover:scale-105 active:scale-95 hover:border-white/40 ring-1 ring-white/10'
+                : 'cursor-default'
+            } ${isTogglingStatus ? 'opacity-70 animate-pulse' : ''}`}
+          >
+            {statusBadgeText}
+          </button>
 
-        {program.media && program.media.length > 0 && (
-          <span className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
-            <Camera className="w-3 h-3" />
-            <span>{program.media.length}</span>
-          </span>
-        )}
-      </div>
+          {program.media && program.media.length > 0 && (
+            <span className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
+              <Camera className="w-3 h-3" />
+              <span>{program.media.length}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Center Content: Icon + Main Title + Program Date */}
       <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center px-2 py-2">
@@ -544,7 +552,6 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
   const effectiveStatus = getProgramEffectiveStatus(program);
   const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
   const canEditStatus = isAdmin && !isPublicView;
-  const hasRealPoster = isValidUploadedPoster(program.poster);
 
   const handleBadgeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -579,44 +586,31 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
       className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col h-full group"
     >
       {/* ============================================================== */}
-      {/* 1. VISUAL HEADER AREA                                          */}
+      {/* 1. VISUAL HEADER AREA (Always Generated Program Thumbnail)     */}
       {/* ============================================================== */}
       <div
         className="relative h-48 sm:h-52 lg:h-[280px] w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-4 lg:p-6"
         onClick={() => onViewDetails(program.id)}
       >
-        {hasRealPoster ? (
-          <>
-            <img
-              src={program.poster!}
-              alt={program.name}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/50" />
-          </>
-        ) : (
-          <>
-            {/* Rich Gradient Canvas */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
+        {/* Rich Gradient Canvas */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient}`} />
 
-            {/* Subtle Decorative Dotted Pattern */}
-            <div
-              className="absolute inset-0 opacity-[0.14] pointer-events-none"
-              style={{
-                backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-                backgroundSize: '16px 16px',
-              }}
-            />
+        {/* Subtle Decorative Dotted Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.14] pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
+          }}
+        />
 
-            {/* Ambient Radial Glow */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
-              style={{
-                background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
-              }}
-            />
-          </>
-        )}
+        {/* Ambient Radial Glow */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen"
+          style={{
+            background: `radial-gradient(circle at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
+          }}
+        />
 
         {/* Top Row: Status Pill Badge */}
         <div className="relative z-10 flex items-center justify-between gap-2 w-full">
