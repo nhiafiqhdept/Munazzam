@@ -90,8 +90,10 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     setLoading(true);
     setErrorState(null);
 
+    const cleanToken = (token || '').trim();
+
     try {
-      if (!token) {
+      if (!cleanToken) {
         setErrorState('not_found');
         setLoading(false);
         return;
@@ -102,20 +104,28 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
       // 1. Attempt Server-side public API route
       try {
-        const res = await fetch(`/api/public/college-permission/${encodeURIComponent(token)}`);
+        const res = await fetch(`/api/public/college-permission/${encodeURIComponent(cleanToken)}`);
         const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
+        if (contentType.includes('application/json')) {
           const json = await res.json();
-          if (json.success && json.permission) {
+          if (res.ok && json.success && json.permission) {
             fetchedPermData = json.permission;
-            fetchedDocId = json.permission.id || token;
+            fetchedDocId = json.permission.id || cleanToken;
             if (json.permission.organization) {
               setOrganization(json.permission.organization);
             }
+          } else if (res.status === 403 || json.errorCode === 'TOKEN_REVOKED') {
+            setErrorState('revoked');
+            setLoading(false);
+            return;
+          } else if (res.status === 410 || json.errorCode === 'TOKEN_EXPIRED') {
+            setErrorState('expired');
+            setLoading(false);
+            return;
           }
         }
       } catch (apiErr) {
-        console.warn('Server public API fetch fallback to Firestore client:', apiErr);
+        console.warn('Server public API fetch fallback notice, checking client fallback:', apiErr);
       }
 
       // 2. If not found via server API, attempt direct Firestore query
@@ -123,7 +133,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         try {
           const q1 = query(
             collection(db, 'program_permissions'),
-            where('approvalToken', '==', token)
+            where('approvalToken', '==', cleanToken)
           );
           const snap1 = await getDocs(q1);
 
@@ -134,7 +144,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
           } else {
             const q2 = query(
               collection(db, 'program_permissions'),
-              where('approval_token', '==', token)
+              where('approval_token', '==', cleanToken)
             );
             const snap2 = await getDocs(q2);
 
@@ -144,7 +154,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               fetchedPermData = docSnap.data();
             } else {
               // Fallback: check if the token itself is a direct permission document ID
-              const directDoc = await getDoc(doc(db, 'program_permissions', token));
+              const directDoc = await getDoc(doc(db, 'program_permissions', cleanToken));
               if (directDoc.exists()) {
                 fetchedDocId = directDoc.id;
                 fetchedPermData = directDoc.data();
@@ -152,7 +162,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             }
           }
         } catch (fsErr) {
-          console.warn('Direct Firestore permission lookup error:', fsErr);
+          console.warn('Direct Firestore permission lookup notice:', fsErr);
         }
       }
 
@@ -196,7 +206,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         changesRequestedBy: fetchedPermData.changesRequestedBy,
         changesRequestedAt: fetchedPermData.changesRequestedAt,
         changesRequiredNotes: fetchedPermData.changesRequiredNotes,
-        approvalToken: fetchedPermData.approvalToken || fetchedPermData.approval_token || token,
+        approvalToken: fetchedPermData.approvalToken || fetchedPermData.approval_token || cleanToken,
         tokenCreatedAt: fetchedPermData.tokenCreatedAt,
         tokenExpiresAt: fetchedPermData.tokenExpiresAt,
         tokenRevoked: Boolean(fetchedPermData.tokenRevoked),

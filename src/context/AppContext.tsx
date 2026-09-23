@@ -138,7 +138,7 @@ interface AppContextType {
   approveProgramPermission: (id: string, approverName: string, notes?: string) => Promise<void>;
   rejectProgramPermission: (id: string, rejecterName: string, reason: string) => Promise<void>;
   requestPermissionChanges: (id: string, reviewerName: string, notes: string) => Promise<void>;
-  generatePermissionApprovalToken: (permissionId: string) => Promise<{ token: string; url: string }>;
+  generatePermissionApprovalToken: (permissionId: string, forceNew?: boolean) => Promise<{ token: string; url: string }>;
   deleteProgramPermission: (id: string) => Promise<void>;
 
   // Treasury State & Methods
@@ -740,7 +740,7 @@ export const AppProvider: React.FC<{
     };
   }, [isPublicView, publicOrgQuery]);
 
-  // Connection test per skill requirements
+  // Connection test per skill requirements & initial permissions cache sync
   useEffect(() => {
     async function testConnection() {
       try {
@@ -752,6 +752,20 @@ export const AppProvider: React.FC<{
       }
     }
     testConnection();
+
+    try {
+      const cached = localStorage.getItem('local_permissions');
+      if (cached) {
+        const perms = JSON.parse(cached);
+        if (Array.isArray(perms) && perms.length > 0) {
+          fetch('/api/public/college-permission/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissions: perms }),
+          }).catch(() => {});
+        }
+      }
+    } catch {}
   }, []);
 
   // Central Firebase Auth Listener
@@ -1265,7 +1279,7 @@ export const AppProvider: React.FC<{
           changesRequestedBy: d.changesRequestedBy || undefined,
           changesRequestedAt: d.changesRequestedAt || undefined,
           changesRequiredNotes: d.changesRequiredNotes || undefined,
-          approvalToken: d.approvalToken || undefined,
+          approvalToken: d.approvalToken || d.approval_token || undefined,
           tokenCreatedAt: d.tokenCreatedAt || undefined,
           tokenExpiresAt: d.tokenExpiresAt || undefined,
           tokenRevoked: Boolean(d.tokenRevoked),
@@ -1279,6 +1293,15 @@ export const AppProvider: React.FC<{
       try {
         localStorage.setItem('local_permissions', JSON.stringify(list));
       } catch {}
+
+      // Keep server public permission cache in sync for high reliability
+      if (list.length > 0) {
+        fetch('/api/public/college-permission/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissions: list }),
+        }).catch(() => {});
+      }
     }, (err) => handleFirestoreError(err, OperationType.GET, 'program_permissions'));
 
     return () => {
@@ -1738,6 +1761,32 @@ export const AppProvider: React.FC<{
     try {
       const docRef = doc(db, 'programs', prog.id);
       await updateDoc(docRef, payload);
+
+      // Automatically sync updated details (e.g. Target Audience, date, venue) to any active pending permission
+      const linkedPermission = programPermissions.find(
+        (p) => p.programId === prog.id && p.status === 'pending'
+      );
+      if (linkedPermission) {
+        const permSyncUpdates: Partial<ProgramPermission> = {};
+        if (prog.name !== undefined) permSyncUpdates.programName = prog.name.trim();
+        if (prog.date !== undefined) permSyncUpdates.date = prog.date;
+        if (prog.time !== undefined) {
+          permSyncUpdates.time = prog.time;
+          permSyncUpdates.timeFrom = prog.time;
+        }
+        if (prog.place !== undefined) permSyncUpdates.venue = prog.place.trim();
+        if (prog.audience !== undefined) permSyncUpdates.audience = prog.audience;
+        if (prog.description !== undefined) permSyncUpdates.description = prog.description.trim();
+        if (prog.resourcePerson !== undefined) permSyncUpdates.resourcePerson = prog.resourcePerson.trim();
+        if (prog.attendance_count !== undefined) {
+          permSyncUpdates.expectedAttendance = isNaN(Number(prog.attendance_count)) ? undefined : Number(prog.attendance_count);
+        }
+        if (Object.keys(permSyncUpdates).length > 0) {
+          updateProgramPermission(linkedPermission.id, permSyncUpdates).catch((err) =>
+            console.warn('Syncing program updates to pending permission notice:', err)
+          );
+        }
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `programs/${prog.id}`);
       throw err;
@@ -1879,6 +1928,13 @@ export const AppProvider: React.FC<{
         );
       }
 
+      // Sync with server persistent cache for immediate WhatsApp approval link accessibility
+      fetch('/api/public/college-permission/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission: savedPerm }),
+      }).catch(() => {});
+
       return savedPerm;
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'program_permissions');
@@ -1909,21 +1965,40 @@ export const AppProvider: React.FC<{
       updatedHistory = [...updatedHistory, historyItem];
     }
 
+    // Preserve exact existing approvalToken unless explicitly updating
+    const preservedToken = updates.approvalToken || target?.approvalToken;
+
     const payload = cleanFirestorePayload({
       ...updates,
+      ...(preservedToken ? { approvalToken: preservedToken } : {}),
       history: updatedHistory,
       updatedAt: now,
     });
 
     setProgramPermissions((prev) => {
       const updated = prev.map((p) =>
-        p.id === id ? { ...p, ...updates, history: updatedHistory, updatedAt: now } : p
+        p.id === id ? { ...p, ...updates, approvalToken: preservedToken || p.approvalToken, history: updatedHistory, updatedAt: now } : p
       );
       try {
         localStorage.setItem('local_permissions', JSON.stringify(updated));
       } catch {}
       return updated;
     });
+
+    // Sync updated record with server persistent database
+    const mergedForSync = {
+      ...(target || {}),
+      ...updates,
+      id,
+      approvalToken: preservedToken,
+      history: updatedHistory,
+      updatedAt: now,
+    };
+    fetch('/api/public/college-permission/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ permission: mergedForSync }),
+    }).catch(() => {});
 
     try {
       await updateDoc(doc(db, 'program_permissions', id), payload);
@@ -2042,8 +2117,18 @@ export const AppProvider: React.FC<{
   };
 
   const generatePermissionApprovalToken = async (
-    permissionId: string
+    permissionId: string,
+    forceNew: boolean = false
   ): Promise<{ token: string; url: string }> => {
+    const target = programPermissions.find((p) => p.id === permissionId);
+    if (!forceNew && target?.approvalToken && !target.tokenRevoked) {
+      // Re-use the existing persistent approval token so WhatsApp link never breaks
+      return {
+        token: target.approvalToken,
+        url: getPublicApprovalUrl(target.approvalToken),
+      };
+    }
+
     const newToken = generateSecurePermissionToken();
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -2057,7 +2142,7 @@ export const AppProvider: React.FC<{
         tokenRevoked: false,
       },
       {
-        action: 'Public Principal approval link generated',
+        action: forceNew ? 'New public approval link generated (token rotated)' : 'Public Principal approval link generated',
         actorName: user?.email || 'Admin',
         actorRole: 'Administrative Authority',
         notes: 'Secure WhatsApp / Public approval link generated',

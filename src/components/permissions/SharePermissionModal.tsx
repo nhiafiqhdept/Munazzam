@@ -48,17 +48,30 @@ export const SharePermissionModal: React.FC<SharePermissionModalProps> = ({
   const [showDomainConfig, setShowDomainConfig] = useState(false);
   const [domainSaved, setDomainSaved] = useState(false);
 
-  // Auto-generate token on mount if missing
+  // Auto-initialize token on mount ONLY if completely missing from permission
   useEffect(() => {
     if (!activeToken) {
-      handleGenerateNewLink();
+      handleInitializeLink();
     }
   }, []);
+
+  const handleInitializeLink = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await generatePermissionApprovalToken(permission.id, false);
+      setActiveToken(res.token);
+      setExpiryDate(permission.tokenExpiresAt || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString());
+    } catch (err) {
+      console.error('Failed to initialize approval link:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleGenerateNewLink = async () => {
     setIsGenerating(true);
     try {
-      const res = await generatePermissionApprovalToken(permission.id);
+      const res = await generatePermissionApprovalToken(permission.id, true);
       setActiveToken(res.token);
       setExpiryDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString());
     } catch (err) {

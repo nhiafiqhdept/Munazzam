@@ -130,7 +130,9 @@ export function buildWhatsAppShareMessage(
     ? (permission.timeTill ? `${permission.timeFrom} - ${permission.timeTill}` : permission.timeFrom)
     : 'Scheduled Time';
 
-  const message = `Assalamu Alaikum,\n\nApproval is requested for the following college program:\n\nProgram: ${permission.programName || 'College Program'}\nConducted By: ${permission.conductedBy || 'Department / Organization'}\nDate: ${permission.date || 'Scheduled Date'}\nTime: ${timeDisplay}\nVenue: ${permission.venue || 'College Campus'}\n\nPlease review and respond using the secure link below:\n\n${publicUrl}\n\n— Munazzam Institutional Reporting & Analytics`;
+  const audienceDisplay = permission.audience || 'Students';
+
+  const message = `Assalamu Alaikum,\n\nApproval is requested for the following college program:\n\nProgram: ${permission.programName || 'College Program'}\nConducted By: ${permission.conductedBy || 'Department / Organization'}\nDate: ${permission.date || 'Scheduled Date'}\nTime: ${timeDisplay}\nVenue: ${permission.venue || 'College Campus'}\nTarget Audience: ${audienceDisplay}\n\nPlease review and respond using the secure link below:\n\n${publicUrl}\n\n— Munazzam Institutional Reporting & Analytics`;
 
   return message;
 }

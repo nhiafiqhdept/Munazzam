@@ -176,5 +176,56 @@
   "loans": [],
   "repayments": [],
   "transfers": [],
-  "audit_logs": []
+  "audit_logs": [],
+  "program_permissions": [
+    {
+      "id": "perm_test_1790130823688",
+      "programId": "prog_123",
+      "organizationId": "org_main_test",
+      "programName": "MAFĀTĪḤ AL-IBĀRA",
+      "conductedBy": "Dept of Fiqh & Usul al Fiqh",
+      "category": "Academic",
+      "subCategory": "Symposium",
+      "date": "2026-09-23",
+      "timeFrom": "07:00 PM",
+      "timeTill": "09:00 PM",
+      "venue": "Grand Auditorium, Main Campus",
+      "audience": "All Undergraduates & Faculty",
+      "description": "Advanced fiqh workshop",
+      "status": "approved",
+      "approvalToken": "cpt_test_1790130823688_abc123xyz789",
+      "tokenCreatedAt": "2026-09-23T02:33:43.689Z",
+      "tokenExpiresAt": "2026-10-07T02:33:43.689Z",
+      "tokenRevoked": false,
+      "organization": {
+        "id": "org_17893610705392rz71",
+        "name": "Department of Fiqh and Usul al Fiqh",
+        "college_name": "Noorul Huda Islamic Academy, Madannoor",
+        "logo": "/uploads/file-1789361067905-333181303.png",
+        "tagline": ""
+      },
+      "time": "07:00 PM",
+      "resourcePerson": "",
+      "permissionNotes": "",
+      "approvingAuthority": "Principal",
+      "history": [
+        {
+          "id": "hist_1790130824696",
+          "timestamp": "2026-09-23T02:33:44.696Z",
+          "status": "approved",
+          "action": "Approved via Official Institutional Review Link by Dr. Abdul Rahman (Principal)",
+          "actorName": "Dr. Abdul Rahman",
+          "actorRole": "Principal",
+          "notes": "Approved under college guidelines."
+        }
+      ],
+      "updatedAt": "2026-09-23T02:33:44.696Z",
+      "approvalMethod": "public_link",
+      "approverDesignation": "Principal",
+      "updated_at": "2026-09-23T02:33:44.696Z",
+      "approvedBy": "Dr. Abdul Rahman",
+      "approvedAt": "2026-09-23T02:33:44.696Z",
+      "approvalNotes": "Approved under college guidelines."
+    }
+  ]
 }

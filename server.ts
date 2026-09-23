@@ -530,41 +530,114 @@ setupEntityEndpoints(app, 'audit_logs');
 setupEntityEndpoints(app, 'program_permissions');
 
 // ==================== PUBLIC UNRESTRICTED COLLEGE PERMISSION REVIEW API ====================
+// Sync permissions cache between frontend and server database for fail-safe public approval links
+app.post('/api/public/college-permission/sync', async (req: Request, res: Response) => {
+  try {
+    const { permissions, permission } = req.body;
+    const itemsToSync: any[] = [];
+    if (permission && typeof permission === 'object') {
+      itemsToSync.push(permission);
+    }
+    if (Array.isArray(permissions)) {
+      itemsToSync.push(...permissions);
+    }
+
+    if (itemsToSync.length === 0) {
+      return res.status(400).json({ success: false, message: 'No permissions provided for sync.' });
+    }
+
+    const db = readDB();
+    if (!Array.isArray(db.program_permissions)) {
+      db.program_permissions = [];
+    }
+
+    let syncedCount = 0;
+    for (const item of itemsToSync) {
+      if (!item) continue;
+      const permId = item.id;
+      const token = item.approvalToken || item.approval_token;
+      if (!permId && !token) continue;
+
+      const unifiedItem = {
+        ...item,
+        approvalToken: token || permId,
+      };
+
+      const existingIndex = db.program_permissions.findIndex(
+        (p: any) => (permId && p.id === permId) || (token && (p.approvalToken === token || p.approval_token === token))
+      );
+
+      if (existingIndex !== -1) {
+        db.program_permissions[existingIndex] = {
+          ...db.program_permissions[existingIndex],
+          ...unifiedItem,
+          approvalToken: token || db.program_permissions[existingIndex].approvalToken || permId,
+        };
+      } else {
+        db.program_permissions.push(unifiedItem);
+      }
+      syncedCount++;
+    }
+
+    writeDB(db);
+    return res.json({ success: true, syncedCount });
+  } catch (err: any) {
+    console.warn('Error in /api/public/college-permission/sync:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Sync failed' });
+  }
+});
+
 // Public, unauthenticated token lookup - allows external Principals to review permission requests safely
 app.get('/api/public/college-permission/:token', async (req: Request, res: Response) => {
-  const { token } = req.params;
+  const token = (req.params.token || '').trim();
   if (!token) {
-    return res.status(400).json({ success: false, errorCode: 'MISSING_TOKEN', message: 'Token is required' });
+    return res.status(400).json({
+      success: false,
+      errorCode: 'MISSING_TOKEN',
+      message: 'A valid approval token is required.',
+    });
   }
 
   const dbFs = getServerFirestore();
   let perm: any = null;
   let docId = '';
 
+  // 1. Attempt Firestore Lookup
   if (dbFs) {
     try {
+      // Query by standardized approvalToken
       const q = query(collection(dbFs, 'program_permissions'), where('approvalToken', '==', token));
       const snap = await getDocs(q);
       if (!snap.empty) {
         docId = snap.docs[0].id;
         perm = { id: docId, ...snap.docs[0].data() };
       } else {
-        const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
-        if (dSnap.exists()) {
-          docId = dSnap.id;
-          perm = { id: docId, ...dSnap.data() };
+        // Query by legacy approval_token if any
+        const q2 = query(collection(dbFs, 'program_permissions'), where('approval_token', '==', token));
+        const snap2 = await getDocs(q2);
+        if (!snap2.empty) {
+          docId = snap2.docs[0].id;
+          perm = { id: docId, ...snap2.docs[0].data() };
+        } else {
+          // Direct document ID lookup
+          const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
+          if (dSnap.exists()) {
+            docId = dSnap.id;
+            perm = { id: docId, ...dSnap.data() };
+          }
         }
       }
     } catch (fsErr) {
-      console.warn('Server GET Firestore lookup error, falling back to local DB:', fsErr);
+      console.warn('Server GET Firestore lookup notice (falling back to database cache):', fsErr);
     }
   }
 
+  // 2. Fallback to Local Persistent DB if Firestore is offline, quota-limited, or document is pending sync
   if (!perm) {
     const db = readDB();
     const permissions = db.program_permissions || [];
     const found = permissions.find(
-      (p: any) => p.approvalToken === token || p.id === token || p.approval_token === token
+      (p: any) => p.approvalToken === token || p.approval_token === token || p.id === token
     );
     if (found) {
       docId = found.id || token;
@@ -572,12 +645,37 @@ app.get('/api/public/college-permission/:token', async (req: Request, res: Respo
     }
   }
 
+  // Debugging & validation logging per Requirement 10 (no sensitive tokens exposed)
+  console.log('[COLLEGE PERMISSION LOOKUP]', {
+    tokenPrefix: token ? `${token.slice(0, 10)}...` : 'NONE',
+    matchedPermissionId: docId || (perm ? perm.id : 'NOT_FOUND'),
+    organizationId: perm ? (perm.organizationId || perm.accountId || 'NONE') : 'NONE',
+    permissionStatus: perm ? (perm.status || 'pending') : 'NOT_FOUND',
+    found: Boolean(perm),
+  });
+
   if (!perm) {
     return res.status(404).json({
       success: false,
       errorCode: 'PERMISSION_NOT_FOUND',
-      message: 'Permission request not found or link has expired.'
+      message: 'The approval token provided does not match any active program permission request.'
     });
+  }
+
+  // Cache to local DB to prevent any future quota or network outages for this permission
+  if (perm && docId) {
+    try {
+      const db = readDB();
+      if (!Array.isArray(db.program_permissions)) db.program_permissions = [];
+      const idx = db.program_permissions.findIndex((p: any) => p.id === docId || p.approvalToken === token);
+      const unifiedData = { ...perm, id: docId, approvalToken: perm.approvalToken || token };
+      if (idx !== -1) {
+        db.program_permissions[idx] = { ...db.program_permissions[idx], ...unifiedData };
+      } else {
+        db.program_permissions.push(unifiedData);
+      }
+      writeDB(db);
+    } catch {}
   }
 
   if (perm.tokenRevoked) {
@@ -604,17 +702,41 @@ app.get('/api/public/college-permission/:token', async (req: Request, res: Respo
   const targetOrgId = perm.organizationId || perm.organization_id || perm.accountId || '';
   if (dbFs && targetOrgId) {
     try {
-      const orgSnap = await getDoc(doc(dbFs, 'organizations', targetOrgId));
-      if (orgSnap.exists()) {
-        matchingOrg = { id: orgSnap.id, ...orgSnap.data() };
+      const accSnap = await getDoc(doc(dbFs, 'accounts', targetOrgId));
+      if (accSnap.exists()) {
+        const profile = accSnap.data()?.profile || {};
+        matchingOrg = {
+          id: targetOrgId,
+          name: profile.name || '',
+          college_name: profile.college_name || '',
+          logo: profile.logo || '',
+          tagline: profile.tagline || '',
+        };
       }
     } catch {}
+    if (!matchingOrg) {
+      try {
+        const orgSnap = await getDoc(doc(dbFs, 'organizations', targetOrgId));
+        if (orgSnap.exists()) {
+          matchingOrg = { id: orgSnap.id, ...orgSnap.data() };
+        }
+      } catch {}
+    }
   }
 
   if (!matchingOrg) {
     const db = readDB();
     const orgs = db.organizations || [];
-    matchingOrg = orgs.find((o: any) => o.id === targetOrgId) || orgs[0] || null;
+    const foundOrg = orgs.find((o: any) => o.id === targetOrgId) || orgs[0] || null;
+    if (foundOrg) {
+      matchingOrg = {
+        id: foundOrg.id,
+        name: foundOrg.name || '',
+        college_name: foundOrg.college_name || '',
+        logo: foundOrg.logo || '',
+        tagline: foundOrg.tagline || '',
+      };
+    }
   }
 
   // Return strictly public-safe information
@@ -634,10 +756,11 @@ app.get('/api/public/college-permission/:token', async (req: Request, res: Respo
     category: perm.category || '',
     subCategory: perm.subCategory || '',
     date: perm.date || '',
-    timeFrom: perm.timeFrom || '',
+    time: perm.time || perm.timeFrom || '',
+    timeFrom: perm.timeFrom || perm.time || '',
     timeTill: perm.timeTill || '',
     venue: perm.venue || '',
-    audience: perm.audience || '',
+    audience: perm.audience || 'Students',
     resourcePerson: perm.resourcePerson || '',
     expectedAttendance: perm.expectedAttendance ? Number(perm.expectedAttendance) : undefined,
     description: perm.description || '',
@@ -657,7 +780,7 @@ app.get('/api/public/college-permission/:token', async (req: Request, res: Respo
     changesRequestedBy: perm.changesRequestedBy,
     changesRequestedAt: perm.changesRequestedAt,
     changesRequiredNotes: perm.changesRequiredNotes,
-    approvalToken: perm.approvalToken || perm.approval_token || token,
+    approvalToken: perm.approvalToken || token,
     tokenCreatedAt: perm.tokenCreatedAt,
     tokenExpiresAt: perm.tokenExpiresAt,
     tokenRevoked: Boolean(perm.tokenRevoked),
@@ -766,10 +889,20 @@ async function processPublicPermissionAction(req: Request, res: Response) {
           docId = snap.docs[0].id;
           permData = snap.docs[0].data();
         } else {
-          const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
-          if (dSnap.exists()) {
-            docId = dSnap.id;
-            permData = dSnap.data();
+          const q2 = query(
+            collection(dbFs, 'program_permissions'),
+            where('approval_token', '==', token)
+          );
+          const snap2 = await getDocs(q2);
+          if (!snap2.empty) {
+            docId = snap2.docs[0].id;
+            permData = snap2.docs[0].data();
+          } else {
+            const dSnap = await getDoc(doc(dbFs, 'program_permissions', token));
+            if (dSnap.exists()) {
+              docId = dSnap.id;
+              permData = dSnap.data();
+            }
           }
         }
       } catch (err) {
@@ -782,7 +915,7 @@ async function processPublicPermissionAction(req: Request, res: Response) {
     const permissions = db.program_permissions || [];
     if (!permData) {
       localDbIndex = permissions.findIndex(
-        (p: any) => p.approvalToken === token || p.id === token || p.approval_token === token
+        (p: any) => p.approvalToken === token || p.approval_token === token || p.id === token
       );
       if (localDbIndex !== -1) {
         docId = permissions[localDbIndex].id || token;
@@ -794,7 +927,7 @@ async function processPublicPermissionAction(req: Request, res: Response) {
       return res.status(404).json({
         success: false,
         errorCode: 'PERMISSION_NOT_FOUND',
-        message: 'Permission request not found or approval link is invalid.',
+        message: 'The approval token provided does not match any active program permission request.',
       });
     }
 
@@ -861,6 +994,7 @@ async function processPublicPermissionAction(req: Request, res: Response) {
       status: targetStatus,
       approvalMethod: 'public_link',
       approverDesignation: finalDesignation,
+      approvalToken: permData.approvalToken || token,
       history: updatedHistory,
       updatedAt: now,
       updated_at: now,
@@ -907,9 +1041,28 @@ async function processPublicPermissionAction(req: Request, res: Response) {
       if (idx !== -1) {
         permissions[idx] = { ...permissions[idx], ...updates };
         db.program_permissions = permissions;
-        writeDB(db);
+      } else {
+        db.program_permissions.push({ ...permData, ...updates, id: docId });
       }
+
+      // Sync linked program in db.programs if present
+      const progId = permData.programId || permData.program_id;
+      if (progId && Array.isArray(db.programs)) {
+        const pIdx = db.programs.findIndex((p: any) => p.id === progId);
+        if (pIdx !== -1) {
+          db.programs[pIdx] = { ...db.programs[pIdx], permissionStatus: targetStatus, updatedAt: now };
+        }
+      }
+
+      writeDB(db);
     }
+
+    console.log('[COLLEGE PERMISSION ACTION EXECUTED]', {
+      matchedPermissionId: docId,
+      action: targetStatus,
+      approver: `${finalApproverName} (${finalDesignation})`,
+      timestamp: now,
+    });
 
     const mergedPerm = { ...permData, ...updates, id: docId };
 
