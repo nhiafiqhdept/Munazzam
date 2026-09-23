@@ -382,10 +382,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
                   />
                 </div>
 
-                <h3 className="text-xs lg:text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-emerald-800 transition-colors">
+                <h3 className="text-xs lg:text-sm font-semibold sm:font-bold text-slate-900 line-clamp-2 leading-tight group-hover:text-emerald-800 transition-colors text-center w-full min-h-[28px] sm:min-h-0 flex items-center justify-center break-words">
                   {orgzr.name}
                 </h3>
-                <span className="text-[10px] lg:text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-md mt-1.5 line-clamp-1 border border-slate-200">
+                <span className="text-[9px] sm:text-[10px] lg:text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-md mt-1.5 line-clamp-1 border border-slate-200 text-center max-w-full truncate">
                   {orgzr.position}
                 </span>
               </div>

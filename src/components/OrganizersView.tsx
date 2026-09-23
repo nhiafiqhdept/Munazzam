@@ -85,7 +85,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
         </div>
       ) : (
         <div
-          className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4"
+          className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4"
           data-purpose="members-grid"
         >
           {organizers.map((orgzr) => {
@@ -95,10 +95,10 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
                 key={orgzr.id}
                 id={`organizer-card-${orgzr.id}`}
                 onClick={() => setSelectedDetailsOrg(orgzr)}
-                className="group bg-white rounded-2xl border border-slate-200/90 shadow-card hover:shadow-lg hover:border-brand-300 transition-all duration-200 flex flex-col overflow-hidden relative cursor-pointer p-3 sm:p-4 text-center items-center justify-between"
+                className="group bg-white rounded-2xl border border-slate-200/90 shadow-card hover:shadow-lg hover:border-brand-300 transition-all duration-200 flex flex-col overflow-hidden relative cursor-pointer px-1.5 py-2 sm:p-4 text-center items-center justify-between h-full"
               >
                 {/* Member Avatar */}
-                <div className="relative mb-2">
+                <div className="relative mb-1 sm:mb-2 shrink-0">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full p-0.5 bg-gradient-to-tr from-brand-600 via-brand-400 to-indigo-300 shadow-sm mx-auto">
                     <div className="w-full h-full rounded-full bg-brand-100 flex items-center justify-center overflow-hidden border-2 border-white">
                       {hasPhoto ? (
@@ -133,16 +133,18 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
                 </div>
 
                 {/* Name, Role & Subtitle */}
-                <div className="flex flex-col items-center w-full min-w-0">
-                  <h3 className="font-semibold sm:font-bold text-slate-900 text-[13px] sm:text-sm leading-tight group-hover:text-brand-700 transition font-heading line-clamp-2 w-full">
+                <div className="flex flex-col items-center w-full min-w-0 flex-1 justify-between">
+                  <h3 className="font-semibold sm:font-bold text-slate-900 text-[10.5px] sm:text-sm leading-tight sm:leading-tight group-hover:text-brand-700 transition font-heading line-clamp-2 w-full text-center px-0.5 break-words">
                     {orgzr.name}
                   </h3>
-                  <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200 line-clamp-1 max-w-full">
-                    {orgzr.position}
-                  </span>
-                  <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 font-medium line-clamp-1 w-full">
-                    {orgzr.bio || (orgzr.academic_year ? `Batch: ${orgzr.academic_year}` : 'Coordinator')}
-                  </p>
+                  <div className="w-full flex flex-col items-center mt-1">
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full text-[7.5px] sm:text-[10px] font-bold sm:font-extrabold uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200 line-clamp-1 max-w-full text-center truncate">
+                      {orgzr.position}
+                    </span>
+                    <p className="mt-0.5 text-[7.5px] sm:text-[11px] text-slate-400 font-medium line-clamp-1 w-full text-center leading-tight truncate">
+                      {orgzr.bio || (orgzr.academic_year ? `Batch: ${orgzr.academic_year}` : 'Coordinator')}
+                    </p>
+                  </div>
                 </div>
               </article>
             );
