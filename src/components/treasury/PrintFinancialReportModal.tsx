@@ -46,12 +46,20 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible print:block print:h-auto">
       <style>{`
         @media print {
           @page {
-            size: A4;
-            margin: 12mm;
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          body, html {
+            background: white !important;
+            color: black !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
           }
           body * {
             visibility: hidden !important;
@@ -61,12 +69,16 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
             visibility: visible !important;
           }
           .financial-report-print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
             width: 100% !important;
+            max-width: none !important;
+            height: auto !important;
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
             background: white !important;
             box-shadow: none !important;
             -webkit-print-color-adjust: exact !important;
@@ -75,9 +87,16 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           .print\\:hidden {
             display: none !important;
           }
+          .financial-report-section,
+          .financial-summary,
+          .financial-result,
+          .financial-details {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
         }
       `}</style>
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto print:my-0 print:shadow-none print:rounded-none print:w-full">
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden my-auto print:my-0 print:shadow-none print:rounded-none print:w-full print:h-auto print:overflow-visible print:block">
         {/* Top Bar Controls (Hidden during print) */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
@@ -104,9 +123,9 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
         </div>
 
         {/* Printable Official Financial Document */}
-        <div className="p-6 sm:p-12 space-y-6 text-slate-900 bg-white print:p-6 financial-report-print-area" id="printable-financial-report">
+        <div className="p-6 sm:p-12 space-y-6 text-slate-900 bg-white print:p-4 financial-report-print-area" id="printable-financial-report">
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5">
+          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 financial-report-section">
             <div className="flex items-center gap-4">
               <img
                 src={organization?.logo || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80'}
@@ -131,7 +150,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Program Details Banner */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 financial-report-section">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
               Official Audit Report
             </span>
@@ -157,7 +176,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Financial Summary Box */}
-          <div className="space-y-3">
+          <div className="space-y-3 financial-summary">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
               Financial Summary
             </h3>
@@ -184,7 +203,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Income Details Table (Source, Category, Amount) */}
-          <div className="space-y-2">
+          <div className="space-y-2 financial-details">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
               Income Details ({eventIncomes.length} records)
             </h3>
@@ -221,7 +240,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Expense Details Table (Paid To, Category, Amount) */}
-          <div className="space-y-2">
+          <div className="space-y-2 financial-details">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1.5">
               Expense Details ({eventExpenses.length} records)
             </h3>
@@ -258,7 +277,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Final Calculation Block */}
-          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-1.5 text-xs">
+          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-1.5 text-xs financial-result">
             <h4 className="font-bold text-sm tracking-wider uppercase text-slate-300 border-b border-slate-800 pb-1 mb-2">
               Financial Result Calculation
             </h4>
@@ -279,7 +298,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           </div>
 
           {/* Footer */}
-          <div className="pt-6 border-t border-slate-200 text-center text-[10px] text-slate-500">
+          <div className="pt-6 border-t border-slate-200 text-center text-[10px] text-slate-500 financial-report-section">
             <p>Munazzam Institutional Reporting System • Certified Official Document</p>
           </div>
         </div>
