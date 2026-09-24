@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Wallet,
   Landmark,
@@ -8,7 +8,6 @@ import {
   TrendingDown,
   Coins,
   ShieldCheck,
-  Plus,
   ArrowLeftRight,
   FileText,
 } from 'lucide-react';
@@ -40,9 +39,8 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   onOpenAddExpense,
   onOpenAddTransfer,
   onOpenAddLoan,
-  onOpenAddAccount,
 }) => {
-  const { accounts, incomes, expenses, transfers, loans, loanRepayments, programs, setActiveTab, isAdmin } = useApp();
+  const { accounts, incomes, expenses, transfers, loans, isAdmin } = useApp();
 
   // Calculate balances for each account
   const getAccountBalance = (accountId: string) => {
@@ -76,6 +74,8 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   const moneyBorrowed = loans
     .filter((l) => l.type === 'BORROWED' && l.status !== 'FULLY_PAID')
     .reduce((sum, l) => sum + l.outstanding_amount, 0);
+
+  const netSurplus = totalIncome - totalExpense;
 
   // Prepare monthly data for charts
   const monthlyMap: { [month: string]: { income: number; expense: number } } = {};
@@ -111,180 +111,221 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#64748b'];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 sm:space-y-6">
       {/* Top Banner & Quick Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 shrink-0">
-            <Landmark className="w-6 h-6 text-emerald-700" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-5 bg-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-800 rounded-xl sm:rounded-2xl border border-emerald-100 shrink-0">
+            <Landmark className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-700" />
           </div>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900 tracking-tight">
-                Treasury & Financial Operations
-              </h1>
-              <span className="text-[11px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/70 rounded-full">
-                Active Ledger
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Real-time multi-account tracking, income, expenses, loans, and cashbook logs.
-            </p>
+            <h1 className="text-base sm:text-2xl font-bold font-heading text-slate-900 tracking-tight">
+              Treasury & Financial Operations
+            </h1>
           </div>
         </div>
 
         {/* Action Button Matrix: 2x2 on Mobile, Inline Row on Desktop */}
         {isAdmin && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto pt-2 sm:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
             <button
               id="treasury-record-income-btn"
               onClick={onOpenAddIncome}
-              className="w-full px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-9 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
             >
-              <ArrowDownLeft className="w-4 h-4 text-emerald-200 shrink-0" />
+              <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
               <span className="whitespace-nowrap">Record Income</span>
             </button>
             <button
               id="treasury-record-expense-btn"
               onClick={onOpenAddExpense}
-              className="w-full px-3.5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-9 px-3 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
             >
-              <ArrowUpRight className="w-4 h-4 text-rose-200 shrink-0" />
+              <ArrowUpRight className="w-3.5 h-3.5 text-rose-200 shrink-0" />
               <span className="whitespace-nowrap">Record Expense</span>
             </button>
             <button
               id="treasury-transfer-funds-btn"
               onClick={onOpenAddTransfer}
-              className="w-full px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-9 px-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
             >
-              <ArrowLeftRight className="w-4 h-4 text-slate-300 shrink-0" />
+              <ArrowLeftRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
               <span className="whitespace-nowrap">Transfer Funds</span>
             </button>
             <button
               id="treasury-add-loan-btn"
               onClick={onOpenAddLoan}
-              className="w-full px-3.5 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-2xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-9 px-3 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
             >
-              <Landmark className="w-4 h-4 text-amber-200 shrink-0" />
+              <Landmark className="w-3.5 h-3.5 text-amber-200 shrink-0" />
               <span className="whitespace-nowrap">Add Loan</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Financial Summary Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Financial Summary Cards Grid: Compact 2x2 on Mobile, 4-col on Desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Cash in Hand */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-emerald-50/70 border border-emerald-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cash in Hand</p>
-            <p className="text-2xl font-bold font-heading text-slate-900 mt-1">₹{cashInHand.toLocaleString()}</p>
-            <p className="text-[11px] text-emerald-600 mt-1 font-medium">Physical currency</p>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-800">Cash in Hand</p>
+            <p className="text-base sm:text-2xl font-bold font-heading text-slate-900 mt-0.5 sm:mt-1">
+              ₹{cashInHand.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-emerald-700 mt-0.5 sm:mt-1 font-medium">Physical currency</p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-            <Coins className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <Coins className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        {/* Bank Account */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        {/* Bank & Digital Accounts */}
+        <div className="bg-blue-50/70 border border-blue-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Bank & Digital Accounts</p>
-            <p className="text-2xl font-bold font-heading text-slate-900 mt-1">₹{bankBalance.toLocaleString()}</p>
-            <p className="text-[11px] text-blue-600 mt-1 font-medium">Institutional deposits</p>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-blue-800">Bank & Digital</p>
+            <p className="text-base sm:text-2xl font-bold font-heading text-slate-900 mt-0.5 sm:mt-1">
+              ₹{bankBalance.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-blue-700 mt-0.5 sm:mt-1 font-medium">Institutional</p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-            <Wallet className="w-6 h-6" />
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+            <Wallet className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        {/* Total Available */}
-        <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-md flex items-center justify-between relative group">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Total Available Balance</p>
-            <p className="text-2xl font-bold font-heading text-white mt-1">₹{totalAvailable.toLocaleString()}</p>
-            <p className="text-[11px] text-emerald-300 mt-1 font-medium">Net liquid reserves</p>
-            <p className="text-[10px] text-emerald-100/80 mt-1.5 leading-relaxed bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-800/30">
+        {/* Total Available Balance (Spans full 2 cols on mobile) */}
+        <div className="col-span-2 bg-emerald-950 text-white p-3.5 sm:p-5 rounded-2xl shadow-md flex items-center justify-between relative group">
+          <div className="flex-1 min-w-0 pr-2">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-200">
+              Total Available Balance
+            </p>
+            <p className="text-xl sm:text-2xl font-bold font-heading text-white mt-0.5 sm:mt-1">
+              ₹{totalAvailable.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-emerald-300 mt-0.5 font-medium">Net liquid reserves</p>
+            <p className="hidden sm:block text-[10px] text-emerald-100/80 mt-1.5 leading-relaxed bg-emerald-900/50 p-1.5 rounded-lg border border-emerald-800/40">
               Loans are tracked separately and are not included in Total Available Balance.
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-200 flex items-center justify-center shrink-0 ml-4">
-            <ShieldCheck className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-800 text-emerald-200 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
-        {/* Total Income & Expense */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-emerald-700 uppercase">Total Inflows</p>
-              <p className="text-lg font-bold font-heading text-slate-900">₹{totalIncome.toLocaleString()}</p>
-            </div>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
-            </div>
+        {/* Total Inflows */}
+        <div className="bg-teal-50/70 border border-teal-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-teal-800">Total Inflows</p>
+            <p className="text-base sm:text-2xl font-bold font-heading text-slate-900 mt-0.5 sm:mt-1">
+              ₹{totalIncome.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-teal-700 mt-0.5 sm:mt-1 font-medium">All income received</p>
           </div>
-          <hr className="border-slate-100 my-2" />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-rose-700 uppercase">Total Outflows</p>
-              <p className="text-lg font-bold font-heading text-slate-900">₹{totalExpense.toLocaleString()}</p>
-            </div>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-              <TrendingDown className="w-4 h-4" />
-            </div>
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
         </div>
-      </div>
 
-      {/* Secondary Financial Summary (Loans & Receivables) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Total Outflows */}
+        <div className="bg-rose-50/70 border border-rose-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Money Lent (Receivables)</p>
-            <p className="text-xl font-bold font-heading text-blue-700 mt-1">₹{moneyLent.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Outstanding amounts to recover</p>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-800">Total Outflows</p>
+            <p className="text-base sm:text-2xl font-bold font-heading text-slate-900 mt-0.5 sm:mt-1">
+              ₹{totalExpense.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-rose-700 mt-0.5 sm:mt-1 font-medium">All expenses paid</p>
           </div>
-          <p className="text-[9px] text-slate-400 mt-2 italic border-t border-slate-100 pt-1.5">
-            Tracked separately from available balance.
-          </p>
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+            <TrendingDown className="w-4 h-4 sm:w-6 sm:h-6" />
+          </div>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+
+        {/* Money Lent (Receivables) */}
+        <div className="bg-indigo-50/70 border border-indigo-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex flex-col justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Money Borrowed (Payables)</p>
-            <p className="text-xl font-bold font-heading text-amber-700 mt-1">₹{moneyBorrowed.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Outstanding liabilities to repay</p>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-800">
+              Money Lent (Receivables)
+            </p>
+            <p className="text-base sm:text-xl font-bold font-heading text-indigo-900 mt-0.5 sm:mt-1">
+              ₹{moneyLent.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-indigo-700 mt-0.5">Amounts to recover</p>
           </div>
-          <p className="text-[9px] text-slate-400 mt-2 italic border-t border-slate-100 pt-1.5">
-            Tracked separately from available balance.
-          </p>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Active Accounts</p>
-          <p className="text-xl font-bold font-heading text-slate-900 mt-1">{accounts.filter(a => a.is_active).length}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Managed deposit locations</p>
+
+        {/* Money Borrowed (Payables) */}
+        <div className="bg-amber-50/70 border border-amber-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-800">
+              Money Borrowed (Payables)
+            </p>
+            <p className="text-base sm:text-xl font-bold font-heading text-amber-900 mt-0.5 sm:mt-1">
+              ₹{moneyBorrowed.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-amber-700 mt-0.5">Liabilities to repay</p>
+          </div>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Net Surplus / Deficit</p>
-          <p className={`text-xl font-bold font-heading mt-1 ${totalIncome - totalExpense >= 0 ? 'text-emerald-700' : 'text-rose-750'}`}>
-            ₹{(totalIncome - totalExpense).toLocaleString()}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Overall operational result</p>
+
+        {/* Active Accounts */}
+        <div className="bg-cyan-50/70 border border-cyan-200/70 p-3 sm:p-5 rounded-2xl shadow-2xs flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-cyan-800">Active Accounts</p>
+            <p className="text-base sm:text-xl font-bold font-heading text-cyan-900 mt-0.5 sm:mt-1">
+              {accounts.filter((a) => a.is_active).length}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-cyan-700 mt-0.5">Managed deposit locations</p>
+          </div>
+        </div>
+
+        {/* Net Surplus / Deficit (Spans full 2 cols on mobile when needed, or fits 2x2 nicely) */}
+        <div
+          className={`p-3 sm:p-5 rounded-2xl shadow-2xs flex flex-col justify-between border ${
+            netSurplus >= 0
+              ? 'bg-emerald-50/70 border-emerald-200/70 text-emerald-950'
+              : 'bg-rose-50/70 border-rose-200/70 text-rose-950'
+          }`}
+        >
+          <div>
+            <p
+              className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+                netSurplus >= 0 ? 'text-emerald-800' : 'text-rose-800'
+              }`}
+            >
+              Net Surplus / Deficit
+            </p>
+            <p
+              className={`text-base sm:text-xl font-bold font-heading mt-0.5 sm:mt-1 ${
+                netSurplus >= 0 ? 'text-emerald-700' : 'text-rose-700'
+              }`}
+            >
+              ₹{netSurplus.toLocaleString()}
+            </p>
+            <p
+              className={`text-[10px] sm:text-[11px] mt-0.5 ${
+                netSurplus >= 0 ? 'text-emerald-700' : 'text-rose-700'
+              }`}
+            >
+              Operational result
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Monthly Income vs Expense */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-          <h3 className="text-base font-bold font-heading text-slate-900 mb-4">Monthly Income vs Expenses</h3>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xs">
+          <h3 className="text-sm sm:text-base font-bold font-heading text-slate-900 mb-3">
+            Monthly Income vs Expenses
+          </h3>
           {monthlyChartData.length > 0 ? (
-            <div className="w-full h-72">
+            <div className="w-full h-52 sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} />
+                  <XAxis dataKey="month" stroke="#64748b" fontSize={11} />
+                  <YAxis stroke="#64748b" fontSize={11} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', color: '#fff', borderRadius: '12px', border: 'none' }}
                   />
@@ -295,27 +336,30 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-72 flex items-center justify-center text-slate-400 text-sm">
-              No monthly financial data recorded yet.
+            <div className="h-36 sm:h-72 flex flex-col items-center justify-center text-slate-400 text-xs sm:text-sm gap-2 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 p-4">
+              <FileText className="w-8 h-8 text-slate-300" />
+              <p>No monthly financial data recorded yet.</p>
             </div>
           )}
         </div>
 
         {/* Expense Category Breakdown */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-          <h3 className="text-base font-bold font-heading text-slate-900 mb-4">Expense Categories Breakdown</h3>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xs">
+          <h3 className="text-sm sm:text-base font-bold font-heading text-slate-900 mb-3">
+            Expense Categories Breakdown
+          </h3>
           {expensePieData.length > 0 ? (
-            <div className="w-full h-72 flex items-center justify-center">
+            <div className="w-full h-52 sm:h-72 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={expensePieData}
                     cx="50%"
                     cy="50%"
-                    outerRadius={90}
+                    outerRadius={80}
                     dataKey="value"
                     label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    fontSize={11}
+                    fontSize={10}
                   >
                     {expensePieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -328,8 +372,9 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-72 flex items-center justify-center text-slate-400 text-sm">
-              No expense records found.
+            <div className="h-36 sm:h-72 flex flex-col items-center justify-center text-slate-400 text-xs sm:text-sm gap-2 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 p-4">
+              <FileText className="w-8 h-8 text-slate-300" />
+              <p>No expense records found.</p>
             </div>
           )}
         </div>

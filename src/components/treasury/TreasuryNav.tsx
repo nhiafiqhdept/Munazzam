@@ -101,7 +101,7 @@ export const TreasuryNav: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border-b border-slate-200/90 shadow-2xs mb-6 no-print sticky top-16 sm:top-20 lg:top-24 z-20 backdrop-blur-md bg-white/95">
+    <div className="bg-white border-b border-slate-200/90 shadow-2xs mb-2 sm:mb-6 no-print sticky top-16 sm:top-20 lg:top-24 z-20 backdrop-blur-md bg-white/95">
       <div className="max-w-7xl lg:max-w-[1400px] mx-auto px-2 sm:px-6 lg:px-8">
         <div className="relative flex items-center py-2 sm:py-2.5">
           {/* Scroll Left Button */}
