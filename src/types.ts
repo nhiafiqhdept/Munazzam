@@ -225,6 +225,8 @@ export interface FinancialAccount {
   updated_at: string;
 }
 
+export type Account = FinancialAccount;
+
 export interface Income {
   id: string;
   organization_id: string;

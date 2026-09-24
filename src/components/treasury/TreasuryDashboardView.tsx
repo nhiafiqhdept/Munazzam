@@ -113,52 +113,58 @@ export const TreasuryDashboardView: React.FC<TreasuryDashboardViewProps> = ({
   return (
     <div className="space-y-2 sm:space-y-6">
       {/* Top Banner & Quick Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-5 bg-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-800 rounded-xl sm:rounded-2xl border border-emerald-100 shrink-0">
-            <Landmark className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-700" />
+      <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center gap-2.5 pb-2.5 sm:pb-3 border-b border-slate-100">
+          <div className="p-1.5 sm:p-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100/80 shrink-0">
+            <Landmark className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700" />
           </div>
-          <div>
-            <h1 className="text-base sm:text-2xl font-bold font-heading text-slate-900 tracking-tight">
-              Treasury & Financial Operations
-            </h1>
-          </div>
+          <h2 className="text-sm sm:text-lg font-bold font-heading text-slate-900 tracking-tight">
+            Treasury & Financial Operations
+          </h2>
         </div>
 
         {/* Action Button Matrix: 2x2 on Mobile, Inline Row on Desktop */}
         {isAdmin && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto pt-2 sm:pt-0 border-t lg:border-t-0 border-slate-100 shrink-0">
+          <div className="grid grid-cols-2 gap-2 pt-2.5 sm:pt-4">
             <button
               id="treasury-record-income-btn"
               onClick={onOpenAddIncome}
-              className="w-full h-9 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-[42px] sm:h-11 px-3 bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-200 text-emerald-900 font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-start gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
             >
-              <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-              <span className="whitespace-nowrap">Record Income</span>
+              <div className="w-6 h-6 rounded-lg bg-emerald-200/60 text-emerald-800 flex items-center justify-center shrink-0">
+                <ArrowDownLeft className="w-3.5 h-3.5" />
+              </div>
+              <span className="truncate">Record Income</span>
             </button>
             <button
               id="treasury-record-expense-btn"
               onClick={onOpenAddExpense}
-              className="w-full h-9 px-3 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-[42px] sm:h-11 px-3 bg-rose-50 hover:bg-rose-100/70 border border-rose-200 text-rose-900 font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-start gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
             >
-              <ArrowUpRight className="w-3.5 h-3.5 text-rose-200 shrink-0" />
-              <span className="whitespace-nowrap">Record Expense</span>
+              <div className="w-6 h-6 rounded-lg bg-rose-200/60 text-rose-800 flex items-center justify-center shrink-0">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </div>
+              <span className="truncate">Record Expense</span>
             </button>
             <button
               id="treasury-transfer-funds-btn"
               onClick={onOpenAddTransfer}
-              className="w-full h-9 px-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-[42px] sm:h-11 px-3 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-900 font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-start gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
             >
-              <ArrowLeftRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-              <span className="whitespace-nowrap">Transfer Funds</span>
+              <div className="w-6 h-6 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+              </div>
+              <span className="truncate">Transfer Funds</span>
             </button>
             <button
               id="treasury-add-loan-btn"
               onClick={onOpenAddLoan}
-              className="w-full h-9 px-3 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full h-[42px] sm:h-11 px-3 bg-amber-50 hover:bg-amber-100/70 border border-amber-200 text-amber-900 font-semibold text-xs sm:text-sm rounded-xl flex items-center justify-start gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
             >
-              <Landmark className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-              <span className="whitespace-nowrap">Add Loan</span>
+              <div className="w-6 h-6 rounded-lg bg-amber-200/60 text-amber-800 flex items-center justify-center shrink-0">
+                <Coins className="w-3.5 h-3.5" />
+              </div>
+              <span className="truncate">Add Loan</span>
             </button>
           </div>
         )}
