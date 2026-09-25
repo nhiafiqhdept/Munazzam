@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowUpRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { Expense } from '../../types';
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   preselectedProgramId?: string;
+  expenseToEdit?: Expense | null;
 }
 
-export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, preselectedProgramId }) => {
-  const { accounts, programs, addExpense } = useApp();
+export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, preselectedProgramId, expenseToEdit }) => {
+  const { accounts, programs, addExpense, updateExpense } = useApp();
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -21,20 +23,37 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync selected account when modal opens or accounts change
+  // Sync selected account when modal opens or accounts/expenseToEdit change
   useEffect(() => {
     if (isOpen) {
-      if (accounts.length > 0 && (!accountId || !accounts.some((a) => a.id === accountId))) {
-        setAccountId(accounts[0].id);
-      }
-      if (preselectedProgramId) {
-        setProgramId(preselectedProgramId);
+      if (expenseToEdit) {
+        setDate(expenseToEdit.date || new Date().toISOString().substring(0, 10));
+        setAmount(expenseToEdit.amount ? expenseToEdit.amount.toString() : '');
+        setAccountId(expenseToEdit.account_id || (accounts.length > 0 ? accounts[0].id : ''));
+        setCategory(expenseToEdit.category || 'Food');
+        setPaidTo(expenseToEdit.paid_to || '');
+        setDescription(expenseToEdit.description || '');
+        setProgramId(expenseToEdit.program_id || '');
+        setReferenceNumber(expenseToEdit.reference_number || '');
       } else {
-        setProgramId('');
+        setDate(new Date().toISOString().substring(0, 10));
+        setAmount('');
+        if (accounts.length > 0 && (!accountId || !accounts.some((a) => a.id === accountId))) {
+          setAccountId(accounts[0].id);
+        }
+        setCategory('Food');
+        setPaidTo('');
+        setDescription('');
+        if (preselectedProgramId) {
+          setProgramId(preselectedProgramId);
+        } else {
+          setProgramId('');
+        }
+        setReferenceNumber('');
       }
       setError('');
     }
-  }, [isOpen, accounts, preselectedProgramId]);
+  }, [isOpen, expenseToEdit, accounts, preselectedProgramId]);
 
   if (!isOpen) return null;
 
@@ -62,17 +81,31 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
 
     setIsSubmitting(true);
     try {
-      await addExpense({
-        account_id: accountId,
-        category,
-        program_id: programId || undefined,
-        date,
-        amount: parsedAmount,
-        paid_to: cleanPaidTo,
-        description: description.trim() || undefined,
-        reference_number: referenceNumber.trim() || undefined,
-        created_by: 'Treasurer',
-      });
+      if (expenseToEdit) {
+        await updateExpense({
+          id: expenseToEdit.id,
+          account_id: accountId,
+          category,
+          program_id: programId || undefined,
+          date,
+          amount: parsedAmount,
+          paid_to: cleanPaidTo,
+          description: description.trim() || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+        });
+      } else {
+        await addExpense({
+          account_id: accountId,
+          category,
+          program_id: programId || undefined,
+          date,
+          amount: parsedAmount,
+          paid_to: cleanPaidTo,
+          description: description.trim() || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+          created_by: 'Treasurer',
+        });
+      }
 
       // Reset transient fields
       setPaidTo('');
@@ -97,8 +130,12 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
               <ArrowUpRight className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-heading text-slate-900">Record Expense</h3>
-              <p className="text-xs text-slate-500">Log organizational spending or bills</p>
+              <h3 className="text-lg font-bold font-heading text-slate-900">
+                {expenseToEdit ? 'Edit Expense Record' : 'Record Expense'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {expenseToEdit ? 'Update expense transaction details' : 'Log organizational spending or bills'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
@@ -239,7 +276,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
               disabled={isSubmitting}
               className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
             >
-              {isSubmitting ? 'Saving...' : 'Save Expense'}
+              {isSubmitting ? 'Saving...' : expenseToEdit ? 'Save Changes' : 'Save Expense'}
             </button>
           </div>
         </form>

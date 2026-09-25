@@ -26,14 +26,14 @@ export const TreasuryNav: React.FC = () => {
 
   const treasuryTabs: { id: ActiveTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'treasury-dashboard', label: 'Treasury Dashboard', icon: LayoutDashboard },
-    { id: 'treasury-accounts', label: 'Accounts', icon: Wallet },
     { id: 'treasury-income', label: 'Income', icon: ArrowDownLeft },
     { id: 'treasury-expenses', label: 'Expenses', icon: ArrowUpRight },
-    { id: 'treasury-loans', label: 'Loans (Borrowed/Lent)', icon: Landmark },
-    { id: 'treasury-transfers', label: 'Account Transfers', icon: ArrowLeftRight },
+    { id: 'treasury-loans', label: 'Loans', icon: Landmark },
     { id: 'treasury-events', label: 'Events', icon: Calendar },
-    { id: 'treasury-ledger', label: 'Transactions Ledger', icon: FileText },
+    { id: 'treasury-accounts', label: 'Accounts', icon: Wallet },
     { id: 'treasury-cashbook', label: 'Cash & Bank Books', icon: BookOpen },
+    { id: 'treasury-transfers', label: 'Account Transfer', icon: ArrowLeftRight },
+    { id: 'treasury-ledger', label: 'Transaction Ledger', icon: FileText },
     { id: 'treasury-reports', label: 'Financial Reports', icon: BarChart3 },
   ];
 

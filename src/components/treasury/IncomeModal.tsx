@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowDownLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { Income } from '../../types';
 
 interface IncomeModalProps {
   isOpen: boolean;
   onClose: () => void;
   preselectedProgramId?: string;
+  incomeToEdit?: Income | null;
 }
 
-export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, preselectedProgramId }) => {
-  const { accounts, programs, addIncome } = useApp();
+export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, preselectedProgramId, incomeToEdit }) => {
+  const { accounts, programs, addIncome, updateIncome } = useApp();
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -21,20 +23,37 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync selected account when modal opens or accounts change
+  // Sync selected account when modal opens or accounts/incomeToEdit change
   useEffect(() => {
     if (isOpen) {
-      if (accounts.length > 0 && (!accountId || !accounts.some((a) => a.id === accountId))) {
-        setAccountId(accounts[0].id);
-      }
-      if (preselectedProgramId) {
-        setProgramId(preselectedProgramId);
+      if (incomeToEdit) {
+        setDate(incomeToEdit.date || new Date().toISOString().substring(0, 10));
+        setAmount(incomeToEdit.amount ? incomeToEdit.amount.toString() : '');
+        setAccountId(incomeToEdit.account_id || (accounts.length > 0 ? accounts[0].id : ''));
+        setCategory(incomeToEdit.category || 'Donation');
+        setSource(incomeToEdit.source || '');
+        setDescription(incomeToEdit.description || '');
+        setProgramId(incomeToEdit.program_id || '');
+        setReferenceNumber(incomeToEdit.reference_number || '');
       } else {
-        setProgramId('');
+        setDate(new Date().toISOString().substring(0, 10));
+        setAmount('');
+        if (accounts.length > 0 && (!accountId || !accounts.some((a) => a.id === accountId))) {
+          setAccountId(accounts[0].id);
+        }
+        setCategory('Donation');
+        setSource('');
+        setDescription('');
+        if (preselectedProgramId) {
+          setProgramId(preselectedProgramId);
+        } else {
+          setProgramId('');
+        }
+        setReferenceNumber('');
       }
       setError('');
     }
-  }, [isOpen, accounts, preselectedProgramId]);
+  }, [isOpen, incomeToEdit, accounts, preselectedProgramId]);
 
   if (!isOpen) return null;
 
@@ -62,17 +81,31 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
 
     setIsSubmitting(true);
     try {
-      await addIncome({
-        account_id: accountId,
-        category: category || 'Donation',
-        program_id: programId || undefined,
-        date,
-        amount: parsedAmount,
-        source: cleanSource,
-        description: description.trim() || undefined,
-        reference_number: referenceNumber.trim() || undefined,
-        created_by: 'Treasurer',
-      });
+      if (incomeToEdit) {
+        await updateIncome({
+          id: incomeToEdit.id,
+          account_id: accountId,
+          category: category || 'Donation',
+          program_id: programId || undefined,
+          date,
+          amount: parsedAmount,
+          source: cleanSource,
+          description: description.trim() || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+        });
+      } else {
+        await addIncome({
+          account_id: accountId,
+          category: category || 'Donation',
+          program_id: programId || undefined,
+          date,
+          amount: parsedAmount,
+          source: cleanSource,
+          description: description.trim() || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+          created_by: 'Treasurer',
+        });
+      }
 
       // Reset transient fields
       setSource('');
@@ -97,8 +130,12 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
               <ArrowDownLeft className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold font-heading text-slate-900">Record Income</h3>
-              <p className="text-xs text-slate-500">Add donation, sponsorship, or grant</p>
+              <h3 className="text-lg font-bold font-heading text-slate-900">
+                {incomeToEdit ? 'Edit Income Record' : 'Record Income'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {incomeToEdit ? 'Update income transaction details' : 'Add donation, sponsorship, or grant'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
@@ -235,7 +272,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
               disabled={isSubmitting}
               className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
             >
-              {isSubmitting ? 'Saving...' : 'Save Income'}
+              {isSubmitting ? 'Saving...' : incomeToEdit ? 'Save Changes' : 'Save Income'}
             </button>
           </div>
         </form>

@@ -33,7 +33,7 @@ import { AccountModal } from './components/treasury/AccountModal';
 import { TransferModal } from './components/treasury/TransferModal';
 import { LoanModal } from './components/treasury/LoanModal';
 import { RepaymentModal } from './components/treasury/RepaymentModal';
-import { Organizer, Program, FinancialAccount, Loan } from './types';
+import { Organizer, Program, FinancialAccount, Loan, Income, Expense } from './types';
 import { LogOut, AlertCircle } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
@@ -76,7 +76,9 @@ const MainLayout: React.FC = () => {
 
   // Treasury Modal States
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [incomeToEdit, setIncomeToEdit] = useState<Income | null>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [accountToEdit, setAccountToEdit] = useState<FinancialAccount | null>(null);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -215,15 +217,27 @@ const MainLayout: React.FC = () => {
 
         {activeTab === 'treasury-income' && !isPublicView && (
           <IncomeView
-            onOpenAddModal={() => setIsIncomeModalOpen(true)}
-            onViewTransaction={() => {}}
+            onOpenAddModal={() => {
+              setIncomeToEdit(null);
+              setIsIncomeModalOpen(true);
+            }}
+            onOpenEditModal={(inc) => {
+              setIncomeToEdit(inc);
+              setIsIncomeModalOpen(true);
+            }}
           />
         )}
 
         {activeTab === 'treasury-expenses' && !isPublicView && (
           <ExpenseView
-            onOpenAddModal={() => setIsExpenseModalOpen(true)}
-            onViewTransaction={() => {}}
+            onOpenAddModal={() => {
+              setExpenseToEdit(null);
+              setIsExpenseModalOpen(true);
+            }}
+            onOpenEditModal={(exp) => {
+              setExpenseToEdit(exp);
+              setIsExpenseModalOpen(true);
+            }}
           />
         )}
 
@@ -324,8 +338,22 @@ const MainLayout: React.FC = () => {
           />
 
           {/* Treasury Modals */}
-          <IncomeModal isOpen={isIncomeModalOpen} onClose={() => setIsIncomeModalOpen(false)} />
-          <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
+          <IncomeModal
+            isOpen={isIncomeModalOpen}
+            onClose={() => {
+              setIsIncomeModalOpen(false);
+              setIncomeToEdit(null);
+            }}
+            incomeToEdit={incomeToEdit}
+          />
+          <ExpenseModal
+            isOpen={isExpenseModalOpen}
+            onClose={() => {
+              setIsExpenseModalOpen(false);
+              setExpenseToEdit(null);
+            }}
+            expenseToEdit={expenseToEdit}
+          />
           <AccountModal
             isOpen={isAccountModalOpen}
             onClose={() => {
