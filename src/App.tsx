@@ -37,6 +37,7 @@ import { Organizer, Program, FinancialAccount, Loan, Income, Expense } from './t
 import { LogOut, AlertCircle } from 'lucide-react';
 import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
+import { PWAUpdateToast } from './components/pwa/PWAUpdateToast';
 import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -609,6 +610,7 @@ export function App() {
     <ErrorBoundary>
       <AppProvider>
         <AuthenticatedApp />
+        <PWAUpdateToast />
       </AppProvider>
     </ErrorBoundary>
   );

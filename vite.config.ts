@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -9,6 +10,16 @@ export default defineConfig(() => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        name: 'generate-version-file',
+        writeBundle() {
+          const versionData = JSON.stringify({ version: Date.now().toString(), builtAt: new Date().toISOString() });
+          try {
+            fs.writeFileSync(path.resolve(__dirname, 'public/version.json'), versionData);
+            fs.writeFileSync(path.resolve(__dirname, 'dist/version.json'), versionData);
+          } catch {}
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
@@ -20,6 +31,7 @@ export default defineConfig(() => {
           'pwa-512x512.png',
           'pwa-maskable-192x192.png',
           'pwa-maskable-512x512.png',
+          'version.json',
         ],
         manifest: {
           id: '/',
@@ -150,6 +162,21 @@ export default defineConfig(() => {
           navigateFallbackDenylist: [/^\/api\/.*/, /^\/uploads\/.*/],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase limit to 5MB to handle larger bundle sizes
           runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'pages-cache',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
