@@ -577,30 +577,39 @@ export const AdminDashboard: React.FC = () => {
           {!selectedOrgId ? (
             // STEP 1: Grid of Organizations
             <div className="space-y-4">
-              {/* Clean & Compact Achievements Review Panel Card */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">Achievements Review Panel</h2>
-                    {activeEvaluationPeriod && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Active Period: {activeEvaluationPeriod.name}
-                      </span>
-                    )}
+              {/* Achievements Review Panel — Complete Redesign */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-3">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0">
+                      <Trophy className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading">Achievements Review</h2>
+                        {activeEvaluationPeriod && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active Period: {activeEvaluationPeriod.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">Inspect and review submitted class organization programs & achievements</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Select a class organization to inspect and review their submitted programs and achievements.</p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  <EvaluationPeriodSelector
-                    compact={true}
-                    selectedPeriod={selectedPeriodFilter}
-                    onSelectPeriod={setSelectedPeriodFilter}
-                    competitions={competitions}
-                  />
-                  <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-xl">
-                    {submittingOrgsForSelectedPeriod.length} Active Submitting Org{submittingOrgsForSelectedPeriod.length === 1 ? '' : 's'}
-                  </span>
+
+                  <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                    <EvaluationPeriodSelector
+                      compact={true}
+                      selectedPeriod={selectedPeriodFilter}
+                      onSelectPeriod={setSelectedPeriodFilter}
+                      competitions={competitions}
+                    />
+                    <div className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">
+                      <Users className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{submittingOrgsForSelectedPeriod.length} Active Submitting Orgs</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1737,7 +1746,7 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'competitions' && (
         <div className="space-y-6">
           {/* Main Munazzam / Admin Master Achievement Submissions Control */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-4">
             {submissionsFeedback && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 border transition-all ${
                 submissionsFeedback.type === 'success' 
@@ -1753,166 +1762,129 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                    <Sliders className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
-                      Achievement Submissions
-                    </h2>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
-                  Controls whether Sub-Organizations can submit achievements during this evaluation period.
+            {/* Header & Submission Access Settings Row */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="space-y-0.5">
+                <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 font-heading">
+                  Achievement Submissions
+                </h2>
+                <p className="text-sm text-slate-500 font-normal">
+                  Control whether Sub-Organizations can submit achievements during this evaluation period.
                 </p>
               </div>
 
-              {/* Master ON/OFF Toggle Control: compact and touch-friendly */}
-              <div className="w-full md:w-auto flex items-center justify-between gap-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 px-3 sm:px-4 shrink-0">
-                <div className="text-left md:text-right min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider truncate">
-                    Portal Submission Access
+              {/* Compact, professional settings-style row for Submission Access */}
+              <div className="flex items-center justify-between gap-4 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 shrink-0">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium text-slate-700 block">
+                    Submission Access
                   </span>
-                  <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      portal?.submissionsAllowed !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                    }`} />
-                    <span className={`text-xs font-black truncate ${
-                      portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-rose-700'
-                    }`}>
-                      {portal?.submissionsAllowed !== false ? 'Submissions Open' : 'Submissions Closed'}
-                    </span>
-                  </div>
+                  <span className={`text-xs font-semibold ${
+                    portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-slate-600'
+                  }`}>
+                    {portal?.submissionsAllowed !== false ? 'Open' : 'Closed'}
+                  </span>
                 </div>
 
-                {/* Clear ON / OFF Toggle Button */}
+                {/* Accessible Toggle */}
                 <button
                   type="button"
                   onClick={handleToggleSubmissions}
                   disabled={togglingSubmissions}
-                  className={`relative inline-flex items-center h-8 w-20 rounded-full p-1 transition-all duration-300 ease-in-out cursor-pointer focus:outline-none shadow-inner border shrink-0 ${
+                  className={`relative inline-flex items-center h-7 w-14 rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer focus:outline-none shrink-0 ${
                     portal?.submissionsAllowed !== false
-                      ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white'
-                      : 'bg-slate-300 hover:bg-slate-400 border-slate-400 text-slate-700'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-slate-300 hover:bg-slate-400'
                   } disabled:opacity-50`}
                   role="switch"
                   aria-checked={portal?.submissionsAllowed !== false}
-                  title={`Achievement Submissions are currently ${portal?.submissionsAllowed !== false ? 'ON' : 'OFF'}. Click to toggle.`}
+                  title={`Submission Access is currently ${portal?.submissionsAllowed !== false ? 'Open' : 'Closed'}. Click to toggle.`}
                 >
-                  <span className={`absolute left-2.5 text-[10px] font-black tracking-wider text-white transition-opacity ${
-                    portal?.submissionsAllowed !== false ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    ON
-                  </span>
-                  <span className={`absolute right-2.5 text-[10px] font-black tracking-wider text-slate-700 transition-opacity ${
-                    portal?.submissionsAllowed !== false ? 'opacity-0' : 'opacity-100'
-                  }`}>
-                    OFF
-                  </span>
                   <span
-                    className={`flex h-6 w-6 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out items-center justify-center shrink-0 ${
-                      portal?.submissionsAllowed !== false ? 'translate-x-12' : 'translate-x-0'
+                    className={`flex h-5 w-5 rounded-full bg-white shadow-xs transform transition-transform duration-200 ease-in-out items-center justify-center shrink-0 ${
+                      portal?.submissionsAllowed !== false ? 'translate-x-7' : 'translate-x-0'
                     }`}
                   >
                     {togglingSubmissions ? (
-                      <Loader2 className="w-3 h-3 text-slate-600 animate-spin shrink-0" />
+                      <Loader2 className="w-3 h-3 text-slate-500 animate-spin" />
                     ) : portal?.submissionsAllowed !== false ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3] shrink-0" />
+                      <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
                     ) : (
-                      <Lock className="w-3 h-3 text-rose-500 shrink-0" />
+                      <Lock className="w-3 h-3 text-slate-400" />
                     )}
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* Clear Rules and Active Evaluation Period Connection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-              <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border flex items-center gap-2.5 text-xs transition-all ${
+            {/* ON/OFF State Options as clean, compact selectable rows */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
                 portal?.submissionsAllowed !== false
-                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-medium ring-1 ring-emerald-500/20'
-                  : 'bg-slate-50 border-slate-200 text-slate-600'
+                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 ring-1 ring-emerald-500/20'
+                  : 'bg-white border-slate-200 text-slate-600'
               }`}>
-                <div className={`p-1 rounded-lg shrink-0 ${
-                  portal?.submissionsAllowed !== false ? 'bg-emerald-200/80 text-emerald-800' : 'bg-slate-200 text-slate-500'
+                <div className={`p-2 rounded-lg shrink-0 ${
+                  portal?.submissionsAllowed !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
                 }`}>
-                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Check className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">STATE: ON</span>
-                    {portal?.submissionsAllowed !== false && (
-                      <span className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[8px] font-bold">CURRENT</span>
-                    )}
-                  </div>
-                  <p className="font-bold text-slate-900 text-xs truncate sm:whitespace-normal">Sub-Organizations can submit achievements.</p>
+                  <h4 className="text-sm font-medium text-slate-900">Submissions Enabled (ON)</h4>
+                  <p className="text-sm text-slate-500 font-normal mt-0.5">Sub-Organizations can submit achievements.</p>
                 </div>
               </div>
 
-              <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border flex items-center gap-2.5 text-xs transition-all ${
+              <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
                 portal?.submissionsAllowed === false
-                  ? 'bg-rose-50/80 border-rose-300 text-rose-950 font-medium ring-1 ring-rose-500/20'
-                  : 'bg-slate-50 border-slate-200 text-slate-600'
+                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 ring-1 ring-emerald-500/20'
+                  : 'bg-white border-slate-200 text-slate-600'
               }`}>
-                <div className={`p-1 rounded-lg shrink-0 ${
-                  portal?.submissionsAllowed === false ? 'bg-rose-200/80 text-rose-800' : 'bg-slate-200 text-slate-500'
+                <div className={`p-2 rounded-lg shrink-0 ${
+                  portal?.submissionsAllowed === false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
                 }`}>
-                  <Lock className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Lock className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">STATE: OFF</span>
-                    {portal?.submissionsAllowed === false && (
-                      <span className="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[8px] font-bold">CURRENT</span>
-                    )}
-                  </div>
-                  <p className="font-bold text-slate-900 text-xs truncate sm:whitespace-normal">Sub-Organizations cannot submit achievements.</p>
+                  <h4 className="text-sm font-medium text-slate-900">Submissions Disabled (OFF)</h4>
+                  <p className="text-sm text-slate-500 font-normal mt-0.5">Sub-Organizations cannot submit achievements.</p>
                 </div>
               </div>
             </div>
 
-            {/* Evaluation Period Connection Status */}
+            {/* Active Evaluation Period Card Redesign */}
             {(() => {
               const activeComp = competitions.find(c => c.status === 'active');
               return (
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-600">
-                  <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                    <div className="p-1.5 rounded-lg bg-emerald-100/80 text-emerald-800 shrink-0 mt-0.5 sm:mt-0">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div className="space-y-0.5 min-w-0">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                        Active Evaluation Period
-                      </span>
-                      {activeComp ? (
-                        <div className="space-y-0.5">
-                          <span className="font-bold text-slate-900 block text-xs sm:text-sm truncate">{activeComp.name}</span>
-                          <span className="text-[11px] text-slate-500 font-medium block">
-                            {formatDate(activeComp.startDate)} – {formatDate(activeComp.endDate)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="italic text-slate-500 text-xs">No active evaluation period is currently running.</span>
-                      )}
-                    </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wide block">
+                      Active Evaluation Period
+                    </span>
+                    {activeComp ? (
+                      <div>
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
+                          {activeComp.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 font-normal mt-0.5">
+                          {formatDate(activeComp.startDate)} – {formatDate(activeComp.endDate)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 italic">No active evaluation period is currently running.</p>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between md:justify-end gap-2 pt-2.5 md:pt-0 border-t md:border-t-0 border-slate-200/70 shrink-0">
-                    <span className="text-[10px] sm:text-[11px] uppercase font-bold text-slate-400 tracking-wider">
-                      Current Status:
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black ${
+                  <div className="shrink-0 flex items-center">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${
                       portal?.submissionsAllowed !== false
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-rose-100 text-rose-800 border border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-slate-100 text-slate-700 border border-slate-200'
                     }`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        portal?.submissionsAllowed !== false ? 'bg-emerald-500' : 'bg-rose-500'
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        portal?.submissionsAllowed !== false ? 'bg-emerald-600' : 'bg-slate-400'
                       }`} />
-                      {portal?.submissionsAllowed !== false ? 'Achievement Submissions Open' : 'Achievement Submissions Closed'}
+                      {portal?.submissionsAllowed !== false ? 'Submissions Open' : 'Submissions Closed'}
                     </span>
                   </div>
                 </div>

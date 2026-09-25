@@ -58,8 +58,8 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
         return {
           title: activeCompetition.name,
           subtitle: dates,
-          badge: 'Active Period',
-          badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          badge: 'ACTIVE PERIOD',
+          badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold',
           isActive: true,
         };
       }
@@ -84,9 +84,9 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
       return {
         title: comp.name,
         subtitle: dates,
-        badge: isCompActive ? 'Active' : comp.status === 'completed' ? 'Completed' : 'Draft',
+        badge: isCompActive ? 'ACTIVE PERIOD' : comp.status === 'completed' ? 'Completed' : 'Draft',
         badgeColor: isCompActive
-          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
           : comp.status === 'completed'
           ? 'bg-slate-100 text-slate-700 border-slate-200'
           : 'bg-amber-50 text-amber-800 border-amber-200',
@@ -143,7 +143,7 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
 
   return (
     <div ref={containerRef} className={`relative inline-block ${className}`} id="evaluation-period-selector-root">
-      {/* Trigger Button */}
+      {/* Trigger Button - Professional institutional dropdown */}
       <button
         type="button"
         id="evaluation-period-trigger-btn"
@@ -151,30 +151,30 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={`Selected Evaluation Period: ${displayInfo.title}`}
-        className={`group flex items-center justify-between gap-2.5 bg-white hover:bg-slate-50/90 border border-slate-200/90 hover:border-emerald-600 rounded-2xl transition-all cursor-pointer shadow-2xs text-left ${
+        className={`group flex items-center justify-between gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl transition-all cursor-pointer shadow-2xs text-left ${
           compact ? 'px-3 py-1.5' : 'px-3.5 py-2'
         } ${isOpen ? 'ring-2 ring-emerald-500/20 border-emerald-600' : ''}`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center shrink-0 text-emerald-800">
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-slate-700">
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700" />
           </div>
 
           <div className="min-w-0 pr-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] sm:text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                 {label}
               </span>
               {displayInfo.badge && (
-                <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-md border ${displayInfo.badgeColor}`}>
+                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${displayInfo.badgeColor}`}>
                   {displayInfo.badge}
                 </span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-slate-900 truncate leading-tight mt-0.5">
+            <p className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight mt-0.5">
               {displayInfo.title}
             </p>
-            {!compact && displayInfo.subtitle && (
+            {displayInfo.subtitle && (
               <p className="text-[10px] text-slate-500 font-medium truncate leading-tight">
                 {displayInfo.subtitle}
               </p>
@@ -183,16 +183,15 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 group-hover:text-emerald-700 shrink-0 transition-transform duration-200 ${
+          className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0 transition-transform duration-200 ${
             isOpen ? 'rotate-180 text-emerald-700' : ''
           }`}
         />
       </button>
 
-      {/* DESKTOP POPOVER DROPDOWN (hidden on small screens, positioned cleanly below) */}
+      {/* DESKTOP POPOVER DROPDOWN */}
       {isOpen && (
         <div className="hidden sm:block absolute left-0 top-full mt-2 w-80 md:w-96 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          {/* Header */}
           <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-emerald-700" />
@@ -203,15 +202,14 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
             </span>
           </div>
 
-          {/* Options List */}
           <div className="p-2 space-y-1 max-h-80 overflow-y-auto overscroll-contain">
-            {/* 1. Active Period Option */}
+            {/* Active Period Option */}
             <button
               type="button"
               onClick={() => handleSelect('active')}
               className={`w-full flex items-start justify-between gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                 selectedPeriod === 'active'
-                  ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-950'
+                  ? 'bg-emerald-50/90 border border-emerald-300 text-emerald-950'
                   : 'hover:bg-slate-50 border border-transparent text-slate-800'
               }`}
             >
@@ -224,8 +222,8 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
                     <span className="text-xs font-black">
                       {activeCompetition ? activeCompetition.name : 'Current Period'}
                     </span>
-                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
-                      Active
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ACTIVE PERIOD
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
@@ -243,14 +241,14 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
               )}
             </button>
 
-            {/* 2. All Periods Option */}
+            {/* All Periods Option */}
             {showAllOption && (
               <button
                 type="button"
                 onClick={() => handleSelect('all')}
                 className={`w-full flex items-start justify-between gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                   selectedPeriod === 'all'
-                    ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-950'
+                    ? 'bg-emerald-50/90 border border-emerald-300 text-emerald-950'
                     : 'hover:bg-slate-50 border border-transparent text-slate-800'
                 }`}
               >
@@ -272,7 +270,7 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
               </button>
             )}
 
-            {/* 3. Specific / Previous Periods */}
+            {/* Specific / Previous Periods */}
             {otherCompetitions.length > 0 && (
               <div className="pt-2 border-t border-slate-100">
                 <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
@@ -295,7 +293,7 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
                         onClick={() => handleSelect(comp.id)}
                         className={`w-full flex items-start justify-between gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-50/80 border border-emerald-200 text-emerald-950'
+                            ? 'bg-emerald-50/90 border border-emerald-300 text-emerald-950'
                             : 'hover:bg-slate-50 border border-transparent text-slate-800'
                         }`}
                       >
@@ -337,40 +335,40 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
         </div>
       )}
 
-      {/* MOBILE BOTTOM SHEET / COMPACT MODAL */}
+      {/* MOBILE BOTTOM SHEET - Professional, official, compact layout */}
       {isOpen && (
         <div className="sm:hidden fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full bg-white rounded-t-3xl border-t border-slate-200 shadow-2xl p-4 space-y-4 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="w-full bg-white rounded-t-3xl border-t border-slate-200 shadow-2xl p-4 space-y-3 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+            {/* Compact Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800">
-                  <Calendar className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800">
+                  <Calendar className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 font-heading">Select Evaluation Period</h3>
-                  <p className="text-[10px] text-slate-500">Filter submissions and points by period</p>
+                  <h3 className="text-xs font-bold text-slate-900 font-heading">Select Evaluation Period</h3>
+                  <p className="text-[9px] text-slate-500">Choose period to filter submissions</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
                 aria-label="Close modal"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Scrollable list */}
-            <div className="space-y-2 overflow-y-auto overscroll-contain flex-1 pr-0.5">
-              {/* Active Period */}
+            {/* Scrollable list of compact selection cards */}
+            <div className="space-y-2 overflow-y-auto overscroll-contain flex-1 pr-0.5 py-1">
+              {/* Active Period (e.g., September) */}
               <button
                 type="button"
                 onClick={() => handleSelect('active')}
-                className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border ${
+                className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border cursor-pointer ${
                   selectedPeriod === 'active'
-                    ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                    ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 ring-1 ring-emerald-400/30'
                     : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200/80 text-slate-800'
                 }`}
               >
@@ -379,12 +377,12 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black truncate">
                         {activeCompetition ? activeCompetition.name : 'Current Active Period'}
                       </span>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        Active
+                        ACTIVE PERIOD
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-500 truncate mt-0.5">
@@ -400,14 +398,14 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
                 )}
               </button>
 
-              {/* All Periods */}
+              {/* All Evaluation Periods Option */}
               {showAllOption && (
                 <button
                   type="button"
                   onClick={() => handleSelect('all')}
-                  className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border ${
+                  className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border cursor-pointer ${
                     selectedPeriod === 'all'
-                      ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                      ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 ring-1 ring-emerald-400/30'
                       : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200/80 text-slate-800'
                   }`}
                 >
@@ -431,9 +429,9 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
 
               {/* Specific / Previous Periods */}
               {otherCompetitions.length > 0 && (
-                <div className="pt-2">
+                <div className="pt-1.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1 mb-1.5">
-                    Select Specific Period ({otherCompetitions.length})
+                    Other Periods ({otherCompetitions.length})
                   </span>
                   <div className="space-y-1.5">
                     {otherCompetitions.map((comp) => {
@@ -448,9 +446,9 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
                           key={comp.id}
                           type="button"
                           onClick={() => handleSelect(comp.id)}
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border ${
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border cursor-pointer ${
                             isSelected
-                              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 ring-1 ring-emerald-400/30'
                               : 'bg-slate-50/70 hover:bg-slate-100/70 border-slate-200/80 text-slate-800'
                           }`}
                         >
@@ -490,12 +488,12 @@ export const EvaluationPeriodSelector: React.FC<EvaluationPeriodSelectorProps> =
               )}
             </div>
 
-            {/* Close footer button */}
+            {/* Compact Close Footer Button */}
             <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-colors cursor-pointer text-center"
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-colors cursor-pointer text-center"
               >
                 Close
               </button>

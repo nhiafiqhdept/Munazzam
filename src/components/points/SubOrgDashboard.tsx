@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { usePortal, SP_Achievement, SP_Media } from '../../context/PortalContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { usePortal, SP_Achievement, SP_Media, SP_Member, SP_Organization, getAchievementPeriodId, getAwardPeriodId } from '../../context/PortalContext';
+import { EvaluationPeriodSelector } from './EvaluationPeriodSelector';
 import { 
   Trophy, Star, Calendar, MapPin, Upload, FileText, Image, Film, Plus, Trash2, 
   CheckCircle2, AlertCircle, Loader2, Megaphone, ChevronRight, Bell, History, X, Check, Paperclip, ArrowLeft,
-  User, UserCheck, Pencil, Lock, LogOut
+  User, UserCheck, Pencil, Lock, LogOut, Building2, Search, Users, Award, ShieldAlert
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { formatDate, generateId, uploadFile, optimizeImageFile, isImageFile } from '../../utils/helpers';
-import { ViewerDashboard } from './ViewerDashboard';
 
 export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'notifications';
 
 export const SubOrgDashboard: React.FC = () => {
   const { 
     portal, portalUser, organizations, achievements, categories, mediaAttachments, announcements, notifications,
-    members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead, logoutPortalUser
+    members, submitAchievement, updateAchievement, deleteAchievement, markNotificationsAsRead, logoutPortalUser,
+    competitions, awards
   } = usePortal();
 
   // Active sub-organization
@@ -30,7 +30,132 @@ export const SubOrgDashboard: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
 
-  // Strict route/tab guard: If submissions are closed by Admin, do not allow opening the submission form for new achievements
+  // Live Standings View state
+  const [leaderboardScope, setLeaderboardScope] = useState<'achievers' | 'organizations'>('achievers');
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('active');
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Active competition
+  const activeCompetition = useMemo(() => {
+    return competitions.find(c => c.status === 'active');
+  }, [competitions]);
+
+  // Active/approved organizations only
+  const activeOrganizations = useMemo(() => {
+    return organizations.filter(o => o.status === 'active' || (o.status as string) === 'approved');
+  }, [organizations]);
+
+  // Helper to check period match
+  const isPeriodMatch = (itemPeriodId: string | null | undefined) => {
+    if (selectedPeriodFilter === 'all') return true;
+    if (selectedPeriodFilter === 'active') {
+      if (!activeCompetition) return !itemPeriodId;
+      return itemPeriodId === activeCompetition.id || (!itemPeriodId && competitions.length <= 1);
+    }
+    return itemPeriodId === selectedPeriodFilter;
+  };
+
+  // Compute period-specific stats for members
+  const memberPeriodStats = useMemo(() => {
+    const statsMap = new Map<string, { points: number; count: number }>();
+    members.forEach(m => statsMap.set(m.id, { points: 0, count: 0 }));
+
+    achievements.forEach(a => {
+      if (a.status !== 'Approved') return;
+      const periodId = getAchievementPeriodId(a, competitions);
+      if (!isPeriodMatch(periodId)) return;
+
+      const pts = Number(a.awardedPoints) || 0;
+      let matchedMember = members.find(m => m.id === a.achieverId);
+      if (!matchedMember && a.achieverStudentId && a.organizationId) {
+        matchedMember = members.find(m => m.organizationId === a.organizationId && m.studentId && m.studentId.trim().toLowerCase() === a.achieverStudentId?.trim().toLowerCase());
+      }
+      if (!matchedMember && a.achieverName && a.organizationId) {
+        matchedMember = members.find(m => m.organizationId === a.organizationId && m.name.trim().toLowerCase() === a.achieverName.trim().toLowerCase());
+      }
+
+      if (matchedMember) {
+        const current = statsMap.get(matchedMember.id) || { points: 0, count: 0 };
+        statsMap.set(matchedMember.id, {
+          points: current.points + pts,
+          count: current.count + 1
+        });
+      }
+    });
+
+    return statsMap;
+  }, [members, achievements, competitions, selectedPeriodFilter, activeCompetition]);
+
+  // Compute period-specific stats for organizations
+  const orgPeriodStats = useMemo(() => {
+    const statsMap = new Map<string, { points: number; count: number }>();
+    activeOrganizations.forEach(o => statsMap.set(o.id, { points: 0, count: 0 }));
+
+    achievements.forEach(a => {
+      if (a.status !== 'Approved') return;
+      const periodId = getAchievementPeriodId(a, competitions);
+      if (!isPeriodMatch(periodId)) return;
+
+      const pts = Number(a.awardedPoints) || 0;
+      if (a.organizationId) {
+        const current = statsMap.get(a.organizationId) || { points: 0, count: 0 };
+        statsMap.set(a.organizationId, {
+          points: current.points + pts,
+          count: current.count + 1
+        });
+      }
+    });
+
+    return statsMap;
+  }, [activeOrganizations, achievements, competitions, selectedPeriodFilter, activeCompetition]);
+
+  // Filtered & sorted members
+  const sortedMembers = useMemo(() => {
+    return [...members]
+      .filter(m => {
+        if (selectedOrgFilter !== 'all' && m.organizationId !== selectedOrgFilter) return false;
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase().trim();
+        const matchName = m.name?.toLowerCase().includes(query);
+        const matchId = m.studentId && m.studentId.toLowerCase().includes(query);
+        return matchName || matchId;
+      })
+      .map(m => {
+        const stats = memberPeriodStats.get(m.id) || { points: 0, count: 0 };
+        return { ...m, periodPoints: stats.points, periodApprovedCount: stats.count };
+      })
+      .sort((a, b) => b.periodPoints - a.periodPoints);
+  }, [members, selectedOrgFilter, searchQuery, memberPeriodStats]);
+
+  // Filtered & sorted organizations
+  const sortedOrganizations = useMemo(() => {
+    return [...activeOrganizations]
+      .filter(o => {
+        if (selectedOrgFilter !== 'all' && o.id !== selectedOrgFilter) return false;
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase().trim();
+        const matchName = o.name?.toLowerCase().includes(query);
+        const matchClass = o.className?.toLowerCase().includes(query);
+        const matchLeader = o.leader && o.leader.toLowerCase().includes(query);
+        return matchName || matchClass || matchLeader;
+      })
+      .map(o => {
+        const stats = orgPeriodStats.get(o.id) || { points: 0, count: 0 };
+        return { ...o, periodPoints: stats.points, periodApprovedCount: stats.count };
+      })
+      .sort((a, b) => b.periodPoints - a.periodPoints);
+  }, [activeOrganizations, selectedOrgFilter, searchQuery, orgPeriodStats]);
+
+  // Filtered awards
+  const filteredAwards = useMemo(() => {
+    return awards.filter(award => {
+      const awardPeriodId = getAwardPeriodId(award, competitions);
+      return isPeriodMatch(awardPeriodId);
+    });
+  }, [awards, selectedPeriodFilter, competitions, activeCompetition]);
+
+  // Strict route/tab guard for submissions
   useEffect(() => {
     if (activeTab === 'submit' && !isEditing && portal?.submissionsAllowed === false) {
       setActiveTab('overview');
@@ -49,7 +174,6 @@ export const SubOrgDashboard: React.FC = () => {
   const [description, setDescription] = useState('');
   const [participantsCount, setParticipantsCount] = useState<number>(0);
   
-  // Achiever state (Individual student ownership)
   const [achieverId, setAchieverId] = useState<string>('');
   const [achieverName, setAchieverName] = useState<string>('');
   const [achieverStudentId, setAchieverStudentId] = useState<string>('');
@@ -59,7 +183,6 @@ export const SubOrgDashboard: React.FC = () => {
   const [selectedRank, setSelectedRank] = useState<'1st' | '2nd' | '3rd' | ''>('');
   const [additionalNotes, setAdditionalNotes] = useState('');
 
-  // Media attachments queues
   const [queuedPhotos, setQueuedPhotos] = useState<{ id: string; file: File; name: string; size: number; url: string }[]>([]);
   const [queuedVideos, setQueuedVideos] = useState<{ id: string; file: File; name: string; size: number; url: string }[]>([]);
   const [queuedDocs, setQueuedDocs] = useState<{ id: string; file: File; name: string; size: number; url: string }[]>([]);
@@ -112,7 +235,6 @@ export const SubOrgDashboard: React.FC = () => {
     setSelectedRank(ach.rank || '');
     setAdditionalNotes(ach.additionalNotes);
     
-    // Media attachments
     const achMedia = getMediaForAchievement(ach.id);
     setQueuedPhotos(achMedia.filter(m => m.type === 'photo').map(m => ({ id: m.id, file: new File([], m.name), name: m.name, size: m.size, url: m.fileUrl })));
     setQueuedVideos(achMedia.filter(m => m.type === 'video').map(m => ({ id: m.id, file: new File([], m.name), name: m.name, size: m.size, url: m.fileUrl })));
@@ -142,39 +264,18 @@ export const SubOrgDashboard: React.FC = () => {
     setEditingAchievementId(null);
   };
 
-  // Multiple files handlers
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files) as File[];
-    
     for (const file of files) {
       if (!isImageFile(file)) continue;
       try {
-        // Step 1: Optimize photo proof individually
-        const optimized = await optimizeImageFile(file, {
-          maxDimension: 1600,
-          targetMaxSizeBytes: 500 * 1024,
-        });
-
-        // Step 2: Upload optimized file
+        const optimized = await optimizeImageFile(file, { maxDimension: 1600, targetMaxSizeBytes: 500 * 1024 });
         const url = await uploadFile(optimized.file);
-        setQueuedPhotos(prev => [...prev, {
-          id: generateId('temp_pho'),
-          file: optimized.file,
-          name: optimized.fileName,
-          size: optimized.optimizedSize,
-          url: url || optimized.dataUrl, // Uses optimized preview
-        }]);
+        setQueuedPhotos(prev => [...prev, { id: generateId('temp_pho'), file: optimized.file, name: optimized.fileName, size: optimized.optimizedSize, url: url || optimized.dataUrl }]);
       } catch (err) {
-        console.warn('Fallback on sub-org photo optimization:', err);
         const url = await uploadFile(file);
-        setQueuedPhotos(prev => [...prev, {
-          id: generateId('temp_pho'),
-          file,
-          name: file.name,
-          size: file.size,
-          url,
-        }]);
+        setQueuedPhotos(prev => [...prev, { id: generateId('temp_pho'), file, name: file.name, size: file.size, url }]);
       }
     }
     if (e.target) e.target.value = '';
@@ -183,46 +284,24 @@ export const SubOrgDashboard: React.FC = () => {
   const handleVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files) as File[];
-    
     for (const file of files) {
       const url = await uploadFile(file);
-      setQueuedVideos(prev => [...prev, {
-        id: generateId('temp_vid'),
-        file,
-        name: file.name,
-        size: file.size,
-        url
-      }]);
+      setQueuedVideos(prev => [...prev, { id: generateId('temp_vid'), file, name: file.name, size: file.size, url }]);
     }
   };
 
   const handleDocSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files) as File[];
-    
     for (const file of files) {
       const url = await uploadFile(file);
-      setQueuedDocs(prev => [...prev, {
-        id: generateId('temp_doc'),
-        file,
-        name: file.name,
-        size: file.size,
-        url
-      }]);
+      setQueuedDocs(prev => [...prev, { id: generateId('temp_doc'), file, name: file.name, size: file.size, url }]);
     }
   };
 
-  const handleRemoveQueuedPhoto = (id: string) => {
-    setQueuedPhotos(prev => prev.filter(p => p.id !== id));
-  };
-
-  const handleRemoveQueuedVideo = (id: string) => {
-    setQueuedVideos(prev => prev.filter(v => v.id !== id));
-  };
-
-  const handleRemoveQueuedDoc = (id: string) => {
-    setQueuedDocs(prev => prev.filter(d => d.id !== id));
-  };
+  const handleRemoveQueuedPhoto = (id: string) => setQueuedPhotos(prev => prev.filter(p => p.id !== id));
+  const handleRemoveQueuedVideo = (id: string) => setQueuedVideos(prev => prev.filter(v => v.id !== id));
+  const handleRemoveQueuedDoc = (id: string) => setQueuedDocs(prev => prev.filter(d => d.id !== id));
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,19 +309,18 @@ export const SubOrgDashboard: React.FC = () => {
     setFormSuccess('');
 
     if (!title.trim() || !programName.trim() || !date || !description.trim()) {
-      setFormError('Please fill in all required fields marked with * (Title, Program/Activity Name, Activity Date, and Description).');
+      setFormError('Please fill in all required fields marked with *.');
       return;
     }
 
     const selectedCat = categories.find(c => c.id === categoryId);
     if (selectedCat?.isRankBased && !selectedRank) {
-      setFormError('Please select a rank (1st, 2nd, or 3rd place) for this rank-based category.');
+      setFormError('Please select a rank for this rank-based category.');
       return;
     }
 
     setSubmitting(true);
     try {
-      // Gather all uploaded files
       const allFiles = [
         ...queuedPhotos.map(p => ({ fileUrl: p.url, name: p.name, size: p.size, type: 'photo' as const })),
         ...queuedVideos.map(v => ({ fileUrl: v.url, name: v.name, size: v.size, type: 'video' as const })),
@@ -297,9 +375,7 @@ export const SubOrgDashboard: React.FC = () => {
         setFormSuccess('Achievement successfully submitted to the Review Panel!');
       }
 
-      // Reset form
       resetForm();
-      
       setActiveTab('overview');
     } catch (err: any) {
       setFormError(err?.message || 'Failed to submit achievement. Try again.');
@@ -308,87 +384,112 @@ export const SubOrgDashboard: React.FC = () => {
     }
   };
 
-  const getMediaForAchievement = (achId: string) => {
-    return mediaAttachments.filter(m => m.achievementId === achId);
-  };
-
+  const getMediaForAchievement = (achId: string) => mediaAttachments.filter(m => m.achievementId === achId);
   const getCategoryName = (catId: string) => {
     const cat = categories.find(c => c.id === catId);
     return cat ? cat.name : 'Achievement';
   };
 
+  const getOrgName = (orgId: string) => {
+    const org = organizations.find(o => o.id === orgId);
+    return org ? org.name : 'Unknown Class';
+  };
+
   const getStatusBadge = (status: SP_Achievement['status']) => {
     switch (status) {
       case 'Approved':
-        return <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-lg flex items-center gap-1">🟢 Approved</span>;
+        return <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-md">Approved</span>;
       case 'Rejected':
-        return <span className="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold rounded-lg flex items-center gap-1">🔴 Rejected</span>;
+        return <span className="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold rounded-md">Rejected</span>;
       case 'Under Review':
-        return <span className="px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-lg flex items-center gap-1">🔵 Under Review</span>;
+        return <span className="px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-md">Under Review</span>;
       case 'Returned for Correction':
-        return <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold rounded-lg flex items-center gap-1">🟡 Returned for Correction</span>;
+        return <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold rounded-md">Correction Required</span>;
       default:
-        return <span className="px-2.5 py-0.5 bg-slate-50 text-slate-800 border border-slate-200 text-[10px] font-bold rounded-lg flex items-center gap-1">⚪ Submitted</span>;
+        return <span className="px-2.5 py-0.5 bg-slate-50 text-slate-800 border border-slate-200 text-[10px] font-bold rounded-md">Submitted</span>;
     }
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6" id="sub-org-portal-dashboard">
-      {/* Sub-Org Top Header Card with Log Out */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
-        <div className="flex items-center gap-3 text-center sm:text-left w-full sm:w-auto">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold shrink-0">
-            {((activeOrg?.name || portalUser?.name || 'SO').trim().slice(0, 2)).toUpperCase()}
+    <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto" id="sub-org-portal-dashboard">
+      {/* 2. Organization Header */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-2xs">
+        <div className="flex items-center gap-3.5 text-center sm:text-left w-full sm:w-auto">
+          <div className="w-11 h-11 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
+            {activeOrg?.logo ? (
+              <img src={activeOrg.logo} alt={activeOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              ((activeOrg?.name || portalUser?.name || 'SO').trim().slice(0, 2)).toUpperCase()
+            )}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
               <h2 className="text-base font-bold text-slate-900 font-heading truncate">
                 {activeOrg?.name || portalUser?.name || 'Class Sub-Organization'}
               </h2>
-              <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-full">
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold rounded-md">
                 Class Sub-Org Admin
               </span>
             </div>
-            <p className="text-xs text-slate-500 truncate">
-              Logged in as {portalUser?.email}
+            <p className="text-xs text-slate-500 truncate mt-0.5">
+              {activeOrg?.className || 'Department Class'} • Logged in as {portalUser?.email}
             </p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            logoutPortalUser();
-            sessionStorage.setItem('sp_explicit_logout', 'true');
-          }}
-          className="w-full sm:w-auto py-2 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Log Out</span>
-        </button>
+        {/* 9. Student Points Management Footer Card / Logout Action */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700">
+            <Trophy className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Student Points Management</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              logoutPortalUser();
+              sessionStorage.setItem('sp_explicit_logout', 'true');
+            }}
+            className="w-full sm:w-auto py-2 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0 shadow-2xs"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Log Out</span>
+          </button>
+        </div>
       </div>
 
-      {/* Sub-Org Unified Portal Navigation - only shown when not on full-screen submit form page */}
+      {/* 3. Student Points Leaderboard Banner */}
+      <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-2xs relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
+          <Trophy className="w-56 h-56 rotate-12 text-white" />
+        </div>
+        <div className="max-w-2xl space-y-1.5 relative z-10">
+          <span className="px-2.5 py-0.5 bg-white/10 backdrop-blur-md rounded-md text-[9px] uppercase font-bold tracking-widest text-emerald-300 border border-white/10">
+            PUBLIC DASHBOARD
+          </span>
+          <h1 className="text-lg sm:text-2xl font-extrabold font-heading tracking-tight leading-tight">Student Points Leaderboard</h1>
+          <p className="text-emerald-100/90 text-xs sm:text-sm leading-relaxed max-w-lg font-medium">
+            Monitor student achievers, class sub-organization standings, and approved achievements in real time.
+          </p>
+        </div>
+      </div>
+
+      {/* Unified Portal Navigation */}
       {activeTab !== 'submit' && (
-        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 px-1">
+        <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('leaderboard')}
-            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'leaderboard'
-                ? 'border-emerald-700 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+            className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'leaderboard' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            Leaderboard & Ranks
+            Leaderboard & Standings
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('awards')}
-            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'awards'
-                ? 'border-emerald-700 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+            className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'awards' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Conferred Awards
@@ -396,10 +497,8 @@ export const SubOrgDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'overview'
-                ? 'border-emerald-700 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+            className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'overview' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Overview & Submissions
@@ -410,10 +509,8 @@ export const SubOrgDashboard: React.FC = () => {
               setActiveTab('notifications');
               markNotificationsAsRead();
             }}
-            className={`py-2.5 sm:py-3.5 px-3 sm:px-5 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'notifications'
-                ? 'border-emerald-700 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+            className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'notifications' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <span>Alert Notifications</span>
@@ -424,76 +521,370 @@ export const SubOrgDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Leaderboard & Ranks Tab (Default) */}
+      {/* 4. Leaderboard & Standings Tab */}
       {activeTab === 'leaderboard' && (
-        <ViewerDashboard currentTab="leaderboard" hideTabsHeader={true} />
+        <div className="space-y-6">
+          {/* 6. Evaluation Period Status — Complete Redesign */}
+          <div className="bg-white rounded-2xl border-l-4 border-emerald-600 border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Evaluation Period Status</h3>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    ACTIVE PERIOD
+                  </span>
+                </div>
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                  {activeCompetition ? activeCompetition.name : 'September Evaluation Cycle'}
+                </p>
+                <p className="text-xs text-slate-500 font-medium">
+                  {activeCompetition?.startDate && activeCompetition?.endDate
+                    ? `${formatDate(activeCompetition.startDate)} – ${formatDate(activeCompetition.endDate)}`
+                    : 'Ongoing institutional academic evaluation cycle'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                Live Standings Active
+              </span>
+            </div>
+          </div>
+
+          {/* 4. Live Standings Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-2xs space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800">
+                  <Trophy className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 font-heading">Live Standings</h2>
+                  <p className="text-xs text-slate-500">Real-time point standings and achievements</p>
+                </div>
+              </div>
+
+              {/* Segmented Tabs: Student Achievers & Class Orgs */}
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/60 self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardScope('achievers')}
+                  className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    leaderboardScope === 'achievers'
+                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Student Achievers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardScope('organizations')}
+                  className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    leaderboardScope === 'organizations'
+                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Class Orgs
+                </button>
+              </div>
+            </div>
+
+            {/* Filters & Search Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Evaluation Period Filter */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Period Filter</label>
+                <EvaluationPeriodSelector
+                  compact={true}
+                  selectedPeriod={selectedPeriodFilter}
+                  onSelectPeriod={setSelectedPeriodFilter}
+                  competitions={competitions}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Organization Filter */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Organization Filter</label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <select
+                    value={selectedOrgFilter}
+                    onChange={(e) => setSelectedOrgFilter(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Organizations ({activeOrganizations.length})</option>
+                    {activeOrganizations.map(org => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Building2 className="w-3.5 h-3.5 opacity-0" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Search Directory</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name or ID…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 5. Student / Class Leaderboard Entries */}
+            <div className="pt-2">
+              {leaderboardScope === 'achievers' ? (
+                sortedMembers.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 text-xs italic">
+                    No student achievers found matching the filter criteria.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                    {sortedMembers.map((member, idx) => (
+                      <div key={member.id} className="p-3.5 sm:p-4 hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 border ${
+                            idx === 0 ? 'bg-amber-100 text-amber-900 border-amber-300' :
+                            idx === 1 ? 'bg-slate-200 text-slate-800 border-slate-300' :
+                            idx === 2 ? 'bg-amber-700/20 text-amber-900 border-amber-700/30' :
+                            'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>
+                            #{idx + 1}
+                          </div>
+
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
+                            {member.name.substring(0, 2).toUpperCase()}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight">
+                              {member.name}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 flex-wrap">
+                              <span className="font-mono bg-slate-100 px-1.5 py-0.2 rounded text-slate-600">ID: {member.studentId || 'N/A'}</span>
+                              <span>•</span>
+                              <span className="truncate">{getOrgName(member.organizationId)}</span>
+                              <span>•</span>
+                              <span className="text-emerald-700 font-semibold">{member.periodApprovedCount} approved achievement{member.periodApprovedCount === 1 ? '' : 's'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-sm sm:text-base font-black text-emerald-800">
+                            +{member.periodPoints}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">PTS</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                sortedOrganizations.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 text-xs italic">
+                    No class organizations found matching the filter criteria.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                    {sortedOrganizations.map((org, idx) => (
+                      <div key={org.id} className="p-3.5 sm:p-4 hover:bg-slate-50/70 transition-colors flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 border ${
+                            idx === 0 ? 'bg-amber-100 text-amber-900 border-amber-300' :
+                            idx === 1 ? 'bg-slate-200 text-slate-800 border-slate-300' :
+                            idx === 2 ? 'bg-amber-700/20 text-amber-900 border-amber-700/30' :
+                            'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>
+                            #{idx + 1}
+                          </div>
+
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                            {org.logo ? (
+                              <img src={org.logo} alt={org.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              org.name.substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-tight">
+                              {org.name}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 flex-wrap">
+                              <span className="font-semibold text-slate-700">{org.className || 'Class'}</span>
+                              <span>•</span>
+                              <span>President: {org.leader || 'N/A'}</span>
+                              <span>•</span>
+                              <span className="text-emerald-700 font-semibold">{org.periodApprovedCount} submissions</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-sm sm:text-base font-black text-emerald-800">
+                            +{org.periodPoints}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">PTS</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* 7. Outstanding Award Winner */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-3">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                <Trophy className="w-3.5 h-3.5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 font-heading">Outstanding Award Winner</h3>
+            </div>
+
+            {filteredAwards.length === 0 ? (
+              <div className="p-4 bg-slate-50/70 rounded-xl text-center text-slate-400 text-xs italic">
+                No awards conferred yet in this workspace.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredAwards.slice(0, 2).map(award => (
+                  <div key={award.id} className="bg-amber-50/40 border border-amber-200/70 p-3.5 rounded-xl space-y-1">
+                    <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300">
+                      {award.name}
+                    </span>
+                    <p className="text-xs font-bold text-slate-900 truncate mt-1">
+                      {award.description || 'Conferred Achievement Award'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Conferred Awards Tab */}
       {activeTab === 'awards' && (
-        <ViewerDashboard currentTab="awards" hideTabsHeader={true} />
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Award className="w-5 h-5 text-emerald-700" />
+              Conferred Awards & Honors
+            </h2>
+            <EvaluationPeriodSelector
+              compact={true}
+              selectedPeriod={selectedPeriodFilter}
+              onSelectPeriod={setSelectedPeriodFilter}
+              competitions={competitions}
+            />
+          </div>
+
+          {filteredAwards.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-xs italic">
+              No awards have been conferred for this evaluation period.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredAwards.map(award => (
+                <div key={award.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-bold rounded-md">
+                      {award.recipientType === 'individual' ? 'Individual Honor' : 'Class Organization Honor'}
+                    </span>
+                    <Trophy className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">{award.name}</h3>
+                  <p className="text-xs text-slate-600">{award.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Overview & Submissions tab */}
+      {/* Overview & Submissions Tab */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Overview stats header */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Class Identity Card */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 shadow-xs col-span-2">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 flex items-center gap-3 shadow-2xs col-span-2">
               {activeOrg?.logo ? (
-                <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200" />
+                <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 rounded-xl object-cover border border-slate-200" referrerPolicy="no-referrer" />
               ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0">
                   {((activeOrg?.name || portalUser?.name || 'SP').trim().slice(0, 2)).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight truncate">
                   {activeOrg?.name || portalUser?.name || 'Class Organization'}
                 </h1>
                 <p className="text-xs text-slate-500 truncate">
                   {activeOrg?.className || 'Class Account'} • Admin: {portalUser?.name || portalUser?.email}
                 </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md">
-                    Active Organization
-                  </span>
-                </div>
+                <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200">
+                  Active Organization
+                </span>
               </div>
             </div>
 
-            {/* Total Points Card */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-              <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Total Earned</p>
-              <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-                <span className="text-2xl sm:text-3xl font-black text-emerald-800">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col justify-between shadow-2xs">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate">Total Earned</p>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-2xl font-black text-emerald-800">
                   {orgAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)}
                 </span>
-                <span className="text-[10px] sm:text-xs font-semibold text-slate-500">POINTS</span>
+                <span className="text-[10px] font-semibold text-slate-500">POINTS</span>
               </div>
             </div>
 
-            {/* Current Standing Rank Card */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-5 flex flex-col justify-between shadow-xs">
-              <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Leaderboard Rank</p>
-              <div className="flex flex-wrap items-baseline gap-1 sm:gap-2 mt-2">
-                <span className="text-2xl sm:text-3xl font-black text-slate-800">#{activeRank || '-'}</span>
-                <span className="text-[10px] sm:text-xs font-semibold text-slate-500">OUT OF 10</span>
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col justify-between shadow-2xs">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate">Leaderboard Rank</p>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-2xl font-black text-slate-800">#{activeRank || '-'}</span>
+                <span className="text-[10px] font-semibold text-slate-500">OUT OF 10</span>
               </div>
             </div>
           </div>
-          {/* Achievements Submissions Table */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 space-y-4">
-            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <History className="w-5 h-5 text-emerald-600" />
-                Submissions Registry
-              </h2>
+
+          {/* 8. Add Achievement Button & Submissions Registry */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <History className="w-4 h-4 text-emerald-700" />
+                  Submissions Registry
+                </h2>
+                <p className="text-xs text-slate-500">Manage program submissions and evaluation proofs</p>
+              </div>
+
               {portal?.submissionsAllowed !== false ? (
                 <button
+                  type="button"
                   onClick={() => { resetForm(); setActiveTab('submit'); }}
-                  className="py-1.5 px-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                  className="py-2 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ Add Achievement</span>
@@ -501,24 +892,15 @@ export const SubOrgDashboard: React.FC = () => {
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-medium">
                   <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span>Achievement submissions are currently closed by the administrator.</span>
+                  <span>Submissions are currently closed by the administrator.</span>
                 </div>
               )}
             </div>
 
             {orgAchievements.length === 0 ? (
-              <div className="text-center py-12 space-y-1.5">
-                <p className="text-slate-400 text-xs italic">You haven't submitted any achievements yet.</p>
-                {portal?.submissionsAllowed === false ? (
-                  <p className="text-amber-800 text-xs font-medium inline-flex items-center gap-1">
-                    <Lock className="w-3.5 h-3.5" />
-                    Achievement submissions are currently closed by the administrator.
-                  </p>
-                ) : (
-                  <p className="text-slate-400 text-xs italic">
-                    Click the "+ Add Achievement" button to submit your first achievement!
-                  </p>
-                )}
+              <div className="text-center py-12 space-y-1.5 border border-dashed border-slate-200 rounded-2xl">
+                <p className="text-slate-600 text-xs font-bold">No Achievement Submissions Found</p>
+                <p className="text-slate-400 text-xs">Click "+ Add Achievement" above to submit your first achievement proof.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -526,7 +908,7 @@ export const SubOrgDashboard: React.FC = () => {
                   <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-b border-slate-100">
                     <tr>
                       <th className="py-3 px-4">Title / Program</th>
-                      <th className="py-3 px-4">Whose Achievement (Achiever)</th>
+                      <th className="py-3 px-4">Achiever</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Requested Pts</th>
@@ -537,59 +919,53 @@ export const SubOrgDashboard: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {orgAchievements.map(ach => (
                       <tr key={ach.id} className="hover:bg-slate-50/50">
-                        <td className="py-4 px-4 font-bold text-slate-900">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
                           <div>
                             <p>{ach.title}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{ach.programName}</p>
                           </div>
                         </td>
-                        <td className="py-4 px-4 font-semibold">
-                          <div className="flex items-center gap-1.5">
-                            <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                            <div>
-                              <p className="font-extrabold text-slate-900 text-xs">{ach.achieverName || 'Achiever Not Assigned'}</p>
-                              {ach.achieverStudentId && (
-                                <p className="text-[10px] text-slate-400 font-mono">ID: {ach.achieverStudentId}</p>
-                              )}
-                            </div>
-                          </div>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800">
+                          {ach.achieverName || 'Unassigned'}
                         </td>
-                        <td className="py-4 px-4 font-semibold text-slate-500">
+                        <td className="py-3.5 px-4 font-semibold text-slate-500">
                           {getCategoryName(ach.categoryId)}
                         </td>
-                        <td className="py-4 px-4 font-medium text-slate-500">
+                        <td className="py-3.5 px-4 font-medium text-slate-500">
                           {formatDate(ach.date)}
                         </td>
-                        <td className="py-4 px-4 font-bold text-slate-700">
+                        <td className="py-3.5 px-4 font-bold text-slate-700">
                           {ach.requestedPoints}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3.5 px-4">
                           {getStatusBadge(ach.status)}
                         </td>
-                        <td className="py-4 px-4 text-right space-x-1">
+                        <td className="py-3.5 px-4 text-right space-x-1">
                           <button
+                            type="button"
                             onClick={() => setSelectedAchievement(ach)}
-                            className="py-1.5 px-2.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-600 font-semibold cursor-pointer inline-flex items-center gap-1"
+                            className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-semibold cursor-pointer"
                           >
                             View
                           </button>
                           {(ach.status === 'Submitted' || ach.status === 'Returned for Correction') && (
                             <button
+                              type="button"
                               onClick={() => handleEdit(ach)}
-                              className="py-1.5 px-2.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-emerald-700 font-semibold cursor-pointer inline-flex items-center gap-1"
+                              className="py-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-emerald-800 font-semibold cursor-pointer"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
                               Edit
                             </button>
                           )}
                           {(ach.status === 'Draft' || ach.status === 'Returned for Correction') && (
                             <button
+                              type="button"
                               onClick={async () => {
                                 if (confirm('Are you sure you want to delete this submission?')) {
                                   await deleteAchievement(ach.id);
                                 }
                               }}
-                              className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 rounded-lg text-rose-700 cursor-pointer"
+                              className="py-1 px-2 bg-rose-50 hover:bg-rose-100 rounded-lg text-rose-700 cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -605,510 +981,165 @@ export const SubOrgDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Submit Achievement full page view */}
+      {/* Submit / Edit Achievement Form View */}
       {activeTab === 'submit' && (
-        portal?.submissionsAllowed === false && !isEditing ? (
-          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-4 max-w-lg mx-auto shadow-sm my-6">
-            <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
-              <Lock className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-slate-900 font-heading">Achievement Submissions Closed</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Achievement submissions are currently closed by the administrator. New submissions cannot be created at this time.
-              </p>
-            </div>
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 space-y-6 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <button
               type="button"
               onClick={() => setActiveTab('overview')}
-              className="py-2.5 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-all"
-            >
-              Back to Submissions Registry
-            </button>
-          </div>
-        ) : (
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6 shadow-sm">
-          {/* Header with Back Button */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 cursor-pointer transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Overview</span>
             </button>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              {isEditing ? 'Edit Achievement Form' : 'New Achievement Form'}
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+              {isEditing ? 'Edit Submission' : 'New Submission'}
             </span>
           </div>
 
-          <div className="space-y-1">
-            <h2 className="text-base sm:text-xl font-bold text-slate-900">
-              {isEditing ? 'Edit Achievement Submission' : 'Submit New Achievement Proof'}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {isEditing ? 'Update the details of your submitted achievement.' : 'Attach files, fill details, and request evaluations from administrators.'}
-            </p>
-          </div>
-
-          <form onSubmit={handleFormSubmit} className="space-y-5 sm:space-y-6">
-            {!isEditing && portal?.submissionsAllowed === false && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-bold text-sm text-amber-950">Submissions Temporarily Paused</p>
-                  <p className="text-amber-800 leading-relaxed">
-                    The portal administrator has paused new achievement submissions. You cannot submit new entries at this time. You can still review past submissions and rankings.
-                  </p>
-                </div>
-              </div>
-            )}
-
+          <form onSubmit={handleFormSubmit} className="space-y-4">
             {formError && (
-              <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-2xl text-xs text-rose-700 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{formSuccess}</span>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-title">Achievement Title *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Achievement Title *</label>
                 <input
                   type="text"
-                  id="ach-title"
                   required
-                  placeholder="e.g. Conducted Seminar on AI Ethics"
+                  placeholder="e.g. Annual Tech Symposium Winner"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-prog">Program/Activity Name *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Program / Activity Name *</label>
                 <input
                   type="text"
-                  id="ach-prog"
                   required
-                  placeholder="e.g. AI Ethics Workshop Series"
+                  placeholder="e.g. National Programming Fest"
                   value={programName}
                   onChange={(e) => setProgramName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-cat">Point Category</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Point Category</label>
                 <select
-                  id="ach-cat"
                   value={categoryId}
                   onChange={(e) => handleCategoryChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 >
-                  <option value="">Select point category (optional)...</option>
+                  <option value="">Select category...</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.name} {cat.isRankBased ? '(Rank-Based)' : `(Default: ${cat.defaultPoints} pts)`}
+                      {cat.name} {cat.isRankBased ? '(Rank-Based)' : `(${cat.defaultPoints} pts)`}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Rank selection if category is rank-based */}
-              {(() => {
-                const selectedCat = categories.find(c => c.id === categoryId);
-                if (!selectedCat?.isRankBased) return null;
-                return (
-                  <div className="space-y-2 bg-amber-50/60 p-4 rounded-2xl border border-amber-200 sm:col-span-2">
-                    <label className="text-xs font-bold text-amber-900 uppercase flex items-center gap-1.5">
-                      <Trophy className="w-4 h-4 text-amber-600" />
-                      <span>Position / Rank *</span>
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['1st', '2nd', '3rd'] as const).map((r) => {
-                        const pts = r === '1st' ? selectedCat.rank1Points : r === '2nd' ? selectedCat.rank2Points : selectedCat.rank3Points;
-                        const isSelected = selectedRank === r;
-                        return (
-                          <button
-                            key={r}
-                            type="button"
-                            onClick={() => handleRankChange(r)}
-                            className={`py-2.5 px-3 rounded-xl border text-xs font-extrabold flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-amber-600 border-amber-700 text-white shadow-sm'
-                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            <span>{r} Place</span>
-                            <span className={`text-[10px] ${isSelected ? 'text-amber-100' : 'text-slate-500'}`}>
-                              +{pts || 0} pts
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-date">Activity Date *</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Activity Date *</label>
                 <input
                   type="date"
-                  id="ach-date"
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-place">Activity Venue/Place</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Student Name (Achiever)</label>
                 <input
                   type="text"
-                  id="ach-place"
-                  placeholder="e.g. Audi 2 / Online"
-                  value={place}
-                  onChange={(e) => setPlace(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  placeholder="Optional Student Name"
+                  value={achieverName}
+                  onChange={(e) => setAchieverName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              {/* Student Identification - Individual Achiever Identification (Optional for group achievements) */}
-              <div className="space-y-3 sm:col-span-2 bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-emerald-700" />
-                    <span>Student Identification</span>
-                  </label>
-                  <span className="text-[10px] text-slate-500 font-medium bg-slate-200/70 px-2 py-0.5 rounded-md self-start sm:self-auto">
-                    Optional: Leave blank for group / class-level achievements
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-sid-input">Student / Roll ID</label>
-                    <input
-                      type="text"
-                      id="ach-sid-input"
-                      placeholder="Enter Student / Roll ID (Optional)"
-                      value={achieverStudentId}
-                      onChange={(e) => {
-                        const sid = e.target.value;
-                        setAchieverStudentId(sid);
-                        // Lookup
-                        const member = orgMembers.find(m => m.studentId?.toLowerCase() === sid.toLowerCase());
-                        if (member) {
-                          setAchieverName(member.name);
-                          setAchieverId(member.id);
-                        } else {
-                          setAchieverId('new');
-                        }
-                      }}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block" htmlFor="ach-name-input">Student Name</label>
-                    <input
-                      type="text"
-                      id="ach-name-input"
-                      placeholder="Enter Student Name (Optional)"
-                      value={achieverName}
-                      onChange={(e) => {
-                        setAchieverName(e.target.value);
-                        if (!achieverId || achieverId !== 'new') {
-                          setAchieverId('new');
-                        }
-                      }}
-                      readOnly={achieverId && achieverId !== 'new'}
-                      className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800 ${achieverId && achieverId !== 'new' ? 'opacity-70' : ''}`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-part">Students Participant Count</label>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Requested Points</label>
                 <input
                   type="number"
-                  id="ach-part"
-                  min="0"
-                  value={participantsCount}
-                  onChange={(e) => setParticipantsCount(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700" htmlFor="ach-req">Requested Points</label>
-                <input
-                  type="number"
-                  id="ach-req"
                   min="1"
                   value={requestedPoints}
                   onChange={(e) => setRequestedPoints(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700" htmlFor="ach-desc">Description of achievement *</label>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Description *</label>
               <textarea
-                id="ach-desc"
                 required
-                rows={4}
-                placeholder="Detail the agenda, speaker/guests, and general outcomes..."
+                rows={3}
+                placeholder="Provide detailed description of the achievement..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700" htmlFor="ach-notes">Additional Evaluation Notes</label>
-              <textarea
-                id="ach-notes"
-                rows={2}
-                placeholder="Any special remarks for points calculation..."
-                value={additionalNotes}
-                onChange={(e) => setAdditionalNotes(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
-              />
-            </div>
-
-            {/* Program Proof Upload Sections */}
-            <div className="space-y-6 pt-4 border-t border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm">UPLOAD PROGRAM PROOFS</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Photo Proof Section */}
-                <div className="space-y-3 bg-slate-50 p-5 rounded-3xl border border-slate-200/60">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Image className="w-4 h-4 text-emerald-600" />
-                      Photo Proofs <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-500">multiple images</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="upload-photos"
-                      multiple
-                      accept="image/*"
-                      onChange={handlePhotoSelect}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="upload-photos"
-                      className="w-full py-2 px-4 bg-white border border-slate-200 hover:border-emerald-600 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      Choose Photo Files
-                    </label>
-                  </div>
-
-                  {/* Photqueued list */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
-                    {queuedPhotos.map(p => (
-                      <div key={p.id} className="bg-white p-2 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                        <img src={p.url} alt="Proof" className="w-8 h-8 rounded-md object-cover border border-slate-200" referrerPolicy="no-referrer" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-slate-900 truncate">{p.name}</p>
-                          <p className="text-[9px] text-slate-400">{(p.size / 1024).toFixed(1)} KB</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveQueuedPhoto(p.id)}
-                          className="p-1 hover:bg-slate-100 rounded-md text-rose-600 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Video Proof Section */}
-                <div className="space-y-3 bg-slate-50 p-5 rounded-3xl border border-slate-200/60">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Film className="w-4 h-4 text-emerald-600" />
-                      Video Proofs <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-500">multiple videos</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="upload-videos"
-                      multiple
-                      accept="video/*"
-                      onChange={handleVideoSelect}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="upload-videos"
-                      className="w-full py-2 px-4 bg-white border border-slate-200 hover:border-emerald-600 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      Choose Video Files
-                    </label>
-                  </div>
-
-                  {/* Videoqueued list */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
-                    {queuedVideos.map(v => (
-                      <div key={v.id} className="bg-white p-2 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                        <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">
-                          <Film className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-slate-900 truncate">{v.name}</p>
-                          <p className="text-[9px] text-slate-400">{(v.size / (1024 * 1024)).toFixed(1)} MB</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveQueuedVideo(v.id)}
-                          className="p-1 hover:bg-slate-100 rounded-md text-rose-600 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Document Proof Section */}
-                <div className="space-y-3 bg-slate-50 p-5 rounded-3xl border border-slate-200/60">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-emerald-600" />
-                      Document Proofs
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-500">multiple documents</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id="upload-docs"
-                      multiple
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleDocSelect}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="upload-docs"
-                      className="w-full py-2 px-4 bg-white border border-slate-200 hover:border-emerald-600 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      Choose Document Files
-                    </label>
-                  </div>
-
-                  {/* Documentqueued list */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
-                    {queuedDocs.map(d => (
-                      <div key={d.id} className="bg-white p-2 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
-                        <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-slate-900 truncate">{d.name}</p>
-                          <p className="text-[9px] text-slate-400">{(d.size / 1024).toFixed(1)} KB</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveQueuedDoc(d.id)}
-                          className="p-1 hover:bg-slate-100 rounded-md text-rose-600 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  if (isEditing) {
-                    if (confirm('Discard changes?')) {
-                      setIsEditing(false);
-                      setEditingAchievementId(null);
-                      setActiveTab('overview');
-                    }
-                  } else {
-                    setActiveTab('overview');
-                  }
-                }}
-                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all text-sm flex items-center justify-center cursor-pointer"
+                onClick={() => setActiveTab('overview')}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={submitting || (!isEditing && portal?.submissionsAllowed === false)}
-                className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submitting}
+                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{isEditing ? 'Saving changes...' : 'Submitting...'}</span>
-                  </>
-                ) : !isEditing && portal?.submissionsAllowed === false ? (
-                  'Submissions Paused by Admin'
-                ) : (
-                  isEditing ? 'Save Changes' : 'Submit Achievement to Admin'
-                )}
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isEditing ? 'Save Changes' : 'Submit Achievement'}</span>
               </button>
             </div>
           </form>
         </div>
-        )
       )}
 
-      {/* Notifications tab */}
+      {/* Notifications Tab */}
       {activeTab === 'notifications' && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xs">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Bell className="w-5 h-5 text-emerald-600" />
-            Class Alerts & Review Feedback
+            <Bell className="w-4 h-4 text-emerald-700" />
+            Class Alerts & Feedback
           </h2>
 
           {notifications.filter(n => n.organizationId === portalUser?.organizationId).length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-xs italic">
-              No notifications logs found for your organization.
+              No notifications found.
             </div>
           ) : (
             <div className="space-y-3">
               {notifications.filter(n => n.organizationId === portalUser?.organizationId).map(not => (
-                <div key={not.id} className={`p-4 rounded-2xl border flex items-start gap-3 shadow-2xs ${not.isRead ? 'bg-slate-50/50 border-slate-100' : 'bg-emerald-50/20 border-emerald-100'}`}>
-                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                    <Bell className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-900">{not.title}</p>
-                    <p className="text-[11px] text-slate-600 mt-1">{not.message}</p>
-                    <p className="text-[9px] text-slate-400 font-semibold mt-2">{formatDate(not.createdAt)}</p>
-                  </div>
+                <div key={not.id} className="p-3.5 bg-slate-50/80 border border-slate-200/70 rounded-xl space-y-1">
+                  <p className="text-xs font-bold text-slate-900">{not.title}</p>
+                  <p className="text-xs text-slate-600">{not.message}</p>
+                  <p className="text-[10px] text-slate-400">{formatDate(not.createdAt)}</p>
                 </div>
               ))}
             </div>
@@ -1116,138 +1147,58 @@ export const SubOrgDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Achievement Detail Modal */}
       {selectedAchievement && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto space-y-6">
-            <div className="flex justify-between items-start gap-4">
-              <div className="space-y-1">
-                <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-[10px] rounded-lg">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-start gap-4 pb-3 border-b border-slate-100">
+              <div>
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-md">
                   {getCategoryName(selectedAchievement.categoryId)}
                 </span>
-                <h3 className="text-xl font-bold text-slate-900 font-heading">{selectedAchievement.title}</h3>
-                <p className="text-xs text-slate-500 font-semibold">{activeOrg?.name}</p>
+                <h3 className="text-base font-bold text-slate-900 mt-1">{selectedAchievement.title}</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedAchievement(null)}
-                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 cursor-pointer"
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-500 cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
-                <p className="text-slate-400 font-semibold">DATE & VENUE</p>
-                <p className="font-bold text-slate-800 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  {formatDate(selectedAchievement.date)}
-                </p>
-                <p className="text-slate-600 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  {selectedAchievement.place || 'Main Campus'}
-                </p>
+            <div className="space-y-3 text-xs text-slate-700">
+              <div>
+                <span className="text-slate-400 font-bold block uppercase text-[10px]">Program / Activity</span>
+                <p className="font-semibold text-slate-900">{selectedAchievement.programName}</p>
               </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
-                <p className="text-slate-400 font-semibold">WHOSE ACHIEVEMENT (ACHIEVER)</p>
-                <p className="font-extrabold text-slate-900 flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-emerald-700" />
-                  {selectedAchievement.achieverName || 'Achiever Not Assigned'}
-                </p>
-                {selectedAchievement.achieverStudentId && (
-                  <p className="text-slate-500 text-[10px] font-mono">
-                    Student ID: {selectedAchievement.achieverStudentId}
-                  </p>
-                )}
+              <div>
+                <span className="text-slate-400 font-bold block uppercase text-[10px]">Date & Venue</span>
+                <p className="font-semibold text-slate-900">{formatDate(selectedAchievement.date)} at {selectedAchievement.place || 'Main Campus'}</p>
               </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
-                <p className="text-slate-400 font-semibold">EVALUATION</p>
-                <p className="font-bold text-emerald-700 flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 text-emerald-600" />
-                  Awarded: {selectedAchievement.awardedPoints} points
-                </p>
-                <div className="flex items-center gap-1">
-                  <span>Status:</span>
+              <div>
+                <span className="text-slate-400 font-bold block uppercase text-[10px]">Description</span>
+                <p className="text-slate-700 leading-relaxed">{selectedAchievement.description}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 font-bold block uppercase text-[10px]">Status & Points</span>
+                <div className="flex items-center gap-2 mt-1">
                   {getStatusBadge(selectedAchievement.status)}
+                  <span className="font-bold text-slate-900">{selectedAchievement.awardedPoints !== undefined ? `${selectedAchievement.awardedPoints} pts awarded` : `${selectedAchievement.requestedPoints} pts requested`}</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-800">ACTIVITY DESCRIPTION</h4>
-              <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{selectedAchievement.description}</p>
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedAchievement(null)}
+                className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                Close
+              </button>
             </div>
-
-            {/* Media Proof Preview Cards */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-800">VERIFIED PROGRAM PROOFS</h4>
-              {getMediaForAchievement(selectedAchievement.id).length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic">No proof files attached to this submission.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {getMediaForAchievement(selectedAchievement.id).map(med => (
-                    <div key={med.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
-                      {med.proofType === 'photo' ? (
-                        <img src={med.fileUrl} alt="Thumbnail" className="w-12 h-12 rounded-lg object-cover border border-slate-200" referrerPolicy="no-referrer" />
-                      ) : med.proofType === 'video' ? (
-                        <div className="w-12 h-12 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-                          <Film className="w-5 h-5" />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{med.fileName}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">{med.proofType}</p>
-                      </div>
-                      <a
-                        href={med.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 bg-white hover:bg-slate-100 rounded-lg text-slate-500 border border-slate-200 cursor-pointer"
-                        title="Download/View file"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selectedAchievement.reviewNotes && (
-              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-1">
-                <h4 className="text-xs font-bold text-emerald-900">ADMIN REVIEWER FEEDBACK</h4>
-                <p className="text-xs text-emerald-800 italic leading-relaxed">"{selectedAchievement.reviewNotes}"</p>
-              </div>
-            )}
           </div>
-        </div>
-      )}
-
-      {/* Floating Action Button (+ Add Achievement) - comfortably positioned above bottom navigation bar in both app and portal viewports */}
-      {activeTab !== 'submit' && portal?.submissionsAllowed !== false && (
-        <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-[60]">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setActiveTab('submit');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="flex items-center gap-2 px-4 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-full shadow-[0_10px_30px_rgba(4,120,87,0.4)] border-2 border-white/30 transition-all cursor-pointer group"
-            title="Submit New Achievement"
-            aria-label="Submit New Achievement"
-          >
-            <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center group-hover:bg-emerald-500 transition-colors shadow-inner">
-              <Plus className="w-4 h-4 text-white stroke-[3]" />
-            </div>
-            <span className="font-bold pr-1">+ Add Achievement</span>
-          </motion.button>
         </div>
       )}
     </div>
