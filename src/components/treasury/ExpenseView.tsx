@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, Plus, Search, Filter, Calendar, FileText, Trash2, Edit, Building2, Tag } from 'lucide-react';
+import { ArrowUpRight, Plus, Search, Filter, Calendar, FileText, Trash2, Edit, Building2, Tag, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Expense } from '../../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { TreasuryMonthFilter } from './TreasuryMonthFilter';
+import { 
+  TreasuryDateFilter, 
+  getDefaultMonthKey, 
+  matchTreasuryDateFilter, 
+  sortByDateDesc,
+  formatMonthLabel 
+} from './treasuryDateUtils';
 
 interface ExpenseViewProps {
   onOpenAddModal: () => void;
@@ -16,17 +24,30 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
   const [selectedAccount, setSelectedAccount] = useState('ALL');
   const [itemToDelete, setItemToDelete] = useState<Expense | null>(null);
 
+  // Month and Date-based filter state
+  const [dateFilter, setDateFilter] = useState<TreasuryDateFilter>({
+    selectedMonth: getDefaultMonthKey(),
+    dateFilterType: 'ALL',
+    specificDate: '',
+    startDate: '',
+    endDate: '',
+  });
+
   const categories = Array.from(new Set(expenses.map((e) => e.category)));
 
-  const filteredExpenses = expenses.filter((exp) => {
-    const matchesSearch =
-      exp.paid_to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exp.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exp.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCat = selectedCategory === 'ALL' || exp.category === selectedCategory;
-    const matchesAcc = selectedAccount === 'ALL' || exp.account_id === selectedAccount;
-    return matchesSearch && matchesCat && matchesAcc;
-  });
+  // Filter and sort newest transactions first
+  const dateFiltered = expenses.filter((exp) => matchTreasuryDateFilter(exp.date, dateFilter));
+  const filteredExpenses = sortByDateDesc(
+    dateFiltered.filter((exp) => {
+      const matchesSearch =
+        exp.paid_to.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exp.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exp.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCat = selectedCategory === 'ALL' || exp.category === selectedCategory;
+      const matchesAcc = selectedAccount === 'ALL' || exp.account_id === selectedAccount;
+      return matchesSearch && matchesCat && matchesAcc;
+    })
+  );
 
   const totalFilteredExpense = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -35,6 +56,19 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
       deleteExpense(itemToDelete.id);
       setItemToDelete(null);
     }
+  };
+
+  const handleResetToAllMonths = () => {
+    setDateFilter({
+      selectedMonth: 'ALL',
+      dateFilterType: 'ALL',
+      specificDate: '',
+      startDate: '',
+      endDate: '',
+    });
+    setSearchTerm('');
+    setSelectedCategory('ALL');
+    setSelectedAccount('ALL');
   };
 
   return (
@@ -58,6 +92,13 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
           </button>
         )}
       </div>
+
+      {/* Month-Wise and Date-Based Filter with Monthly Summary */}
+      <TreasuryMonthFilter
+        filter={dateFilter}
+        onChangeFilter={setDateFilter}
+        highlightSection="expense"
+      />
 
       {/* Redesigned Search & Filters */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
@@ -169,8 +210,26 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
             );
           })
         ) : (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-            No expense records match your filters.
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs space-y-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center mx-auto">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <p className="font-bold text-slate-800 text-sm">No Expense Records Found</p>
+            <p className="text-slate-500 max-w-sm mx-auto">
+              {dateFilter.selectedMonth === 'ALL'
+                ? 'No expense transactions match your current search and filters.'
+                : `No expense transactions recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+            </p>
+            {dateFilter.selectedMonth !== 'ALL' && (
+              <button
+                type="button"
+                onClick={handleResetToAllMonths}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>View All Months</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -243,8 +302,23 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    No expense records match your filters.
+                  <td colSpan={7} className="py-12 text-center text-slate-500 text-xs">
+                    <p className="font-bold text-slate-800 text-sm mb-1">No Expense Records Found</p>
+                    <p className="text-slate-500 mb-3">
+                      {dateFilter.selectedMonth === 'ALL'
+                        ? 'No expense transactions match your current search and filters.'
+                        : `No expense transactions recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                    </p>
+                    {dateFilter.selectedMonth !== 'ALL' && (
+                      <button
+                        type="button"
+                        onClick={handleResetToAllMonths}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>View All Months</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               )}

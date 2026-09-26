@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowDownLeft, Plus, Search, Filter, Calendar, FileText, Trash2, Edit, Building2, Tag } from 'lucide-react';
+import { ArrowDownLeft, Plus, Search, Filter, Calendar, FileText, Trash2, Edit, Building2, Tag, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Income } from '../../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { TreasuryMonthFilter } from './TreasuryMonthFilter';
+import { 
+  TreasuryDateFilter, 
+  getDefaultMonthKey, 
+  matchTreasuryDateFilter, 
+  sortByDateDesc,
+  formatMonthLabel 
+} from './treasuryDateUtils';
 
 interface IncomeViewProps {
   onOpenAddModal: () => void;
@@ -16,17 +24,30 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
   const [selectedAccount, setSelectedAccount] = useState('ALL');
   const [itemToDelete, setItemToDelete] = useState<Income | null>(null);
 
+  // Month and Date-based filter state
+  const [dateFilter, setDateFilter] = useState<TreasuryDateFilter>({
+    selectedMonth: getDefaultMonthKey(),
+    dateFilterType: 'ALL',
+    specificDate: '',
+    startDate: '',
+    endDate: '',
+  });
+
   const categories = Array.from(new Set(incomes.map((i) => i.category)));
 
-  const filteredIncomes = incomes.filter((inc) => {
-    const matchesSearch =
-      inc.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCat = selectedCategory === 'ALL' || inc.category === selectedCategory;
-    const matchesAcc = selectedAccount === 'ALL' || inc.account_id === selectedAccount;
-    return matchesSearch && matchesCat && matchesAcc;
-  });
+  // Filter and sort newest transactions first
+  const dateFiltered = incomes.filter((inc) => matchTreasuryDateFilter(inc.date, dateFilter));
+  const filteredIncomes = sortByDateDesc(
+    dateFiltered.filter((inc) => {
+      const matchesSearch =
+        inc.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inc.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCat = selectedCategory === 'ALL' || inc.category === selectedCategory;
+      const matchesAcc = selectedAccount === 'ALL' || inc.account_id === selectedAccount;
+      return matchesSearch && matchesCat && matchesAcc;
+    })
+  );
 
   const totalFilteredIncome = filteredIncomes.reduce((sum, i) => sum + i.amount, 0);
 
@@ -35,6 +56,19 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
       deleteIncome(itemToDelete.id);
       setItemToDelete(null);
     }
+  };
+
+  const handleResetToAllMonths = () => {
+    setDateFilter({
+      selectedMonth: 'ALL',
+      dateFilterType: 'ALL',
+      specificDate: '',
+      startDate: '',
+      endDate: '',
+    });
+    setSearchTerm('');
+    setSelectedCategory('ALL');
+    setSelectedAccount('ALL');
   };
 
   return (
@@ -59,7 +93,14 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
         )}
       </div>
 
-      {/* Redesigned Search & Filters */}
+      {/* Month-Wise and Date-Based Filter with Monthly Summary */}
+      <TreasuryMonthFilter
+        filter={dateFilter}
+        onChangeFilter={setDateFilter}
+        highlightSection="income"
+      />
+
+      {/* Redesigned Search & Category/Account Filters */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -169,8 +210,26 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
             );
           })
         ) : (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-            No income records match your filters.
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs space-y-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <p className="font-bold text-slate-800 text-sm">No Income Records Found</p>
+            <p className="text-slate-500 max-w-sm mx-auto">
+              {dateFilter.selectedMonth === 'ALL'
+                ? 'No income transactions match your current search and filters.'
+                : `No income transactions recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+            </p>
+            {dateFilter.selectedMonth !== 'ALL' && (
+              <button
+                type="button"
+                onClick={handleResetToAllMonths}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>View All Months</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -243,8 +302,23 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    No income records match your filters.
+                  <td colSpan={7} className="py-12 text-center text-slate-500 text-xs">
+                    <p className="font-bold text-slate-800 text-sm mb-1">No Income Records Found</p>
+                    <p className="text-slate-500 mb-3">
+                      {dateFilter.selectedMonth === 'ALL'
+                        ? 'No income transactions match your current search and filters.'
+                        : `No income transactions recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                    </p>
+                    {dateFilter.selectedMonth !== 'ALL' && (
+                      <button
+                        type="button"
+                        onClick={handleResetToAllMonths}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>View All Months</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               )}

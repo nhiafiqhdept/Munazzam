@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { Landmark, Plus, CheckCircle2, AlertCircle, RefreshCw, Trash2, Calendar, FileText } from 'lucide-react';
+import { Landmark, Plus, CheckCircle2, AlertCircle, RefreshCw, Trash2, Calendar, FileText, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Loan, LoanRepayment } from '../../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { TreasuryMonthFilter } from './TreasuryMonthFilter';
+import { 
+  TreasuryDateFilter, 
+  getDefaultMonthKey, 
+  matchTreasuryDateFilter, 
+  sortByDateDesc,
+  formatMonthLabel 
+} from './treasuryDateUtils';
 
 interface LoansViewProps {
   onOpenAddLoan: () => void;
@@ -15,7 +23,26 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
   const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
   const [repaymentToDelete, setRepaymentToDelete] = useState<LoanRepayment | null>(null);
 
-  const filteredLoans = loans.filter((l) => l.type === activeTab);
+  // Month and Date-based filter state
+  const [dateFilter, setDateFilter] = useState<TreasuryDateFilter>({
+    selectedMonth: getDefaultMonthKey(),
+    dateFilterType: 'ALL',
+    specificDate: '',
+    startDate: '',
+    endDate: '',
+  });
+
+  // Filter and sort loans descending (newest first)
+  const dateFilteredLoans = loans.filter((l) => matchTreasuryDateFilter(l.date, dateFilter));
+  const sortedLoans = sortByDateDesc(dateFilteredLoans);
+  const filteredLoans = sortedLoans.filter((l) => l.type === activeTab);
+
+  // Filter and sort repayments descending (newest first)
+  const dateFilteredRepayments = loanRepayments.filter((r) => matchTreasuryDateFilter(r.date, dateFilter));
+  const sortedRepayments = sortByDateDesc(dateFilteredRepayments);
+
+  const borrowedCount = sortedLoans.filter((l) => l.type === 'BORROWED').length;
+  const lentCount = sortedLoans.filter((l) => l.type === 'LENT').length;
 
   const handleDeleteLoanConfirm = () => {
     if (loanToDelete) {
@@ -29,6 +56,16 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
       deleteLoanRepayment(repaymentToDelete.id);
       setRepaymentToDelete(null);
     }
+  };
+
+  const handleResetToAllMonths = () => {
+    setDateFilter({
+      selectedMonth: 'ALL',
+      dateFilterType: 'ALL',
+      specificDate: '',
+      startDate: '',
+      endDate: '',
+    });
   };
 
   return (
@@ -53,6 +90,13 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         )}
       </div>
 
+      {/* Month-Wise and Date-Based Filter with Monthly Summary */}
+      <TreasuryMonthFilter
+        filter={dateFilter}
+        onChangeFilter={setDateFilter}
+        highlightSection="loans"
+      />
+
       {/* Mobile-Friendly Responsive Tabs */}
       <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto no-scrollbar">
         <button
@@ -61,7 +105,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
             activeTab === 'BORROWED' ? 'bg-amber-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          Borrowed (Payables)
+          Borrowed (Payables) ({borrowedCount})
         </button>
         <button
           onClick={() => setActiveTab('LENT')}
@@ -69,7 +113,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
             activeTab === 'LENT' ? 'bg-blue-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          Lent (Receivables)
+          Lent (Receivables) ({lentCount})
         </button>
         <button
           onClick={() => setActiveTab('REPAYMENTS')}
@@ -77,7 +121,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
             activeTab === 'REPAYMENTS' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          Repayments ({loanRepayments.length})
+          Repayments ({sortedRepayments.length})
         </button>
       </div>
 
@@ -86,8 +130,8 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         <>
           {/* Mobile Card List for Repayments */}
           <div className="block md:hidden space-y-3">
-            {loanRepayments.length > 0 ? (
-              loanRepayments.map((rep) => {
+            {sortedRepayments.length > 0 ? (
+              sortedRepayments.map((rep) => {
                 const loan = loans.find((l) => l.id === rep.loan_id);
                 const acc = accounts.find((a) => a.id === rep.account_id);
                 const isRepay = rep.type === 'REPAY';
@@ -141,8 +185,26 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                 );
               })
             ) : (
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs shadow-2xs">
-                No loan repayments or recoveries recorded.
+              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs shadow-2xs space-y-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mx-auto">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <p className="font-bold text-slate-800 text-sm">No Repayments Recorded</p>
+                <p className="text-slate-500 max-w-sm mx-auto">
+                  {dateFilter.selectedMonth === 'ALL'
+                    ? 'No loan repayments or recoveries recorded.'
+                    : `No loan repayments or recoveries recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                </p>
+                {dateFilter.selectedMonth !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={handleResetToAllMonths}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>View All Months</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -163,8 +225,8 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
-                  {loanRepayments.length > 0 ? (
-                    loanRepayments.map((rep) => {
+                  {sortedRepayments.length > 0 ? (
+                    sortedRepayments.map((rep) => {
                       const loan = loans.find((l) => l.id === rep.loan_id);
                       const acc = accounts.find((a) => a.id === rep.account_id);
                       const isRepay = rep.type === 'REPAY';
@@ -200,8 +262,23 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400">
-                        No loan repayments or recoveries recorded.
+                      <td colSpan={7} className="py-12 text-center text-slate-500 text-xs">
+                        <p className="font-bold text-slate-800 text-sm mb-1">No Repayments Recorded</p>
+                        <p className="text-slate-500 mb-3">
+                          {dateFilter.selectedMonth === 'ALL'
+                            ? 'No loan repayments or recoveries recorded.'
+                            : `No loan repayments or recoveries recorded for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                        </p>
+                        {dateFilter.selectedMonth !== 'ALL' && (
+                          <button
+                            type="button"
+                            onClick={handleResetToAllMonths}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>View All Months</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -283,8 +360,28 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                 );
               })
             ) : (
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs shadow-2xs">
-                No loan records found for this category.
+              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs shadow-2xs space-y-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mx-auto">
+                  <Landmark className="w-5 h-5" />
+                </div>
+                <p className="font-bold text-slate-800 text-sm">
+                  {activeTab === 'BORROWED' ? 'No Borrowed Loans Found' : 'No Lent Loans Found'}
+                </p>
+                <p className="text-slate-500 max-w-sm mx-auto">
+                  {dateFilter.selectedMonth === 'ALL'
+                    ? 'No loan records found for this category.'
+                    : `No loan records found for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                </p>
+                {dateFilter.selectedMonth !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={handleResetToAllMonths}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>View All Months</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -358,8 +455,25 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400">
-                        No loan records found for this category.
+                      <td colSpan={8} className="py-12 text-center text-slate-500 text-xs">
+                        <p className="font-bold text-slate-800 text-sm mb-1">
+                          {activeTab === 'BORROWED' ? 'No Borrowed Loans Found' : 'No Lent Loans Found'}
+                        </p>
+                        <p className="text-slate-500 mb-3">
+                          {dateFilter.selectedMonth === 'ALL'
+                            ? 'No loan records found for this category.'
+                            : `No loan records found for ${formatMonthLabel(dateFilter.selectedMonth)}.`}
+                        </p>
+                        {dateFilter.selectedMonth !== 'ALL' && (
+                          <button
+                            type="button"
+                            onClick={handleResetToAllMonths}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>View All Months</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )}
