@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, ArrowLeftRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { CustomOptionField } from '../common/CustomOptionField';
+import { DEFAULT_TRANSFER_REASONS } from '../../utils/customOptionUtils';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -13,6 +15,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id || '');
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || accounts[0]?.id || '');
   const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState<string>(DEFAULT_TRANSFER_REASONS[0]);
+  const [customCategory, setCustomCategory] = useState('');
   const [description, setDescription] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState('');
@@ -33,11 +37,22 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
       return;
     }
 
+    const isCustom = category === 'Other';
+    if (isCustom && !customCategory.trim()) {
+      setError('Please enter a custom transfer reason.');
+      return;
+    }
+
+    const effectiveCategory = isCustom ? customCategory.trim() : category;
+
     addTransfer({
       from_account_id: fromAccountId,
       to_account_id: toAccountId,
       amount: Number(amount),
       date,
+      category: effectiveCategory,
+      raw_category: isCustom ? 'Other' : category,
+      custom_category: isCustom ? customCategory.trim() : undefined,
       description: description.trim() || undefined,
       reference_number: referenceNumber.trim() || undefined,
       created_by: 'Treasurer',
@@ -109,18 +124,52 @@ export const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose })
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Amount (₹) *</label>
-            <input
-              type="number"
-              required
-              min="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="e.g. 5000"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+              <input
+                type="number"
+                required
+                min="1"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 5000"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Transfer Reason / Category *</label>
+              <select
+                value={category}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCategory(val);
+                  if (val !== 'Other') {
+                    setCustomCategory('');
+                  }
+                }}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              >
+                {DEFAULT_TRANSFER_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {category === 'Other' && (
+            <CustomOptionField
+              id="transfer-custom-category-input"
+              label="Enter Custom Transfer Reason *"
+              value={customCategory}
+              onChange={setCustomCategory}
+              placeholder="e.g. Festival Advance, Inter-branch settlement..."
+              required
+              autoFocus
+            />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Description / Notes</label>

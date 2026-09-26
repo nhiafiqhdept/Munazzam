@@ -33,6 +33,8 @@ export interface Organizer {
   name: string;
   photo: string;
   position: string;
+  raw_position?: string;
+  custom_position?: string;
   display_order: number;
   email?: string;
   phone?: string;
@@ -218,6 +220,7 @@ export interface FinancialAccount {
   organization_id: string;
   name: string;
   type: FinancialAccountType;
+  custom_type?: string;
   opening_balance: number;
   description?: string;
   is_active: boolean;
@@ -232,6 +235,8 @@ export interface Income {
   organization_id: string;
   account_id: string;
   category: string;
+  raw_category?: string;
+  custom_category?: string;
   program_id?: string;
   date: string;
   amount: number;
@@ -249,6 +254,8 @@ export interface Expense {
   organization_id: string;
   account_id: string;
   category: string;
+  raw_category?: string;
+  custom_category?: string;
   program_id?: string;
   date: string;
   amount: number;
@@ -268,6 +275,9 @@ export interface AccountTransfer {
   to_account_id: string;
   amount: number;
   date: string;
+  category?: string;
+  raw_category?: string;
+  custom_category?: string;
   description?: string;
   reference_number?: string;
   created_by?: string;
@@ -288,6 +298,8 @@ export interface Loan {
   date: string;
   due_date?: string;
   purpose: string;
+  raw_purpose?: string;
+  custom_purpose?: string;
   account_id: string;
   description?: string;
   proof?: string;

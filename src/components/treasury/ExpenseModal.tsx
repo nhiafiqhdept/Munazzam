@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ArrowUpRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Expense } from '../../types';
+import { CustomOptionField } from '../common/CustomOptionField';
+import { DEFAULT_EXPENSE_CATEGORIES, resolveCustomSelectState } from '../../utils/customOptionUtils';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -15,7 +17,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
-  const [category, setCategory] = useState('Food');
+  const [category, setCategory] = useState<string>('Food');
+  const [customCategory, setCustomCategory] = useState('');
   const [paidTo, setPaidTo] = useState('');
   const [description, setDescription] = useState('');
   const [programId, setProgramId] = useState('');
@@ -30,7 +33,17 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
         setDate(expenseToEdit.date || new Date().toISOString().substring(0, 10));
         setAmount(expenseToEdit.amount ? expenseToEdit.amount.toString() : '');
         setAccountId(expenseToEdit.account_id || (accounts.length > 0 ? accounts[0].id : ''));
-        setCategory(expenseToEdit.category || 'Food');
+        
+        // Resolve custom category state
+        const resolved = resolveCustomSelectState(
+          expenseToEdit.category,
+          expenseToEdit.raw_category,
+          expenseToEdit.custom_category,
+          DEFAULT_EXPENSE_CATEGORIES
+        );
+        setCategory(resolved.selected);
+        setCustomCategory(resolved.custom);
+
         setPaidTo(expenseToEdit.paid_to || '');
         setDescription(expenseToEdit.description || '');
         setProgramId(expenseToEdit.program_id || '');
@@ -42,6 +55,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
           setAccountId(accounts[0].id);
         }
         setCategory('Food');
+        setCustomCategory('');
         setPaidTo('');
         setDescription('');
         if (preselectedProgramId) {
@@ -79,13 +93,23 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
       return;
     }
 
+    if (category === 'Other' && !customCategory.trim()) {
+      setError('Please enter a custom category name.');
+      return;
+    }
+
+    const isCustom = category === 'Other';
+    const effectiveCategory = isCustom ? customCategory.trim() : category;
+
     setIsSubmitting(true);
     try {
       if (expenseToEdit) {
         await updateExpense({
           id: expenseToEdit.id,
           account_id: accountId,
-          category,
+          category: effectiveCategory,
+          raw_category: isCustom ? 'Other' : category,
+          custom_category: isCustom ? customCategory.trim() : undefined,
           program_id: programId || undefined,
           date,
           amount: parsedAmount,
@@ -96,7 +120,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
       } else {
         await addExpense({
           account_id: accountId,
-          category,
+          category: effectiveCategory,
+          raw_category: isCustom ? 'Other' : category,
+          custom_category: isCustom ? customCategory.trim() : undefined,
           program_id: programId || undefined,
           date,
           amount: parsedAmount,
@@ -112,6 +138,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
       setAmount('');
       setDescription('');
       setReferenceNumber('');
+      setCustomCategory('');
       onClose();
     } catch (err: any) {
       console.error('Save Expense Error:', err);
@@ -192,24 +219,35 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, pre
               <label className="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCategory(val);
+                  if (val !== 'Other') {
+                    setCustomCategory('');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
-                <option value="Food">Food</option>
-                <option value="Printing">Printing</option>
-                <option value="Transportation">Transportation</option>
-                <option value="Decoration">Decoration</option>
-                <option value="Venue">Venue</option>
-                <option value="Stationery">Stationery</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Honorarium">Honorarium</option>
-                <option value="Advertisement">Advertisement</option>
-                <option value="Accommodation">Accommodation</option>
-                <option value="Miscellaneous">Miscellaneous</option>
-                <option value="Other">Other</option>
+                {DEFAULT_EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
+
+          {category === 'Other' && (
+            <CustomOptionField
+              id="expense-custom-category-input"
+              label="Enter Custom Category *"
+              value={customCategory}
+              onChange={setCustomCategory}
+              placeholder="e.g. Stage Lighting, Guest Momento, Security Services..."
+              required
+              autoFocus
+            />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Paid To / Payee *</label>

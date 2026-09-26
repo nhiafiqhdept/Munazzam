@@ -36,6 +36,7 @@ import {
   determineProgramStatusByDate,
   getProgramEffectiveStatus,
 } from '../utils/helpers';
+import { CustomOptionField } from './common/CustomOptionField';
 
 interface ProgramModalProps {
   isOpen: boolean;
@@ -765,13 +766,14 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               </select>
 
               {isCustomAudience && (
-                <input
-                  type="text"
+                <CustomOptionField
+                  id="program-custom-audience-input"
+                  label="Enter Custom Target Audience *"
                   value={customAudience}
-                  onChange={(e) => setCustomAudience(e.target.value)}
-                  placeholder="e.g. Department Scholars"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm"
+                  onChange={setCustomAudience}
+                  placeholder="e.g. Department Scholars, Alumni..."
                   required
+                  autoFocus
                 />
               )}
             </div>

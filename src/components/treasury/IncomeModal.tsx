@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ArrowDownLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Income } from '../../types';
+import { CustomOptionField } from '../common/CustomOptionField';
+import { DEFAULT_INCOME_CATEGORIES, resolveCustomSelectState } from '../../utils/customOptionUtils';
 
 interface IncomeModalProps {
   isOpen: boolean;
@@ -15,7 +17,8 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
-  const [category, setCategory] = useState('Donation');
+  const [category, setCategory] = useState<string>('Donation');
+  const [customCategory, setCustomCategory] = useState('');
   const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
   const [programId, setProgramId] = useState('');
@@ -23,14 +26,24 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync selected account when modal opens or accounts/incomeToEdit change
+  // Sync selected account and category when modal opens or accounts/incomeToEdit change
   useEffect(() => {
     if (isOpen) {
       if (incomeToEdit) {
         setDate(incomeToEdit.date || new Date().toISOString().substring(0, 10));
         setAmount(incomeToEdit.amount ? incomeToEdit.amount.toString() : '');
         setAccountId(incomeToEdit.account_id || (accounts.length > 0 ? accounts[0].id : ''));
-        setCategory(incomeToEdit.category || 'Donation');
+        
+        // Resolve custom category state
+        const resolved = resolveCustomSelectState(
+          incomeToEdit.category,
+          incomeToEdit.raw_category,
+          incomeToEdit.custom_category,
+          DEFAULT_INCOME_CATEGORIES
+        );
+        setCategory(resolved.selected);
+        setCustomCategory(resolved.custom);
+
         setSource(incomeToEdit.source || '');
         setDescription(incomeToEdit.description || '');
         setProgramId(incomeToEdit.program_id || '');
@@ -42,6 +55,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
           setAccountId(accounts[0].id);
         }
         setCategory('Donation');
+        setCustomCategory('');
         setSource('');
         setDescription('');
         if (preselectedProgramId) {
@@ -79,13 +93,23 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
       return;
     }
 
+    if (category === 'Other' && !customCategory.trim()) {
+      setError('Please enter a custom category name.');
+      return;
+    }
+
+    const isCustom = category === 'Other';
+    const effectiveCategory = isCustom ? customCategory.trim() : category;
+
     setIsSubmitting(true);
     try {
       if (incomeToEdit) {
         await updateIncome({
           id: incomeToEdit.id,
           account_id: accountId,
-          category: category || 'Donation',
+          category: effectiveCategory,
+          raw_category: isCustom ? 'Other' : category,
+          custom_category: isCustom ? customCategory.trim() : undefined,
           program_id: programId || undefined,
           date,
           amount: parsedAmount,
@@ -96,7 +120,9 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
       } else {
         await addIncome({
           account_id: accountId,
-          category: category || 'Donation',
+          category: effectiveCategory,
+          raw_category: isCustom ? 'Other' : category,
+          custom_category: isCustom ? customCategory.trim() : undefined,
           program_id: programId || undefined,
           date,
           amount: parsedAmount,
@@ -112,6 +138,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
       setAmount('');
       setDescription('');
       setReferenceNumber('');
+      setCustomCategory('');
       onClose();
     } catch (err: any) {
       console.error('Save Income Error:', err);
@@ -192,20 +219,35 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
               <label className="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCategory(val);
+                  if (val !== 'Other') {
+                    setCustomCategory('');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
-                <option value="Donation">Donation</option>
-                <option value="Membership Fee">Membership Fee</option>
-                <option value="Sponsorship">Sponsorship</option>
-                <option value="Program Registration">Program Registration</option>
-                <option value="Fundraising">Fundraising</option>
-                <option value="Contribution">Contribution</option>
-                <option value="Grant">Grant</option>
-                <option value="Other">Other</option>
+                {DEFAULT_INCOME_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
+
+          {category === 'Other' && (
+            <CustomOptionField
+              id="income-custom-category-input"
+              label="Enter Custom Category *"
+              value={customCategory}
+              onChange={setCustomCategory}
+              placeholder="e.g. Workshop Sponsorship, Endowment Fund, Book Sale..."
+              required
+              autoFocus
+            />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Source / Received From *</label>

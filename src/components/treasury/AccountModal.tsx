@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Wallet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FinancialAccount, FinancialAccountType } from '../../types';
+import { CustomOptionField } from '../common/CustomOptionField';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
   const { addAccount, updateAccount } = useApp();
   const [name, setName] = useState('');
   const [type, setType] = useState<FinancialAccountType>('bank');
+  const [customType, setCustomType] = useState('');
   const [openingBalance, setOpeningBalance] = useState('');
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -22,12 +24,14 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
     if (editingAccount) {
       setName(editingAccount.name);
       setType(editingAccount.type);
+      setCustomType(editingAccount.custom_type || '');
       setOpeningBalance(editingAccount.opening_balance.toString());
       setDescription(editingAccount.description || '');
       setIsActive(editingAccount.is_active);
     } else {
       setName('');
       setType('bank');
+      setCustomType('');
       setOpeningBalance('0');
       setDescription('');
       setIsActive(true);
@@ -45,11 +49,17 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
       return;
     }
 
+    if (type === 'other' && !customType.trim()) {
+      setError('Please enter a custom account type.');
+      return;
+    }
+
     if (editingAccount) {
       updateAccount({
         id: editingAccount.id,
         name: name.trim(),
         type,
+        custom_type: type === 'other' ? customType.trim() : undefined,
         opening_balance: Number(openingBalance) || 0,
         description: description.trim() || undefined,
         is_active: isActive,
@@ -58,6 +68,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
       addAccount({
         name: name.trim(),
         type,
+        custom_type: type === 'other' ? customType.trim() : undefined,
         opening_balance: Number(openingBalance) || 0,
         description: description.trim() || undefined,
         is_active: isActive,
@@ -107,7 +118,13 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
               <label className="block text-xs font-semibold text-slate-700 mb-1">Account Type *</label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value as FinancialAccountType)}
+                onChange={(e) => {
+                  const val = e.target.value as FinancialAccountType;
+                  setType(val);
+                  if (val !== 'other') {
+                    setCustomType('');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
               >
                 <option value="cash">Cash in Hand</option>
@@ -128,6 +145,18 @@ export const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, edi
               />
             </div>
           </div>
+
+          {type === 'other' && (
+            <CustomOptionField
+              id="account-custom-type-input"
+              label="Enter Custom Account Type *"
+              value={customType}
+              onChange={setCustomType}
+              placeholder="e.g. Fixed Deposit, Trust Reserve, Scholarship Chest..."
+              required
+              autoFocus
+            />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>

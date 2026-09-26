@@ -2281,6 +2281,8 @@ export const AppProvider: React.FC<{
       organization_id: user.id,
       account_id: inc.account_id,
       category: inc.category,
+      raw_category: inc.raw_category || undefined,
+      custom_category: inc.custom_category || undefined,
       program_id: inc.program_id || '',
       date: inc.date,
       amount: Number(inc.amount),
@@ -2302,10 +2304,12 @@ export const AppProvider: React.FC<{
     });
 
     try {
-      await addDoc(collection(db, 'incomes'), {
+      await addDoc(collection(db, 'incomes'), cleanFirestorePayload({
         accountId: user.id,
         account_id: inc.account_id,
         category: inc.category,
+        raw_category: inc.raw_category || undefined,
+        custom_category: inc.custom_category || undefined,
         program_id: inc.program_id || '',
         date: inc.date,
         amount: Number(inc.amount),
@@ -2316,7 +2320,7 @@ export const AppProvider: React.FC<{
         created_by: user.email || 'admin',
         created_at: now,
         updated_at: now,
-      });
+      }));
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'incomes');
     }
@@ -2373,6 +2377,8 @@ export const AppProvider: React.FC<{
       organization_id: user.id,
       account_id: exp.account_id,
       category: exp.category,
+      raw_category: exp.raw_category || undefined,
+      custom_category: exp.custom_category || undefined,
       program_id: exp.program_id || '',
       date: exp.date,
       amount: Number(exp.amount),
@@ -2394,10 +2400,12 @@ export const AppProvider: React.FC<{
     });
 
     try {
-      await addDoc(collection(db, 'expenses'), {
+      await addDoc(collection(db, 'expenses'), cleanFirestorePayload({
         accountId: user.id,
         account_id: exp.account_id,
         category: exp.category,
+        raw_category: exp.raw_category || undefined,
+        custom_category: exp.custom_category || undefined,
         program_id: exp.program_id || '',
         date: exp.date,
         amount: Number(exp.amount),
@@ -2408,7 +2416,7 @@ export const AppProvider: React.FC<{
         created_by: user.email || 'admin',
         created_at: now,
         updated_at: now,
-      });
+      }));
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'expenses');
     }
@@ -2459,17 +2467,20 @@ export const AppProvider: React.FC<{
   const addTransfer = async (tr: Omit<AccountTransfer, 'id' | 'organization_id' | 'created_at'>): Promise<AccountTransfer> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'transfers'), {
+    const docRef = await addDoc(collection(db, 'transfers'), cleanFirestorePayload({
       accountId: user.id,
       from_account_id: tr.from_account_id,
       to_account_id: tr.to_account_id,
       amount: Number(tr.amount),
       date: tr.date,
+      category: tr.category || undefined,
+      raw_category: tr.raw_category || undefined,
+      custom_category: tr.custom_category || undefined,
       description: tr.description || '',
       reference_number: tr.reference_number || '',
       created_by: user.email || 'admin',
       created_at: now,
-    });
+    }));
     return {
       id: docRef.id,
       organization_id: user.id,
@@ -2486,7 +2497,7 @@ export const AppProvider: React.FC<{
   const addLoan = async (loan: Omit<Loan, 'id' | 'organization_id' | 'outstanding_amount' | 'status' | 'created_at' | 'updated_at'>): Promise<Loan> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'loans'), {
+    const docRef = await addDoc(collection(db, 'loans'), cleanFirestorePayload({
       accountId: user.id,
       type: loan.type,
       person_or_organization: loan.person_or_organization,
@@ -2495,6 +2506,8 @@ export const AppProvider: React.FC<{
       date: loan.date,
       due_date: loan.due_date || '',
       purpose: loan.purpose,
+      raw_purpose: loan.raw_purpose || undefined,
+      custom_purpose: loan.custom_purpose || undefined,
       account_id: loan.account_id,
       description: loan.description || '',
       proof: loan.proof || '',
@@ -2502,7 +2515,7 @@ export const AppProvider: React.FC<{
       created_by: user.email || 'admin',
       created_at: now,
       updated_at: now,
-    });
+    }));
     return {
       id: docRef.id,
       organization_id: user.id,

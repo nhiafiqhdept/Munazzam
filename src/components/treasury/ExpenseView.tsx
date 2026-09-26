@@ -33,7 +33,8 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
     endDate: '',
   });
 
-  const categories = Array.from(new Set(expenses.map((e) => e.category)));
+  const getEffectiveCategory = (exp: Expense) => exp.custom_category?.trim() || exp.category;
+  const categories = Array.from(new Set(expenses.map(getEffectiveCategory)));
 
   // Filter and sort newest transactions first
   const dateFiltered = expenses.filter((exp) => matchTreasuryDateFilter(exp.date, dateFilter));
@@ -43,7 +44,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
         exp.paid_to.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCat = selectedCategory === 'ALL' || exp.category === selectedCategory;
+      const matchesCat = selectedCategory === 'ALL' || getEffectiveCategory(exp) === selectedCategory;
       const matchesAcc = selectedAccount === 'ALL' || exp.account_id === selectedAccount;
       return matchesSearch && matchesCat && matchesAcc;
     })
@@ -167,7 +168,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
                     )}
                   </div>
                   <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-800 font-semibold text-[10px] shrink-0">
-                    {exp.category}
+                    {getEffectiveCategory(exp)}
                   </span>
                 </div>
 
@@ -265,7 +266,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-800 font-semibold text-[10px]">
-                          {exp.category}
+                          {getEffectiveCategory(exp)}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 font-medium">{acc?.name || 'Unknown Account'}</td>

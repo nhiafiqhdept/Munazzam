@@ -351,7 +351,9 @@ export const AdminDashboard: React.FC = () => {
     return org ? org.name : 'Unknown Class';
   };
 
-  const getCategoryName = (catId: string) => {
+  const getCategoryName = (catId: string, customCat?: string) => {
+    if (customCat && customCat.trim()) return customCat.trim();
+    if (catId === 'OTHER') return 'Other Category';
     const cat = categories.find(c => c.id === catId);
     return cat ? cat.name : 'General Achievement';
   };
@@ -847,7 +849,7 @@ export const AdminDashboard: React.FC = () => {
                               {/* Meta Row: Category, Status, Submitted Date */}
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-extrabold rounded-lg">
-                                  {getCategoryName(ach.categoryId)}
+                                  {getCategoryName(ach.categoryId, ach.customCategory)}
                                 </span>
 
                                 {(() => {
@@ -2916,7 +2918,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-lg border border-emerald-200/50">
-                        {getCategoryName(selectedAchievement.categoryId)}
+                        {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                       </span>
                       {selectedAchievement.status === 'Approved' ? (
                         <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-lg">🟢 Approved</span>

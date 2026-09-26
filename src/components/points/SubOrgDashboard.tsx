@@ -7,6 +7,7 @@ import {
   User, UserCheck, Pencil, Lock, LogOut, Building2, Search, Users, Award, ShieldAlert
 } from 'lucide-react';
 import { formatDate, generateId, uploadFile, optimizeImageFile, isImageFile } from '../../utils/helpers';
+import { CustomOptionField } from '../common/CustomOptionField';
 
 export type SubOrgTab = 'leaderboard' | 'awards' | 'overview' | 'submit' | 'notifications';
 
@@ -169,6 +170,7 @@ export const SubOrgDashboard: React.FC = () => {
   const [title, setTitle] = useState('');
   const [programName, setProgramName] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [place, setPlace] = useState('');
   const [description, setDescription] = useState('');
@@ -193,6 +195,9 @@ export const SubOrgDashboard: React.FC = () => {
 
   const handleCategoryChange = (catId: string) => {
     setCategoryId(catId);
+    if (catId !== 'OTHER') {
+      setCustomCategoryName('');
+    }
     const cat = categories.find(c => c.id === catId);
     if (cat) {
       if (cat.isRankBased) {
@@ -223,7 +228,13 @@ export const SubOrgDashboard: React.FC = () => {
     setIsEditing(true);
     setTitle(ach.title);
     setProgramName(ach.programName);
-    setCategoryId(ach.categoryId);
+    if (ach.customCategory) {
+      setCategoryId('OTHER');
+      setCustomCategoryName(ach.customCategory);
+    } else {
+      setCategoryId(ach.categoryId);
+      setCustomCategoryName('');
+    }
     setDate(ach.date);
     setPlace(ach.place);
     setDescription(ach.description);
@@ -247,6 +258,7 @@ export const SubOrgDashboard: React.FC = () => {
     setTitle('');
     setProgramName('');
     setCategoryId('');
+    setCustomCategoryName('');
     setDate(new Date().toISOString().split('T')[0]);
     setPlace('');
     setDescription('');
@@ -313,6 +325,11 @@ export const SubOrgDashboard: React.FC = () => {
       return;
     }
 
+    if (categoryId === 'OTHER' && !customCategoryName.trim()) {
+      setFormError('Please enter a custom category name.');
+      return;
+    }
+
     const selectedCat = categories.find(c => c.id === categoryId);
     if (selectedCat?.isRankBased && !selectedRank) {
       setFormError('Please select a rank for this rank-based category.');
@@ -330,12 +347,15 @@ export const SubOrgDashboard: React.FC = () => {
       const cleanAchieverName = achieverName.trim();
       const cleanAchieverStudentId = achieverStudentId.trim();
       const finalAchId = cleanAchieverName ? achieverId : 'unassigned';
+      const isOther = categoryId === 'OTHER';
+      const effectiveCustomCategory = isOther ? customCategoryName.trim() : undefined;
 
       if (isEditing && editingAchievementId) {
         await updateAchievement(editingAchievementId, {
           title: title.trim(),
           programName: programName.trim(),
           categoryId: categoryId || '',
+          customCategory: effectiveCustomCategory,
           date,
           place: place.trim(),
           description: description.trim(),
@@ -360,6 +380,7 @@ export const SubOrgDashboard: React.FC = () => {
           title: title.trim(),
           programName: programName.trim(),
           categoryId: categoryId || '',
+          customCategory: effectiveCustomCategory,
           date,
           place: place.trim(),
           description: description.trim(),
@@ -385,7 +406,9 @@ export const SubOrgDashboard: React.FC = () => {
   };
 
   const getMediaForAchievement = (achId: string) => mediaAttachments.filter(m => m.achievementId === achId);
-  const getCategoryName = (catId: string) => {
+  const getCategoryName = (catId: string, customCat?: string) => {
+    if (customCat && customCat.trim()) return customCat.trim();
+    if (catId === 'OTHER') return 'Other Category';
     const cat = categories.find(c => c.id === catId);
     return cat ? cat.name : 'Achievement';
   };
@@ -929,7 +952,7 @@ export const SubOrgDashboard: React.FC = () => {
                           {ach.achieverName || 'Unassigned'}
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-500">
-                          {getCategoryName(ach.categoryId)}
+                          {getCategoryName(ach.categoryId, ach.customCategory)}
                         </td>
                         <td className="py-3.5 px-4 font-medium text-slate-500">
                           {formatDate(ach.date)}
@@ -1051,7 +1074,20 @@ export const SubOrgDashboard: React.FC = () => {
                       {cat.name} {cat.isRankBased ? '(Rank-Based)' : `(${cat.defaultPoints} pts)`}
                     </option>
                   ))}
+                  <option value="OTHER">Other Category / Custom Option...</option>
                 </select>
+
+                {categoryId === 'OTHER' && (
+                  <CustomOptionField
+                    id="points-custom-category-input"
+                    label="Enter Custom Point Category *"
+                    value={customCategoryName}
+                    onChange={setCustomCategoryName}
+                    placeholder="e.g. Science Olympiad, Community Service, Hackathon..."
+                    required
+                    autoFocus
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
@@ -1154,7 +1190,7 @@ export const SubOrgDashboard: React.FC = () => {
             <div className="flex justify-between items-start gap-4 pb-3 border-b border-slate-100">
               <div>
                 <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-md">
-                  {getCategoryName(selectedAchievement.categoryId)}
+                  {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-1">{selectedAchievement.title}</h3>
               </div>

@@ -181,6 +181,7 @@ export interface SP_Achievement {
   title: string;
   programName: string;
   categoryId: string;
+  customCategory?: string;
   date: string;
   place: string;
   description: string;

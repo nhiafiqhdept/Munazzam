@@ -67,7 +67,9 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
     return mediaAttachments.filter(m => m.achievementId === achId);
   };
 
-  const getCategoryName = (catId: string) => {
+  const getCategoryName = (catId: string, customCat?: string) => {
+    if (customCat && customCat.trim()) return customCat.trim();
+    if (catId === 'OTHER') return 'Other Category';
     const cat = categories.find(c => c.id === catId);
     return cat ? cat.name : 'General Achievement';
   };
@@ -364,7 +366,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                 ) : (
                   <div className="space-y-3">
                     {studentAchievements.map((ach) => {
-                      const catName = getCategoryName(ach.categoryId);
+                      const catName = getCategoryName(ach.categoryId, ach.customCategory);
                       const isApproved = ach.status === 'Approved';
                       const isRejected = ach.status === 'Rejected';
                       const isPending = ach.status === 'Submitted' || ach.status === 'Under Review';
@@ -1098,7 +1100,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1">
                 <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-[10px] rounded-lg">
-                  {getCategoryName(selectedAchievement.categoryId)}
+                  {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                 </span>
                 <h3 className="text-xl font-bold text-slate-900 font-heading">{selectedAchievement.title}</h3>
                 <p className="text-xs text-slate-500 font-semibold">{getOrgName(selectedAchievement.organizationId)}</p>

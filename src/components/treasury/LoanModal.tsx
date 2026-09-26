@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Landmark, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { LoanType } from '../../types';
+import { CustomOptionField } from '../common/CustomOptionField';
+import { DEFAULT_LOAN_PURPOSES } from '../../utils/customOptionUtils';
 
 interface LoanModalProps {
   isOpen: boolean;
@@ -15,7 +17,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
   const [dueDate, setDueDate] = useState('');
-  const [purpose, setPurpose] = useState('');
+  const [purposeOption, setPurposeOption] = useState<string>(DEFAULT_LOAN_PURPOSES[0]);
+  const [customPurpose, setCustomPurpose] = useState('');
   const [accountId, setAccountId] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -28,6 +31,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
       if (accounts.length > 0 && (!accountId || !accounts.some((a) => a.id === accountId))) {
         setAccountId(accounts[0].id);
       }
+      setPurposeOption(DEFAULT_LOAN_PURPOSES[0]);
+      setCustomPurpose('');
       setError('');
       setSuccessMessage('');
     }
@@ -41,7 +46,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
     setSuccessMessage('');
 
     const cleanPersonOrOrg = personOrOrg.trim();
-    const cleanPurpose = purpose.trim();
+    const isCustom = purposeOption === 'Other';
+    const effectivePurpose = isCustom ? customPurpose.trim() : purposeOption;
     const parsedAmount = parseFloat(amount);
 
     if (!cleanPersonOrOrg) {
@@ -59,8 +65,13 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!cleanPurpose) {
-      setError('Please enter the purpose.');
+    if (isCustom && !customPurpose.trim()) {
+      setError('Please enter a custom loan purpose.');
+      return;
+    }
+
+    if (!effectivePurpose) {
+      setError('Please select or enter the purpose.');
       return;
     }
 
@@ -72,7 +83,9 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
         original_amount: parsedAmount,
         date,
         due_date: dueDate || undefined,
-        purpose: cleanPurpose,
+        purpose: effectivePurpose,
+        raw_purpose: isCustom ? 'Other' : purposeOption,
+        custom_purpose: isCustom ? customPurpose.trim() : undefined,
         account_id: accountId,
         description: description.trim() || undefined,
         created_by: 'Treasurer',
@@ -83,7 +96,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
       // Reset transient fields
       setPersonOrOrg('');
       setAmount('');
-      setPurpose('');
+      setPurposeOption(DEFAULT_LOAN_PURPOSES[0]);
+      setCustomPurpose('');
       setDescription('');
       setDueDate('');
 
@@ -207,16 +221,37 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Purpose *</label>
-              <input
-                type="text"
-                required
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                placeholder="e.g. berde"
+              <select
+                value={purposeOption}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPurposeOption(val);
+                  if (val !== 'Other') {
+                    setCustomPurpose('');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-              />
+              >
+                {DEFAULT_LOAN_PURPOSES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {purposeOption === 'Other' && (
+            <CustomOptionField
+              id="loan-custom-purpose-input"
+              label="Enter Custom Purpose *"
+              value={customPurpose}
+              onChange={setCustomPurpose}
+              placeholder="e.g. Venue Booking, Medical Advance, Audio Rental..."
+              required
+              autoFocus
+            />
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Description / Notes</label>

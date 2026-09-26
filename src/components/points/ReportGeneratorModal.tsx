@@ -839,11 +839,12 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                               <tbody className="divide-y divide-slate-100">
                                 {orgData.achievementsList.map(ach => {
                                   const cat = categories.find(c => c.id === ach.categoryId);
+                                  const catName = ach.customCategory?.trim() || (cat ? cat.name : (ach.categoryId === 'OTHER' ? 'Other Category' : 'General'));
                                   return (
                                     <tr key={ach.id} className="hover:bg-slate-50">
                                       <td className="p-2.5 font-bold text-slate-900">{ach.achieverName || 'Group / Class'}</td>
                                       <td className="p-2.5 text-slate-700">{ach.title}</td>
-                                      <td className="p-2.5 text-slate-500">{cat ? cat.name : 'General'}</td>
+                                      <td className="p-2.5 text-slate-500">{catName}</td>
                                       <td className="p-2.5 text-center">
                                         {ach.rank ? (
                                           <span className="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px]">
