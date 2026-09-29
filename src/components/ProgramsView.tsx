@@ -198,31 +198,46 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
     const activePortalId = publicPortalId || currentOrg.id;
 
     try {
-      // Check for global account duplicates? No, scope uniqueness scoped to this parent organization!
+      const cleanEmail = newPartnerEmail.trim().toLowerCase();
       const q = query(
         collection(db, 'sub_wings'),
-        where('portalId', '==', activePortalId),
-        where('email', '==', newPartnerEmail.trim().toLowerCase())
+        where('email', '==', cleanEmail)
       );
       const querySnap = await getDocs(q);
-      if (!querySnap.empty) {
+      const isDup = querySnap.docs.some((d) => {
+        const data = d.data();
+        return (
+          data.accountId === currentOrg.id ||
+          data.portalId === activePortalId ||
+          data.portalId === currentOrg.id ||
+          data.accountId === activePortalId
+        );
+      });
+      if (isDup) {
         setAddPartnerError('A sub-wing with this email is already registered under your organization.');
         setAddPartnerSubmitting(false);
         return;
       }
 
-      const hash = bcrypt.hashSync(newPartnerPassword, 10);
+      let hash = '';
+      try {
+        hash = bcrypt.hashSync(newPartnerPassword.trim(), 10);
+      } catch {
+        hash = newPartnerPassword.trim();
+      }
+
       const payload = cleanFirestorePayload({
         portalId: activePortalId,
         accountId: currentOrg.id,
         name: newPartnerName.trim(),
         president: newPartnerPresident.trim(),
         contactDetails: newPartnerContact.trim(),
-        email: newPartnerEmail.trim().toLowerCase(),
+        email: cleanEmail,
         passwordHash: hash,
         description: newPartnerDesc.trim(),
         status: 'approved', // Admin manual additions are auto-approved!
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       await addDoc(collection(db, 'sub_wings'), payload);

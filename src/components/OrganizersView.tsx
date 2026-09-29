@@ -16,7 +16,9 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
 }) => {
   const { currentOrg, organizers, deleteOrganizer, isAdmin } = useApp();
   const [deleteTarget, setDeleteTarget] = useState<Organizer | null>(null);
-  const [selectedDetailsOrg, setSelectedDetailsOrg] = useState<Organizer | null>(null);
+  const [selectedDetailsOrgId, setSelectedDetailsOrgId] = useState<string | null>(null);
+
+  const selectedDetailsOrg = organizers.find((o) => o.id === selectedDetailsOrgId) || null;
 
   if (!currentOrg) return null;
 
@@ -94,7 +96,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
               <article
                 key={orgzr.id}
                 id={`organizer-card-${orgzr.id}`}
-                onClick={() => setSelectedDetailsOrg(orgzr)}
+                onClick={() => setSelectedDetailsOrgId(orgzr.id)}
                 className="group bg-white rounded-2xl border border-slate-200/90 shadow-card hover:shadow-lg hover:border-brand-300 transition-all duration-200 flex flex-col overflow-hidden relative cursor-pointer px-1.5 py-2 sm:p-4 text-center items-center justify-between h-full"
               >
                 {/* Member Avatar */}
@@ -156,7 +158,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
       <OrganizerDetailsModal
         isOpen={Boolean(selectedDetailsOrg)}
         organizer={selectedDetailsOrg}
-        onClose={() => setSelectedDetailsOrg(null)}
+        onClose={() => setSelectedDetailsOrgId(null)}
         onEdit={onOpenEditModal}
         onDelete={(org) => setDeleteTarget(org)}
         isAdmin={isAdmin}

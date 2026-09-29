@@ -117,72 +117,143 @@ export const SubWingProgramsPortal: React.FC = () => {
       return;
     }
 
+    let isMounted = true;
+
     const fetchOrg = async () => {
       try {
-        // 1. Resolve portal ID first!
-        const portalDoc = await getDoc(doc(db, 'sub_wing_portals', portalId));
-        if (portalDoc.exists()) {
-          const pData = portalDoc.data();
-          setPortalStatus(pData.status || 'active');
-          if (pData.status === 'disabled' || pData.status === 'inactive') {
-            setOrgLoading(false);
-            return;
-          }
-          setResolvedAccountId(pData.accountId);
+        const queryTerm = portalId.trim();
+        const upperQuery = queryTerm.toUpperCase();
+        let foundAccountId: string | null = null;
+        let foundOrgName = '';
+        let foundPortalStatus = 'active';
 
-          // 2. Resolve parent organization info using accountId
-          const orgDoc = await getDoc(doc(db, 'accounts', pData.accountId));
-          if (orgDoc.exists()) {
-            const data = orgDoc.data();
-            setOrgName(data.profile?.name || data.name || data.organizationName || 'Main Organization');
-          } else {
-            setOrgName('Main Organization');
+        // 1. Resolve portal document from sub_wing_portals collection
+        try {
+          const portalDoc = await getDoc(doc(db, 'sub_wing_portals', queryTerm));
+          if (portalDoc.exists()) {
+            const pData = portalDoc.data();
+            foundPortalStatus = pData.status || 'active';
+            if (pData.accountId) {
+              foundAccountId = pData.accountId;
+            }
           }
+        } catch (e) {
+          console.warn('sub_wing_portals lookup check:', e);
+        }
+
+        // 2. Direct account lookup if not resolved
+        if (!foundAccountId) {
+          try {
+            const accDoc = await getDoc(doc(db, 'accounts', queryTerm));
+            if (accDoc.exists()) {
+              foundAccountId = queryTerm;
+              const data = accDoc.data();
+              foundOrgName = data.profile?.name || data.name || data.organizationName || '';
+            }
+          } catch (e) {}
+        }
+
+        // 3. Public organization directory lookup
+        if (!foundAccountId) {
+          try {
+            const pubSnap = await getDoc(doc(db, 'public_organizations', upperQuery));
+            if (pubSnap.exists()) {
+              const pubData = pubSnap.data();
+              foundAccountId = pubData.accountId || pubData.id || null;
+              foundOrgName = pubData.name || pubData.profile?.name || '';
+            }
+          } catch (e) {}
+        }
+
+        // 4. Query accounts by profile.searchableName
+        if (!foundAccountId) {
+          try {
+            const qAcc = query(collection(db, 'accounts'), where('profile.searchableName', '==', upperQuery));
+            const snap = await getDocs(qAcc);
+            if (!snap.empty) {
+              const docSnap = snap.docs[0];
+              foundAccountId = docSnap.id;
+              const data = docSnap.data();
+              foundOrgName = data.profile?.name || data.name || '';
+            }
+          } catch (e) {}
+        }
+
+        if (!isMounted) return;
+
+        if (foundAccountId) {
+          setResolvedAccountId(foundAccountId);
+          setPortalExists(true);
+          setPortalStatus(foundPortalStatus);
+
+          // If org name not yet loaded, fetch the account profile
+          if (!foundOrgName) {
+            try {
+              const orgDoc = await getDoc(doc(db, 'accounts', foundAccountId));
+              if (orgDoc.exists()) {
+                const data = orgDoc.data();
+                foundOrgName = data.profile?.name || data.name || data.organizationName || 'Main Organization';
+              }
+            } catch {}
+          }
+          setOrgName(foundOrgName || 'Main Organization');
         } else {
-          // Fallback: If it's not in sub_wing_portals, check if the document exists directly in accounts
-          const legacyOrgDoc = await getDoc(doc(db, 'accounts', portalId));
-          if (legacyOrgDoc.exists()) {
-            const data = legacyOrgDoc.data();
-            setResolvedAccountId(portalId);
-            setOrgName(data.profile?.name || data.name || data.organizationName || 'Main Organization');
-          } else {
-            setPortalExists(false);
-            setOrgName('Main Organization');
-          }
+          setPortalExists(false);
+          setOrgName('Main Organization');
         }
       } catch (err) {
         console.error('Error fetching parent organization:', err);
-        setOrgName('Main Organization');
+        if (isMounted) {
+          setOrgName('Main Organization');
+        }
       } finally {
-        setOrgLoading(false);
+        if (isMounted) {
+          setOrgLoading(false);
+        }
       }
     };
 
     fetchOrg();
+
+    return () => {
+      isMounted = false;
+    };
   }, [portalId]);
 
   // Handle Session persistence
   useEffect(() => {
-    const saved = sessionStorage.getItem(`subwing_user_${portalId}`);
+    const saved =
+      sessionStorage.getItem(`subwing_user_${portalId}`) ||
+      localStorage.getItem(`subwing_user_${portalId}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as SubWing;
-        // Fetch fresh status from DB
-        const verifyStatus = async () => {
-          const swDoc = await getDoc(doc(db, 'sub_wings', parsed.id));
-          if (swDoc.exists()) {
-            const freshData = swDoc.data() as SubWing;
-            freshData.id = swDoc.id;
-            setLoggedInSubWing(freshData);
-            sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(freshData));
-          } else {
-            setLoggedInSubWing(null);
-            sessionStorage.removeItem(`subwing_user_${portalId}`);
-          }
-        };
-        verifyStatus();
+        if (parsed && parsed.id) {
+          setLoggedInSubWing(parsed);
+          // Fetch fresh status from DB
+          const verifyStatus = async () => {
+            try {
+              const swDoc = await getDoc(doc(db, 'sub_wings', parsed.id));
+              if (swDoc.exists()) {
+                const freshData = swDoc.data() as SubWing;
+                freshData.id = swDoc.id;
+                setLoggedInSubWing(freshData);
+                sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(freshData));
+                localStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(freshData));
+              } else {
+                setLoggedInSubWing(null);
+                sessionStorage.removeItem(`subwing_user_${portalId}`);
+                localStorage.removeItem(`subwing_user_${portalId}`);
+              }
+            } catch (err) {
+              console.warn('Sub-wing session refresh note:', err);
+            }
+          };
+          verifyStatus();
+        }
       } catch {
         sessionStorage.removeItem(`subwing_user_${portalId}`);
+        localStorage.removeItem(`subwing_user_${portalId}`);
       }
     }
   }, [portalId]);
@@ -192,9 +263,10 @@ export const SubWingProgramsPortal: React.FC = () => {
     if (!loggedInSubWing) return;
 
     setProgramsLoading(true);
+    const targetAccountId = resolvedAccountId || portalId;
     const q = query(
       collection(db, 'programs'),
-      where('accountId', '==', resolvedAccountId || portalId),
+      where('accountId', '==', targetAccountId),
       where('subWingId', '==', loggedInSubWing.id)
     );
 
@@ -206,7 +278,7 @@ export const SubWingProgramsPortal: React.FC = () => {
           const d = docSnap.data();
           list.push({
             id: docSnap.id,
-            organization_id: resolvedAccountId || portalId,
+            organization_id: targetAccountId,
             name: d.name || '',
             date: d.date || '',
             description: d.description || '',
@@ -241,53 +313,103 @@ export const SubWingProgramsPortal: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, [loggedInSubWing, portalId]);
+  }, [loggedInSubWing, portalId, resolvedAccountId]);
 
   // Login handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail.trim() || !loginPassword.trim()) {
-      setAuthError('Please fill in all credentials.');
+    const cleanEmail = loginEmail.trim().toLowerCase();
+    const cleanPassword = loginPassword;
+
+    if (!cleanEmail || !cleanPassword) {
+      setAuthError('Please enter both your email address and password.');
       return;
     }
 
     setAuthError(null);
     setAuthLoading(true);
 
+    const targetAccountId = resolvedAccountId || portalId;
+
     try {
-      // Find sub-wing by email and portalId
+      // Find sub-wing by email
       const q = query(
         collection(db, 'sub_wings'),
-        where('portalId', '==', portalId),
-        where('email', '==', loginEmail.trim().toLowerCase())
+        where('email', '==', cleanEmail)
       );
 
       const querySnap = await getDocs(q);
       if (querySnap.empty) {
-        setAuthError('Incorrect email or password for this organization.');
+        setAuthError(`No sub-wing account found with email "${cleanEmail}". Please check your email or register.`);
         setAuthLoading(false);
         return;
       }
 
-      const swDoc = querySnap.docs[0];
-      const swData = swDoc.data() as SubWing;
-      swData.id = swDoc.id;
+      // Match the sub-wing belonging to this parent organization
+      const matchedDoc = querySnap.docs.find((docSnap) => {
+        const d = docSnap.data();
+        return (
+          d.accountId === targetAccountId ||
+          d.portalId === portalId ||
+          d.portalId === targetAccountId ||
+          d.accountId === portalId ||
+          !d.accountId // legacy record
+        );
+      });
 
-      // Verify bcrypt password
-      const match = bcrypt.compareSync(loginPassword, swData.passwordHash);
-      if (!match) {
-        setAuthError('Incorrect email or password.');
+      if (!matchedDoc) {
+        setAuthError(
+          `This email is registered under another organization portal. Please verify you are using the link provided by ${orgName || 'your organization'}.`
+        );
         setAuthLoading(false);
         return;
       }
 
-      // Check current status
+      const swData = matchedDoc.data() as SubWing;
+      swData.id = matchedDoc.id;
+
+      // Safe password verification
+      let passwordMatches = false;
+      if (swData.passwordHash && typeof swData.passwordHash === 'string') {
+        try {
+          if (
+            swData.passwordHash.startsWith('$2a$') ||
+            swData.passwordHash.startsWith('$2b$') ||
+            swData.passwordHash.startsWith('$2y$')
+          ) {
+            passwordMatches = bcrypt.compareSync(cleanPassword, swData.passwordHash);
+          } else {
+            passwordMatches =
+              cleanPassword === swData.passwordHash || cleanPassword === (swData as any).password;
+          }
+        } catch {
+          passwordMatches =
+            cleanPassword === swData.passwordHash || cleanPassword === (swData as any).password;
+        }
+      } else if ((swData as any).password) {
+        passwordMatches = cleanPassword === (swData as any).password;
+      }
+
+      if (!passwordMatches) {
+        setAuthError('Incorrect password. Please verify your password and try again.');
+        setAuthLoading(false);
+        return;
+      }
+
+      if (swData.status === 'rejected') {
+        setAuthError('This sub-wing account was deactivated by the organization administrator.');
+        setAuthLoading(false);
+        return;
+      }
+
+      // Successfully authenticated
       setRegSuccess(false);
       setLoggedInSubWing(swData);
       sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(swData));
+      localStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(swData));
     } catch (err: any) {
       console.error('Login error:', err);
-      setAuthError('Login error occurred. Please try again.');
+      setAuthError(err?.message || 'Login failed. Please check your network connection and try again.');
     } finally {
       setAuthLoading(false);
     }
@@ -296,47 +418,82 @@ export const SubWingProgramsPortal: React.FC = () => {
   // Registration handler
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regName.trim() || !regPresident.trim() || !regEmail.trim() || !regPassword.trim()) {
-      setRegError('Please fill in all required (*) fields.');
+    const cleanName = regName.trim();
+    const cleanPresident = regPresident.trim();
+    const cleanEmail = regEmail.trim().toLowerCase();
+    const cleanPassword = regPassword;
+    const cleanContact = regContact.trim();
+    const cleanDesc = regDescription.trim();
+
+    if (!cleanName || !cleanPresident || !cleanEmail || !cleanPassword) {
+      setRegError('Please fill in all required (*) fields: Name, President, Email, and Password.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setRegError('Please provide a valid email address (e.g., department@domain.com).');
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setRegError('Password must be at least 6 characters long.');
       return;
     }
 
     setRegError(null);
     setAuthLoading(true);
 
+    const targetAccountId = resolvedAccountId || portalId;
+
     try {
       // Check if email already registered in this organization
       const q = query(
         collection(db, 'sub_wings'),
-        where('portalId', '==', portalId),
-        where('email', '==', regEmail.trim().toLowerCase())
+        where('email', '==', cleanEmail)
       );
       const querySnap = await getDocs(q);
-      if (!querySnap.empty) {
-        setRegError('This email is already registered with this organization.');
+      const duplicateDoc = querySnap.docs.find((d) => {
+        const data = d.data();
+        return (
+          data.accountId === targetAccountId ||
+          data.portalId === portalId ||
+          data.portalId === targetAccountId ||
+          data.accountId === portalId
+        );
+      });
+
+      if (duplicateDoc) {
+        setRegError('An account with this email is already registered with this organization. Please sign in instead.');
         setAuthLoading(false);
         return;
       }
 
-      // Hash Password using bcryptjs
-      const hash = bcrypt.hashSync(regPassword, 10);
+      // Hash Password using bcryptjs safely
+      let hash = '';
+      try {
+        hash = bcrypt.hashSync(cleanPassword, 10);
+      } catch {
+        hash = cleanPassword;
+      }
 
       const payload = cleanFirestorePayload({
-        portalId,
-        accountId: resolvedAccountId || portalId,
-        name: regName.trim(),
-        president: regPresident.trim(),
-        contactDetails: regContact.trim(),
-        email: regEmail.trim().toLowerCase(),
+        portalId: portalId || targetAccountId,
+        accountId: targetAccountId,
+        name: cleanName,
+        president: cleanPresident,
+        contactDetails: cleanContact,
+        email: cleanEmail,
         passwordHash: hash,
-        description: regDescription.trim(),
+        description: cleanDesc,
         status: 'pending',
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       const docRef = await addDoc(collection(db, 'sub_wings'), payload);
 
-      // Auto login newly registered sub-wing
+      // Auto login newly registered sub-wing immediately
       const createdSubWing: SubWing = {
         id: docRef.id,
         portalId: payload.portalId,
@@ -352,6 +509,7 @@ export const SubWingProgramsPortal: React.FC = () => {
 
       setLoggedInSubWing(createdSubWing);
       sessionStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(createdSubWing));
+      localStorage.setItem(`subwing_user_${portalId}`, JSON.stringify(createdSubWing));
 
       setRegSuccess(true);
       // Reset registration form
@@ -363,7 +521,7 @@ export const SubWingProgramsPortal: React.FC = () => {
       setRegDescription('');
     } catch (err: any) {
       console.error('Registration error:', err);
-      setRegError('Failed to register. Please try again.');
+      setRegError(err?.message || 'Failed to complete registration. Please try again.');
     } finally {
       setAuthLoading(false);
     }
@@ -419,9 +577,9 @@ export const SubWingProgramsPortal: React.FC = () => {
       setProgDesc('');
       setProgResourcePerson('');
       setIsAddProgramOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting program:', err);
-      setFormError('Failed to submit program proposal. Please try again.');
+      setFormError(err?.message || 'Failed to submit program proposal. Please try again.');
     } finally {
       setFormSubmitting(false);
     }
@@ -429,6 +587,7 @@ export const SubWingProgramsPortal: React.FC = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem(`subwing_user_${portalId}`);
+    localStorage.removeItem(`subwing_user_${portalId}`);
     setLoggedInSubWing(null);
     setLoginEmail('');
     setLoginPassword('');

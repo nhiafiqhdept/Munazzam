@@ -369,6 +369,7 @@ export const AppProvider: React.FC<{
     if (!isPublicView || !publicOrgQuery) return;
 
     let isMounted = true;
+    const unsubs: (() => void)[] = [];
     setOrgLoading(true);
 
     const loadPublicOrgData = async () => {
@@ -473,10 +474,36 @@ export const AppProvider: React.FC<{
           setCurrentOrgId(targetAccountId);
         }
 
-        // Fetch Organizers for this org
-        try {
-          const qOrg = query(collection(db, 'organizers'), where('accountId', '==', targetAccountId));
-          const orgSnap = await getDocs(qOrg);
+        // 1. Real-time Account / Profile listener
+        const unsubProfile = onSnapshot(doc(db, 'accounts', targetAccountId), (accSnap) => {
+          if (accSnap.exists() && isMounted) {
+            const accData = accSnap.data();
+            const prof = accData?.profile || {};
+            const updatedOrg: Organization = {
+              id: targetAccountId!,
+              name: prof.name || accData.name || 'Organization',
+              college_name: prof.college_name || 'Main Campus',
+              logo: prof.logo || '',
+              tagline: prof.tagline || '',
+              established_year: prof.established_year || '',
+              description: prof.description || '',
+              email: prof.email || accData.email || '',
+              website: prof.website || '',
+              about: prof.about || '',
+              academic_year: prof.academic_year || '',
+              searchableName: prof.searchableName || upperQuery,
+              created_at: accData.createdAt || new Date().toISOString(),
+              updated_at: accData.updatedAt || new Date().toISOString(),
+              isInitialized: true,
+            };
+            setOrganizations([updatedOrg]);
+          }
+        }, (err) => console.warn('Error syncing public account profile:', err));
+        unsubs.push(unsubProfile);
+
+        // 2. Real-time Organizers listener
+        const qOrg = query(collection(db, 'organizers'), where('accountId', '==', targetAccountId));
+        const unsubOrg = onSnapshot(qOrg, (orgSnap) => {
           const list: Organizer[] = [];
           orgSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -486,25 +513,30 @@ export const AppProvider: React.FC<{
               name: d.name || '',
               photo: d.photo || '',
               position: d.position || '',
+              raw_position: d.raw_position || undefined,
+              custom_position: d.custom_position || undefined,
               display_order: d.display_order ?? 0,
               email: d.email || '',
               phone: d.phone || '',
               bio: d.bio || '',
               academic_year: d.academic_year || '',
-              created_at: d.created_at || '',
-              updated_at: d.updated_at || '',
+              created_at: d.created_at || d.createdAt || '',
+              updated_at: d.updated_at || d.updatedAt || '',
             });
           });
           list.sort((a, b) => a.display_order - b.display_order);
-          if (isMounted) setOrganizers(list);
-        } catch (err) {
-          console.warn('Error loading public organizers:', err);
-        }
+          if (isMounted) {
+            setOrganizers(list);
+            try {
+              localStorage.setItem('local_organizers', JSON.stringify(list));
+            } catch {}
+          }
+        }, (err) => console.warn('Error syncing public organizers:', err));
+        unsubs.push(unsubOrg);
 
-        // Fetch Program Categories
-        try {
-          const qCat = query(collection(db, 'program_categories'), where('accountId', '==', targetAccountId));
-          const catSnap = await getDocs(qCat);
+        // 3. Real-time Program Categories listener
+        const qCat = query(collection(db, 'program_categories'), where('accountId', '==', targetAccountId));
+        const unsubCat = onSnapshot(qCat, (catSnap) => {
           const list: ProgramCategory[] = [];
           catSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -517,15 +549,18 @@ export const AppProvider: React.FC<{
             });
           });
           list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-          if (isMounted) setProgramCategories(list);
-        } catch (err) {
-          console.warn('Error loading public categories:', err);
-        }
+          if (isMounted) {
+            setProgramCategories(list);
+            try {
+              localStorage.setItem('local_categories', JSON.stringify(list));
+            } catch {}
+          }
+        }, (err) => console.warn('Error syncing public categories:', err));
+        unsubs.push(unsubCat);
 
-        // Fetch Programs (Official only)
-        try {
-          const qProg = query(collection(db, 'programs'), where('accountId', '==', targetAccountId));
-          const progSnap = await getDocs(qProg);
+        // 4. Real-time Programs listener (Official only)
+        const qProg = query(collection(db, 'programs'), where('accountId', '==', targetAccountId));
+        const unsubProg = onSnapshot(qProg, (progSnap) => {
           const list: Program[] = [];
           progSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -564,15 +599,16 @@ export const AppProvider: React.FC<{
           if (isMounted) {
             setPrograms(list);
             setSubWingPrograms([]);
+            try {
+              localStorage.setItem('local_programs', JSON.stringify(list));
+            } catch {}
           }
-        } catch (err) {
-          console.warn('Error loading public programs:', err);
-        }
+        }, (err) => console.warn('Error syncing public programs:', err));
+        unsubs.push(unsubProg);
 
-        // Fetch Financial Accounts (Read-Only for Treasury Dashboard)
-        try {
-          const qAccs = query(collection(db, 'financial_accounts'), where('accountId', '==', targetAccountId));
-          const accSnap = await getDocs(qAccs);
+        // 5. Real-time Financial Accounts listener (Read-Only for Treasury Dashboard)
+        const qAccs = query(collection(db, 'financial_accounts'), where('accountId', '==', targetAccountId));
+        const unsubAccs = onSnapshot(qAccs, (accSnap) => {
           const list: FinancialAccount[] = [];
           accSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -589,14 +625,12 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setAccounts(list);
-        } catch (err) {
-          console.warn('Error loading public accounts:', err);
-        }
+        }, (err) => console.warn('Error syncing public accounts:', err));
+        unsubs.push(unsubAccs);
 
-        // Fetch Incomes
-        try {
-          const qInc = query(collection(db, 'incomes'), where('accountId', '==', targetAccountId));
-          const incSnap = await getDocs(qInc);
+        // 6. Real-time Incomes listener
+        const qInc = query(collection(db, 'incomes'), where('accountId', '==', targetAccountId));
+        const unsubInc = onSnapshot(qInc, (incSnap) => {
           const list: Income[] = [];
           incSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -618,14 +652,12 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setIncomes(list);
-        } catch (err) {
-          console.warn('Error loading public incomes:', err);
-        }
+        }, (err) => console.warn('Error syncing public incomes:', err));
+        unsubs.push(unsubInc);
 
-        // Fetch Expenses
-        try {
-          const qExp = query(collection(db, 'expenses'), where('accountId', '==', targetAccountId));
-          const expSnap = await getDocs(qExp);
+        // 7. Real-time Expenses listener
+        const qExp = query(collection(db, 'expenses'), where('accountId', '==', targetAccountId));
+        const unsubExp = onSnapshot(qExp, (expSnap) => {
           const list: Expense[] = [];
           expSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -647,14 +679,12 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setExpenses(list);
-        } catch (err) {
-          console.warn('Error loading public expenses:', err);
-        }
+        }, (err) => console.warn('Error syncing public expenses:', err));
+        unsubs.push(unsubExp);
 
-        // Fetch Transfers
-        try {
-          const qTr = query(collection(db, 'transfers'), where('accountId', '==', targetAccountId));
-          const trSnap = await getDocs(qTr);
+        // 8. Real-time Transfers listener
+        const qTr = query(collection(db, 'transfers'), where('accountId', '==', targetAccountId));
+        const unsubTr = onSnapshot(qTr, (trSnap) => {
           const list: AccountTransfer[] = [];
           trSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -672,12 +702,12 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setTransfers(list);
-        } catch (err) {}
+        }, () => {});
+        unsubs.push(unsubTr);
 
-        // Fetch Loans
-        try {
-          const qLoans = query(collection(db, 'loans'), where('accountId', '==', targetAccountId));
-          const loanSnap = await getDocs(qLoans);
+        // 9. Real-time Loans listener
+        const qLoans = query(collection(db, 'loans'), where('accountId', '==', targetAccountId));
+        const unsubLoans = onSnapshot(qLoans, (loanSnap) => {
           const list: Loan[] = [];
           loanSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -701,12 +731,12 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setLoans(list);
-        } catch (err) {}
+        }, () => {});
+        unsubs.push(unsubLoans);
 
-        // Fetch Repayments
-        try {
-          const qRep = query(collection(db, 'repayments'), where('accountId', '==', targetAccountId));
-          const repSnap = await getDocs(qRep);
+        // 10. Real-time Loan Repayments listener
+        const qRep = query(collection(db, 'repayments'), where('accountId', '==', targetAccountId));
+        const unsubRep = onSnapshot(qRep, (repSnap) => {
           const list: LoanRepayment[] = [];
           repSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -725,7 +755,8 @@ export const AppProvider: React.FC<{
             });
           });
           if (isMounted) setLoanRepayments(list);
-        } catch (err) {}
+        }, () => {});
+        unsubs.push(unsubRep);
       } catch (err) {
         console.error('Error during public organization load:', err);
       } finally {
@@ -739,6 +770,11 @@ export const AppProvider: React.FC<{
 
     return () => {
       isMounted = false;
+      unsubs.forEach((fn) => {
+        try {
+          fn();
+        } catch {}
+      });
     };
   }, [isPublicView, publicOrgQuery]);
 
@@ -1451,15 +1487,21 @@ export const AppProvider: React.FC<{
   const addOrganizer = async (organizer: Omit<Organizer, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Organizer> => {
     if (!user?.id) throw new Error('Not authenticated');
     const now = new Date().toISOString();
-    const generatedId = 'org_' + Date.now();
+    
+    // Generate deterministic Firestore document reference and ID upfront
+    const docRef = doc(collection(db, 'organizers'));
+    const docId = docRef.id;
+
     const newOrganizer: Organizer = {
-      id: generatedId,
+      id: docId,
       organization_id: user.id,
       ...organizer,
+      display_order: organizer.display_order ?? organizers.length + 1,
       created_at: now,
       updated_at: now,
     };
 
+    // Optimistic UI update
     setOrganizers((prev) => {
       const updated = [...prev, newOrganizer];
       try {
@@ -1469,10 +1511,12 @@ export const AppProvider: React.FC<{
     });
 
     try {
-      await addDoc(collection(db, 'organizers'), {
+      const payload = cleanFirestorePayload({
         accountId: user.id,
         name: organizer.name,
         position: organizer.position,
+        raw_position: organizer.raw_position || organizer.position,
+        custom_position: organizer.custom_position || '',
         display_order: organizer.display_order ?? organizers.length + 1,
         photo: organizer.photo || '',
         email: organizer.email || '',
@@ -1482,6 +1526,7 @@ export const AppProvider: React.FC<{
         created_at: now,
         updated_at: now,
       });
+      await setDoc(docRef, payload);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'organizers');
     }
@@ -1503,10 +1548,11 @@ export const AppProvider: React.FC<{
     try {
       const docRef = doc(db, 'organizers', organizer.id);
       const { id, organization_id, ...updates } = organizer;
-      await updateDoc(docRef, {
+      const cleanedUpdates = cleanFirestorePayload({
         ...updates,
         updated_at: now,
       });
+      await updateDoc(docRef, cleanedUpdates);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `organizers/${organizer.id}`);
     }
@@ -1530,8 +1576,16 @@ export const AppProvider: React.FC<{
 
   const reorderOrganizers = (reordered: Organizer[]) => {
     setOrganizers(reordered);
+    const now = new Date().toISOString();
     reordered.forEach(async (item, idx) => {
-      await updateDoc(doc(db, 'organizers', item.id), { display_order: idx + 1 });
+      try {
+        await updateDoc(doc(db, 'organizers', item.id), {
+          display_order: idx + 1,
+          updated_at: now,
+        });
+      } catch (err) {
+        console.warn('Failed to update organizer order:', err);
+      }
     });
   };
 
