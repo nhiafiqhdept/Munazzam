@@ -117,6 +117,100 @@ export function getPublicApprovalUrl(token: string): string {
 }
 
 /**
+ * Cleans any legacy auto-generated report templates or repeated metadata from a program description.
+ * Ensures that the Description contains ONLY the actual program description entered by the user,
+ * without duplicating Program Name, Date & Time, Place Held, For Whom, Resource Person, or auto-generated boilerplate.
+ */
+export function getCleanProgramDescription(
+  rawDescription?: string,
+  programName?: string
+): string {
+  if (!rawDescription || typeof rawDescription !== 'string') return '';
+  let text = rawDescription.trim();
+  if (!text) return '';
+
+  // Check for auto-generated report template markers (**Date & Time**, **Place Held**, etc.)
+  const hasTemplateMarkers =
+    text.includes('**Date & Time') ||
+    text.includes('**Place Held') ||
+    text.includes('**For Whom') ||
+    text.includes('**Resource Person') ||
+    text.includes('**Target Audience') ||
+    text.includes('**Venue') ||
+    text.includes('**Conducted By') ||
+    text.includes('**Program Category');
+
+  if (hasTemplateMarkers) {
+    const lines = text.split('\n');
+    const cleanedLines: string[] = [];
+    let skipNextLine = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      if (
+        line.startsWith('**Date & Time') ||
+        line.startsWith('**Place Held') ||
+        line.startsWith('**For Whom') ||
+        line.startsWith('**Resource Person') ||
+        line.startsWith('**Target Audience') ||
+        line.startsWith('**Venue') ||
+        line.startsWith('**Conducted By') ||
+        line.startsWith('**Program Category')
+      ) {
+        if (!line.includes(':') || line.endsWith('**') || line.endsWith(':')) {
+          skipNextLine = true;
+        }
+        continue;
+      }
+
+      if (skipNextLine) {
+        skipNextLine = false;
+        continue;
+      }
+
+      // Skip title repetition
+      if (
+        programName &&
+        (line.toLowerCase() === programName.trim().toLowerCase() ||
+          line.toUpperCase() === programName.trim().toUpperCase())
+      ) {
+        continue;
+      }
+
+      // Skip auto-generated boilerplate sentences
+      if (
+        line.startsWith('An institutional program designed for') ||
+        line.startsWith('An official institutional program organized for') ||
+        line.startsWith('A comprehensive program organized for') ||
+        line.startsWith('A dedicated program organized for') ||
+        line.startsWith('organized to foster excellence') ||
+        line.startsWith('focused on empowering')
+      ) {
+        continue;
+      }
+
+      if (line) {
+        cleanedLines.push(lines[i]);
+      }
+    }
+
+    text = cleanedLines.join('\n').trim();
+  }
+
+  // If text is only the program name or empty
+  if (
+    programName &&
+    (text.toLowerCase() === programName.trim().toLowerCase() ||
+      text.toUpperCase() === programName.trim().toUpperCase())
+  ) {
+    return '';
+  }
+
+  return text;
+}
+
+/**
  * Builds the official WhatsApp approval share message matching the exact institutional format.
  */
 export function buildWhatsAppShareMessage(
@@ -126,15 +220,43 @@ export function buildWhatsAppShareMessage(
   const actualToken = token || permission.approvalToken || '';
   const publicUrl = actualToken ? getPublicApprovalUrl(actualToken) : '[Review & Approve Permission]';
 
-  const timeDisplay = permission.timeFrom
-    ? (permission.timeTill ? `${permission.timeFrom} - ${permission.timeTill}` : permission.timeFrom)
-    : 'Scheduled Time';
+  const timeDisplay = permission.time || (permission.timeFrom
+    ? (permission.timeTill ? `${permission.timeFrom} – ${permission.timeTill}` : permission.timeFrom)
+    : 'Scheduled Time');
 
-  const audienceDisplay = permission.audience || 'Students';
+  const cleanDescription = getCleanProgramDescription(
+    permission.description,
+    permission.programName
+  );
 
-  const message = `Assalamu Alaikum,\n\nApproval is requested for the following college program:\n\nProgram: ${permission.programName || 'College Program'}\nConducted By: ${permission.conductedBy || 'Department / Organization'}\nDate: ${permission.date || 'Scheduled Date'}\nTime: ${timeDisplay}\nVenue: ${permission.venue || 'College Campus'}\nTarget Audience: ${audienceDisplay}\n\nPlease review and respond using the secure link below:\n\n${publicUrl}\n\n— Munazzam Institutional Reporting & Analytics`;
+  const lines: string[] = [
+    'Assalamu Alaikum,',
+    '',
+    'Approval is requested for the following college program:',
+    '',
+    `Program: ${permission.programName || 'College Program'}`,
+    `Conducted By: ${permission.conductedBy || 'Department / Organization'}`,
+    `Date: ${permission.date || 'Scheduled Date'}`,
+    `Time: ${timeDisplay}`,
+    `Venue: ${permission.venue || 'College Campus'}`,
+    `Target Audience: ${permission.audience || 'Students'}`,
+  ];
 
-  return message;
+  if (permission.programInCharge && permission.programInCharge.trim()) {
+    lines.push(`Program In-Charge: ${permission.programInCharge.trim()}`);
+  }
+
+  if (cleanDescription && cleanDescription.trim()) {
+    lines.push(`Description: ${cleanDescription.trim()}`);
+  }
+
+  lines.push('');
+  lines.push('Please review and respond using the secure link below:');
+  lines.push(publicUrl);
+  lines.push('');
+  lines.push('— Munazzam Institutional Reporting & Analytics');
+
+  return lines.join('\n');
 }
 
 /**

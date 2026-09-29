@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, Send, Save, Building2, User, Clock, MapPin, Users, Calendar, AlertCircle } from 'lucide-react';
 import { Program, ProgramPermission, PermissionStatus } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { getCleanProgramDescription } from '../../utils/permissionTokens';
 
 interface PermissionRequestModalProps {
   program: Program;
@@ -54,10 +55,19 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
   const [venue, setVenue] = useState(existingPermission?.venue || program.place || '');
   const [audience, setAudience] = useState(existingPermission?.audience || program.audience || 'Students');
   const [resourcePerson, setResourcePerson] = useState(existingPermission?.resourcePerson || program.resourcePerson || '');
+  const [programInCharge, setProgramInCharge] = useState(
+    existingPermission?.programInCharge || (program as any).programInCharge || (program as any).inCharge || (program as any).responsiblePerson || ''
+  );
   const [expectedAttendance, setExpectedAttendance] = useState<string>(
     existingPermission?.expectedAttendance ? String(existingPermission.expectedAttendance) : program.attendance_count ? String(program.attendance_count) : ''
   );
-  const [description, setDescription] = useState(existingPermission?.description || program.description || '');
+  const [description, setDescription] = useState(
+    existingPermission?.description
+      ? getCleanProgramDescription(existingPermission.description, existingPermission.programName || program.name)
+      : program.description
+      ? getCleanProgramDescription(program.description, program.name)
+      : ''
+  );
   const [permissionNotes, setPermissionNotes] = useState(existingPermission?.permissionNotes || '');
 
   // Authority Configuration
@@ -125,6 +135,7 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
       timeTill: '',
       venue: venue.trim(),
       audience: audience.trim(),
+      programInCharge: programInCharge.trim(),
       resourcePerson: resourcePerson.trim(),
       expectedAttendance: expectedAttendance ? Number(expectedAttendance) : undefined,
       description: description.trim(),
@@ -359,6 +370,17 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Program In-Charge (Optional)</label>
+                <input
+                  type="text"
+                  value={programInCharge}
+                  onChange={(e) => setProgramInCharge(e.target.value)}
+                  placeholder="e.g. Dr. Salman / Student Secretary"
+                  className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Resource Person / Faculty (Optional)</label>
                 <input
                   type="text"
@@ -370,7 +392,7 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Expected Attendance</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Expected Attendance (Optional)</label>
                 <input
                   type="number"
                   value={expectedAttendance}
@@ -381,12 +403,12 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Program Description / Objective</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Program Description (Optional)</label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Briefly state the educational or organizational objective of this program..."
+                  placeholder="Brief description of the program and its objectives..."
                   className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>

@@ -399,6 +399,37 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["searchableName", "accountId", "name"]
+    },
+    "ProgramPermission": {
+      "title": "ProgramPermission",
+      "description": "Formal college program permission and sanction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "programId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "programName": { "type": "string" },
+        "conductedBy": { "type": "string" },
+        "category": { "type": "string" },
+        "subCategory": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "timeFrom": { "type": "string" },
+        "timeTill": { "type": "string" },
+        "venue": { "type": "string" },
+        "audience": { "type": "string" },
+        "programInCharge": { "type": "string" },
+        "resourcePerson": { "type": "string" },
+        "expectedAttendance": { "type": "number" },
+        "description": { "type": "string" },
+        "permissionNotes": { "type": "string" },
+        "approvingAuthority": { "type": "string" },
+        "status": { "type": "string" },
+        "approvalToken": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "programId", "organizationId", "programName", "date", "venue", "status"]
     }
   },
   "firestore": {

@@ -338,7 +338,7 @@ export const SharePermissionModal: React.FC<SharePermissionModalProps> = ({
               <span>View WhatsApp Message Template</span>
               <span className="text-[10px] text-emerald-700 group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 whitespace-pre-line font-mono text-[11px] text-slate-700 bg-white p-3 rounded-lg border">
+            <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-slate-700 bg-white p-3 rounded-lg border max-w-full overflow-x-hidden">
               {shareMessage}
             </div>
           </details>

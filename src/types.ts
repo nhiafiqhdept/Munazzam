@@ -106,7 +106,8 @@ export interface ProgramPermission {
   audience: string;
   resourcePerson?: string;
   expectedAttendance?: number;
-  description: string;
+  programInCharge?: string;
+  description?: string;
   permissionNotes?: string;
   approvingAuthority: string;
   status: PermissionStatus;

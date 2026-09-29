@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/helpers';
 import { QRCodeView } from './QRCodeView';
 import { SharePermissionModal } from './SharePermissionModal';
-import { buildWhatsAppShareMessage, openWhatsAppShare, getPublicApprovalUrl } from '../../utils/permissionTokens';
+import { buildWhatsAppShareMessage, openWhatsAppShare, getPublicApprovalUrl, getCleanProgramDescription } from '../../utils/permissionTokens';
 
 interface PrintableApprovalRequestProps {
   permission: ProgramPermission;
@@ -197,9 +197,17 @@ export const PrintableApprovalRequest: React.FC<PrintableApprovalRequestProps> =
                   <div className="col-span-8 font-medium text-slate-900">{permission.audience || 'Students'}</div>
                 </div>
 
-                {/* 8. Resource Person / Faculty (Cleanly omitted if empty) */}
-                {permission.resourcePerson && permission.resourcePerson.trim() !== '' && (
+                {/* 8. Program In-Charge (Cleanly omitted if empty) */}
+                {permission.programInCharge && permission.programInCharge.trim() !== '' && (
                   <div className="grid grid-cols-12 p-2.5 bg-slate-50/50">
+                    <div className="col-span-4 font-bold text-slate-700">PROGRAM IN-CHARGE:</div>
+                    <div className="col-span-8 font-bold text-slate-900">{permission.programInCharge}</div>
+                  </div>
+                )}
+
+                {/* 9. Resource Person / Faculty (Cleanly omitted if empty) */}
+                {permission.resourcePerson && permission.resourcePerson.trim() !== '' && (
+                  <div className="grid grid-cols-12 p-2.5">
                     <div className="col-span-4 font-bold text-slate-700">RESOURCE PERSON / FACULTY:</div>
                     <div className="col-span-8 font-bold text-slate-900">{permission.resourcePerson}</div>
                   </div>
@@ -214,12 +222,16 @@ export const PrintableApprovalRequest: React.FC<PrintableApprovalRequestProps> =
                 )}
 
                 {/* 10. Description / Purpose (Cleanly omitted if empty) */}
-                {permission.description && permission.description.trim() !== '' && (
-                  <div className="grid grid-cols-12 p-2.5 bg-slate-50/50">
-                    <div className="col-span-4 font-bold text-slate-700">OBJECTIVE / DESCRIPTION:</div>
-                    <div className="col-span-8 text-slate-800 leading-relaxed font-normal">{permission.description}</div>
-                  </div>
-                )}
+                {(() => {
+                  const cleanDesc = getCleanProgramDescription(permission.description, permission.programName);
+                  if (!cleanDesc || !cleanDesc.trim()) return null;
+                  return (
+                    <div className="grid grid-cols-12 p-2.5 bg-slate-50/50">
+                      <div className="col-span-4 font-bold text-slate-700">OBJECTIVE / DESCRIPTION:</div>
+                      <div className="col-span-8 text-slate-800 leading-relaxed font-normal whitespace-pre-line">{cleanDesc.trim()}</div>
+                    </div>
+                  );
+                })()}
 
                 {/* 11. Additional Permission Notes */}
                 {permission.permissionNotes && permission.permissionNotes.trim() !== '' && (

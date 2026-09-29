@@ -10,12 +10,15 @@ import {
   XCircle,
   AlertTriangle,
   Sparkles,
+  UserCheck,
+  FileText,
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { ProgramPermission, PermissionHistoryItem } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import { PermissionStatusBadge } from './PermissionStatusBadge';
+import { getCleanProgramDescription } from '../../utils/permissionTokens';
 
 interface OrganizationData {
   id?: string;
@@ -65,19 +68,41 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
     const orgDisplayName = organization?.college_name || organization?.name || 'College Department';
 
-    const text = `*College Program Permission*\n\n` +
-      `✓ *Officially Approved*\n\n` +
-      `*Program:* ${permission.programName || 'Untitled Program'}\n` +
-      `*Conducted by:* ${permission.conductedBy || orgDisplayName}\n` +
-      `*Date:* ${permission.date ? formatDate(permission.date) : 'Scheduled'}\n` +
-      `*Time:* ${permission.timeFrom ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}` : 'Scheduled'}\n` +
-      `*Venue:* ${permission.venue || 'College Campus'}\n` +
-      `*Target Audience:* ${permission.audience || 'Students'}\n\n` +
-      `*Approved by:* ${approverStr}\n` +
-      `${permission.approvedAt ? `*Approval Date:* ${formatDate(permission.approvedAt)}\n\n` : '\n'}` +
-      `*View Official Approval:*\n${currentUrl}\n\n` +
-      `_Powered by Munazzam Institutional Reporting & Analytics_`;
+    const cleanDesc = getCleanProgramDescription(permission.description, permission.programName);
 
+    const lines: string[] = [
+      '*College Program Permission*',
+      '',
+      '✓ *Officially Approved*',
+      '',
+      `*Program:* ${permission.programName || 'Untitled Program'}`,
+      `*Conducted by:* ${permission.conductedBy || orgDisplayName}`,
+      `*Date:* ${permission.date ? formatDate(permission.date) : 'Scheduled'}`,
+      `*Time:* ${permission.time || (permission.timeFrom ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}` : 'Scheduled')}`,
+      `*Venue:* ${permission.venue || 'College Campus'}`,
+      `*Target Audience:* ${permission.audience || 'Students'}`,
+    ];
+
+    if (permission.programInCharge && permission.programInCharge.trim()) {
+      lines.push(`*Program In-Charge:* ${permission.programInCharge.trim()}`);
+    }
+
+    if (cleanDesc && cleanDesc.trim()) {
+      lines.push(`*Description:* ${cleanDesc.trim()}`);
+    }
+
+    lines.push('');
+    lines.push(`*Approved by:* ${approverStr}`);
+    if (permission.approvedAt) {
+      lines.push(`*Approval Date:* ${formatDate(permission.approvedAt)}`);
+    }
+    lines.push('');
+    lines.push('*View Official Approval:*');
+    lines.push(currentUrl);
+    lines.push('');
+    lines.push('_Powered by Munazzam Institutional Reporting & Analytics_');
+
+    const text = lines.join('\n');
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -642,35 +667,36 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   // Dynamic organization name and logo resolution
   const orgDisplayName = organization?.name || permission.conductedBy || 'College Department / Students Union';
   const orgLogoSrc = organization?.logo || '';
+  const cleanProgramDescription = getCleanProgramDescription(permission.description, permission.programName);
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50/70 py-4 sm:py-8 px-3 sm:px-6 lg:px-8 font-sans text-slate-900">
-      <div className="max-w-xl mx-auto space-y-4">
+    <div className="min-h-[100dvh] bg-slate-50/70 py-3 sm:py-6 px-3 sm:px-4 font-sans text-slate-900">
+      <div className="max-w-lg mx-auto space-y-3">
         
         {/* Main Compact Document Container */}
-        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 shadow-xs border border-slate-200/80 space-y-3">
           
           {/* ==================== 1. HEADER AREA ==================== */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-3 min-w-0">
               {orgLogoSrc ? (
                 <img
                   src={orgLogoSrc}
                   alt={orgDisplayName}
-                  className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl border border-slate-200 bg-white p-1 shadow-2xs shrink-0"
+                  className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-xl border border-slate-200 bg-white p-1 shadow-2xs shrink-0"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-50 border border-slate-200 text-emerald-800 flex items-center justify-center shrink-0">
-                  <Building className="w-5 h-5 text-emerald-800" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 border border-slate-200 text-emerald-800 flex items-center justify-center shrink-0">
+                  <Building className="w-4 h-4 text-emerald-800" />
                 </div>
               )}
               
               <div className="min-w-0">
-                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate leading-tight">
+                <h1 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight truncate leading-tight">
                   {orgDisplayName}
                 </h1>
-                <p className="text-xs sm:text-sm font-semibold text-emerald-700 leading-tight mt-0.5">
+                <p className="text-[11px] sm:text-xs font-semibold text-emerald-700 leading-tight mt-0.5">
                   College Program Permission
                 </p>
               </div>
@@ -687,7 +713,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
           {/* ==================== 2. OUTCOME BANNER (IF REJECTED OR CHANGES REQUIRED) ==================== */}
           {actionSuccess === 'rejected' || (isFinalized && permission.status === 'rejected') ? (
-            <div className="p-3.5 rounded-xl bg-rose-50/85 border border-rose-200 flex items-start gap-2.5 text-rose-950">
+            <div className="p-3 rounded-xl bg-rose-50/85 border border-rose-200 flex items-start gap-2.5 text-rose-950">
               <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-rose-900">
@@ -707,7 +733,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               </div>
             </div>
           ) : actionSuccess === 'changes' || isChangesRequired ? (
-            <div className="p-3.5 rounded-xl bg-amber-50/85 border border-amber-200 flex items-start gap-2.5 text-amber-950">
+            <div className="p-3 rounded-xl bg-amber-50/85 border border-amber-200 flex items-start gap-2.5 text-amber-950">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-amber-900">
@@ -727,20 +753,20 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
           ) : null}
 
           {/* ==================== 3. PROGRAM TITLE HIGHLIGHT ==================== */}
-          <div className="bg-slate-50/90 border-l-4 border-emerald-600 px-3.5 py-2.5 rounded-r-xl space-y-0.5 shadow-2xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="bg-slate-50 border-l-4 border-emerald-600 px-3 py-2 rounded-r-xl space-y-0.5 shadow-2xs">
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Program Title
             </span>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
               {permission.programName || 'Untitled Program'}
             </h2>
           </div>
 
           {/* ==================== 4. COMPACT INFORMATION ROWS ==================== */}
-          <div className="divide-y divide-slate-100/90">
+          <div className="divide-y divide-slate-100">
             
             {/* Row: Conducted By */}
-            <div className="py-2.5 flex items-start gap-2.5">
+            <div className="py-2 flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                 <Building className="w-3.5 h-3.5" />
               </div>
@@ -755,7 +781,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
 
             {/* Row: Date */}
-            <div className="py-2.5 flex items-start gap-2.5">
+            <div className="py-2 flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                 <Calendar className="w-3.5 h-3.5" />
               </div>
@@ -770,7 +796,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
 
             {/* Row: Time */}
-            <div className="py-2.5 flex items-start gap-2.5">
+            <div className="py-2 flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                 <Clock className="w-3.5 h-3.5" />
               </div>
@@ -788,13 +814,13 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
 
             {/* Row: Venue */}
-            <div className="py-2.5 flex items-start gap-2.5">
+            <div className="py-2 flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                 <MapPin className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Venue / Location
+                  Venue
                 </div>
                 <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                   {permission.venue || 'College Campus'}
@@ -803,7 +829,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
 
             {/* Row: Target Audience */}
-            <div className="py-2.5 flex items-start gap-2.5">
+            <div className="py-2 flex items-start gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
                 <Users className="w-3.5 h-3.5" />
               </div>
@@ -816,15 +842,49 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
                 </div>
               </div>
             </div>
+
+            {/* Row: Program In-Charge (Only displayed when contains information) */}
+            {permission.programInCharge && permission.programInCharge.trim() && (
+              <div className="py-2 flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Program In-Charge
+                  </div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                    {permission.programInCharge.trim()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Row: Program Description (Only displayed when contains actual user description) */}
+            {cleanProgramDescription && cleanProgramDescription.trim() && (
+              <div className="py-2 flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Description
+                  </div>
+                  <div className="text-xs font-medium text-slate-800 leading-relaxed mt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 whitespace-pre-line">
+                    {cleanProgramDescription.trim()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Standalone WhatsApp Share Button (When Approved) */}
           {((isFinalized && permission.status === 'approved') || actionSuccess === 'approved') && (
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={handleWhatsAppShare}
-                className="w-full min-h-[48px] py-3 px-4 bg-[#25D366] hover:bg-[#20ba5a] active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
+                className="w-full min-h-[42px] py-2.5 px-4 bg-[#25D366] hover:bg-[#20ba5a] active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
@@ -837,39 +897,39 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
         {/* ==================== 6. APPROVAL DECISION AREA (PENDING / REJECTED / CHANGES) ==================== */}
         {!isFinalized && !actionSuccess ? (
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xs border border-slate-200/80 space-y-4">
-            <div className="border-b border-slate-100 pb-2.5">
-              <h3 className="text-sm font-bold text-slate-900">
-                Approval Decision
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 shadow-xs border border-slate-200/80 space-y-3">
+            <div className="border-b border-slate-100 pb-2">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                Official Approval Decision
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Please review the program details above before submitting your official decision.
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Review the details above to approve, request changes, or reject.
               </p>
             </div>
 
             {/* Approver Details Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Your Full Name (Optional)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g., Dr. Abdul Rahman"
+                  placeholder="e.g. Dr. Abdul Rahman"
                   value={approverName}
                   onChange={(e) => setApproverName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Approving Role / Designation
                 </label>
                 <select
                   value={approverDesignation}
                   onChange={(e) => setApproverDesignation(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
                 >
                   <option value="Principal">Principal</option>
                   <option value="Vice Principal">Vice Principal</option>
@@ -887,37 +947,37 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               <button
                 type="button"
                 onClick={() => openModal('approve')}
-                className="flex-1 min-h-[46px] py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[42px] py-2 px-3 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer text-xs"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>✓ Approve Permission</span>
+                <span>✓ Approve</span>
               </button>
 
               {/* 2. Request Changes Button */}
               <button
                 type="button"
                 onClick={() => openModal('changes')}
-                className="flex-1 min-h-[46px] py-2.5 px-4 bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[42px] py-2 px-3 bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer text-xs"
               >
                 <AlertTriangle className="w-4 h-4" />
-                <span>↻ Request Changes</span>
+                <span>↻ Changes</span>
               </button>
 
               {/* 3. Reject Button */}
               <button
                 type="button"
                 onClick={() => openModal('reject')}
-                className="flex-1 min-h-[46px] py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer text-xs sm:text-sm"
+                className="flex-1 min-h-[42px] py-2 px-3 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer text-xs"
               >
                 <XCircle className="w-4 h-4" />
-                <span>✕ Reject Permission</span>
+                <span>✕ Reject</span>
               </button>
             </div>
           </div>
         ) : null}
 
         {/* Footer */}
-        <div className="text-center text-slate-400 text-xs py-2">
+        <div className="text-center text-slate-400 text-[11px] py-1">
           <p className="font-semibold text-slate-500">Munazzam Institutional Reporting & Analytics</p>
         </div>
       </div>
