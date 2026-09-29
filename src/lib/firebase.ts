@@ -1,15 +1,28 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+// Initialize or reuse Firebase App instance singleton
+const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with custom database ID from configuration
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore safely with custom database ID from configuration
+function createFirestoreInstance(): Firestore {
+  try {
+    const dbId = (firebaseConfig as any)?.firestoreDatabaseId;
+    if (dbId && typeof dbId === 'string' && dbId.trim().length > 0 && dbId !== '(default)') {
+      return getFirestore(app, dbId);
+    }
+  } catch (err) {
+    console.warn('Could not initialize custom firestoreDatabaseId, falling back to default:', err);
+  }
+  return getFirestore(app);
+}
+
+export const db: Firestore = createFirestoreInstance();
 
 // Initialize Firebase Authentication
-export const auth = getAuth(app);
+export const auth: Auth = getAuth(app);
 
 /**
  * Removes undefined fields recursively from an object before sending to Firestore

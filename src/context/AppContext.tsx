@@ -352,7 +352,9 @@ export const AppProvider: React.FC<{
   useEffect(() => {
     async function testConnection() {
       try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
+        if (db) {
+          await getDocFromServer(doc(db, 'test', 'connection'));
+        }
       } catch (error) {
         if (error instanceof Error && error.message.includes('the client is offline')) {
           console.error('Firestore connection offline check:', error.message);
@@ -740,19 +742,8 @@ export const AppProvider: React.FC<{
     };
   }, [isPublicView, publicOrgQuery]);
 
-  // Connection test per skill requirements & initial permissions cache sync
+  // Initial permissions cache sync
   useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('the client is offline')) {
-          console.error('Firestore connection offline check:', error.message);
-        }
-      }
-    }
-    testConnection();
-
     try {
       const cached = localStorage.getItem('local_permissions');
       if (cached) {
@@ -770,6 +761,7 @@ export const AppProvider: React.FC<{
 
   // Central Firebase Auth Listener
   useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -787,25 +779,27 @@ export const AppProvider: React.FC<{
           setIsAuthenticated(true);
 
           // Verify/create account document in Firestore
-          const accountRef = doc(db, 'accounts', firebaseUser.uid);
-          const docSnap = await getDoc(accountRef);
-          if (!docSnap.exists()) {
-            const now = new Date().toISOString();
-            await setDoc(accountRef, {
-              accountId: firebaseUser.uid,
-              email: firebaseUser.email,
-              createdAt: now,
-              updatedAt: now,
-              status: 'active',
-              profile: {
-                name: 'My Organization',
-                college_name: 'Main Campus',
-                tagline: 'Excellence in Action',
-                logo: '',
+          if (db && firebaseUser.uid) {
+            const accountRef = doc(db, 'accounts', firebaseUser.uid);
+            const docSnap = await getDoc(accountRef);
+            if (!docSnap.exists()) {
+              const now = new Date().toISOString();
+              await setDoc(accountRef, {
+                accountId: firebaseUser.uid,
                 email: firebaseUser.email,
-                isInitialized: false,
-              },
-            });
+                createdAt: now,
+                updatedAt: now,
+                status: 'active',
+                profile: {
+                  name: 'My Organization',
+                  college_name: 'Main Campus',
+                  tagline: 'Excellence in Action',
+                  logo: '',
+                  email: firebaseUser.email,
+                  isInitialized: false,
+                },
+              });
+            }
           }
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -1260,6 +1254,7 @@ export const AppProvider: React.FC<{
           timeTill: d.timeTill || '',
           venue: d.venue || '',
           audience: d.audience || 'Students',
+          programInCharge: d.programInCharge || d.program_in_charge || d.inCharge || '',
           resourcePerson: d.resourcePerson || '',
           expectedAttendance: d.expectedAttendance ? Number(d.expectedAttendance) : undefined,
           description: d.description || '',

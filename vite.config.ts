@@ -157,19 +157,27 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['**/version.json'],
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\/.*/, /^\/uploads\/.*/],
+          navigateFallbackDenylist: [/^\/api\/.*/, /^\/uploads\/.*/, /^\/version\.json/],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase limit to 5MB to handle larger bundle sizes
           runtimeCaching: [
+            {
+              urlPattern: ({ url }) => url.pathname === '/version.json',
+              handler: 'NetworkOnly',
+            },
             {
               urlPattern: ({ request }) => request.mode === 'navigate',
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'pages-cache',
-                networkTimeoutSeconds: 3,
+                networkTimeoutSeconds: 2,
                 expiration: {
-                  maxEntries: 50,
+                  maxEntries: 20,
                   maxAgeSeconds: 60 * 60 * 24,
                 },
                 cacheableResponse: {

@@ -18,7 +18,7 @@ import { db } from '../../lib/firebase';
 import { ProgramPermission, PermissionHistoryItem } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import { PermissionStatusBadge } from './PermissionStatusBadge';
-import { getCleanProgramDescription } from '../../utils/permissionTokens';
+import { getCleanProgramDescription, formatWhatsAppDate } from '../../utils/permissionTokens';
 
 interface OrganizationData {
   id?: string;
@@ -44,6 +44,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   // Decision Modal States
   const [activeModal, setActiveModal] = useState<'approve' | 'reject' | 'changes' | null>(null);
   const [approverName, setApproverName] = useState('');
+  const [selectedRoleOption, setSelectedRoleOption] = useState('Principal');
+  const [customRole, setCustomRole] = useState('');
   const [approverDesignation, setApproverDesignation] = useState('Principal');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -51,6 +53,13 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<'approved' | 'rejected' | 'changes' | null>(null);
   const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
+
+  const getEffectiveDesignation = () => {
+    if (selectedRoleOption === 'Custom Role') {
+      return customRole.trim() || 'Competent Authority';
+    }
+    return selectedRoleOption || 'Principal';
+  };
 
   const openModal = (type: 'approve' | 'reject' | 'changes') => {
     setSubmitErrorMessage(null);
@@ -75,26 +84,26 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
       '',
       '✓ *Officially Approved*',
       '',
-      `*Program:* ${permission.programName || 'Untitled Program'}`,
-      `*Conducted by:* ${permission.conductedBy || orgDisplayName}`,
-      `*Date:* ${permission.date ? formatDate(permission.date) : 'Scheduled'}`,
-      `*Time:* ${permission.time || (permission.timeFrom ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}` : 'Scheduled')}`,
-      `*Venue:* ${permission.venue || 'College Campus'}`,
-      `*Target Audience:* ${permission.audience || 'Students'}`,
+      `Program: *${permission.programName || 'Untitled Program'}*`,
+      `Conducted By: *${permission.conductedBy || orgDisplayName}*`,
+      `Date: *${formatWhatsAppDate(permission.date)}*`,
+      `Time: *${permission.time || (permission.timeFrom ? `${permission.timeFrom} ${permission.timeTill ? `– ${permission.timeTill}` : ''}` : 'Scheduled Time')}*`,
+      `Venue: *${permission.venue || 'College Campus'}*`,
+      `Target Audience: *${permission.audience || 'Students'}*`,
     ];
 
     if (permission.programInCharge && permission.programInCharge.trim()) {
-      lines.push(`*Program In-Charge:* ${permission.programInCharge.trim()}`);
+      lines.push(`Program In-Charge: *${permission.programInCharge.trim()}*`);
     }
 
     if (cleanDesc && cleanDesc.trim()) {
-      lines.push(`*Description:* ${cleanDesc.trim()}`);
+      lines.push(`Description: *${cleanDesc.trim()}*`);
     }
 
     lines.push('');
-    lines.push(`*Approved by:* ${approverStr}`);
+    lines.push(`Approved by: *${approverStr}*`);
     if (permission.approvedAt) {
-      lines.push(`*Approval Date:* ${formatDate(permission.approvedAt)}`);
+      lines.push(`Approval Date: *${formatWhatsAppDate(permission.approvedAt)}*`);
     }
     lines.push('');
     lines.push('*View Official Approval:*');
@@ -212,6 +221,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         timeTill: fetchedPermData.timeTill || '',
         venue: fetchedPermData.venue || '',
         audience: fetchedPermData.audience || '',
+        programInCharge: fetchedPermData.programInCharge || fetchedPermData.program_in_charge || fetchedPermData.inCharge || '',
         resourcePerson: fetchedPermData.resourcePerson || '',
         expectedAttendance: fetchedPermData.expectedAttendance ? Number(fetchedPermData.expectedAttendance) : undefined,
         description: fetchedPermData.description || '',
@@ -242,7 +252,22 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
 
       // Set default designation from permission config if present
       if (perm.approvingAuthority) {
-        setApproverDesignation(perm.approvingAuthority);
+        const standardAuthorities = [
+          'Principal',
+          'Vice Principal',
+          'Head of Department (HOD)',
+          'Dean of Student Affairs',
+          'Staff Advisor',
+          'Competent Authority',
+        ];
+        if (standardAuthorities.includes(perm.approvingAuthority)) {
+          setSelectedRoleOption(perm.approvingAuthority);
+          setApproverDesignation(perm.approvingAuthority);
+        } else {
+          setSelectedRoleOption('Custom Role');
+          setCustomRole(perm.approvingAuthority);
+          setApproverDesignation(perm.approvingAuthority);
+        }
       }
 
       // Check revoked
@@ -323,7 +348,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     if (!token) return;
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
-    const finalApproverName = approverName.trim() || approverDesignation;
+    const effectiveDesignation = getEffectiveDesignation();
+    const finalApproverName = approverName.trim() || effectiveDesignation;
 
     let apiSucceeded = false;
     let updatedPerm: any = null;
@@ -338,8 +364,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
           action: 'approved',
           approverName: finalApproverName,
           approver_name: finalApproverName,
-          approverDesignation: approverDesignation,
-          approver_designation: approverDesignation,
+          approverDesignation: effectiveDesignation,
+          approver_designation: effectiveDesignation,
           approvalRemarks: approvalNotes.trim(),
           notes: approvalNotes.trim(),
         }),
@@ -377,14 +403,14 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         status: 'approved',
         action: 'Permission officially approved by college authority',
         actorName: finalApproverName,
-        actorRole: approverDesignation,
+        actorRole: effectiveDesignation,
         notes: approvalNotes.trim(),
       };
 
       const updateData: any = {
         status: 'approved',
         approvedBy: finalApproverName,
-        approverDesignation: approverDesignation,
+        approverDesignation: effectiveDesignation,
         approvedAt: now,
         approvalNotes: approvalNotes.trim(),
         approvalMethod: 'public_link',
@@ -419,7 +445,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     }
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
-    const finalReviewerName = approverName.trim() || approverDesignation;
+    const effectiveDesignation = getEffectiveDesignation();
+    const finalReviewerName = approverName.trim() || effectiveDesignation;
 
     let apiSucceeded = false;
     let updatedPerm: any = null;
@@ -434,8 +461,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
           action: 'changes_requested',
           approverName: finalReviewerName,
           approver_name: finalReviewerName,
-          approverDesignation: approverDesignation,
-          approver_designation: approverDesignation,
+          approverDesignation: effectiveDesignation,
+          approver_designation: effectiveDesignation,
           approvalRemarks: changesNotes.trim(),
           changesRequiredNotes: changesNotes.trim(),
           notes: changesNotes.trim(),
@@ -474,14 +501,14 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         status: 'changes_required',
         action: 'Modifications requested by reviewing authority',
         actorName: finalReviewerName,
-        actorRole: approverDesignation,
+        actorRole: effectiveDesignation,
         notes: changesNotes.trim(),
       };
 
       const updateData: any = {
         status: 'changes_required',
         changesRequestedBy: finalReviewerName,
-        approverDesignation: approverDesignation,
+        approverDesignation: effectiveDesignation,
         changesRequestedAt: now,
         changesRequiredNotes: changesNotes.trim(),
         updatedAt: now,
@@ -515,7 +542,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
     }
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
-    const finalRejecterName = approverName.trim() || approverDesignation;
+    const effectiveDesignation = getEffectiveDesignation();
+    const finalRejecterName = approverName.trim() || effectiveDesignation;
 
     let apiSucceeded = false;
     let updatedPerm: any = null;
@@ -530,8 +558,8 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
           action: 'rejected',
           approverName: finalRejecterName,
           approver_name: finalRejecterName,
-          approverDesignation: approverDesignation,
-          approver_designation: approverDesignation,
+          approverDesignation: effectiveDesignation,
+          approver_designation: effectiveDesignation,
           approvalRemarks: rejectionReason.trim(),
           rejectionReason: rejectionReason.trim(),
           notes: rejectionReason.trim(),
@@ -570,14 +598,14 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
         status: 'rejected',
         action: 'Permission request rejected by authority',
         actorName: finalRejecterName,
-        actorRole: approverDesignation,
+        actorRole: effectiveDesignation,
         notes: rejectionReason.trim(),
       };
 
       const updateData: any = {
         status: 'rejected',
         rejectedBy: finalRejecterName,
-        approverDesignation: approverDesignation,
+        approverDesignation: effectiveDesignation,
         rejectedAt: now,
         rejectionReason: rejectionReason.trim(),
         updatedAt: now,
@@ -908,37 +936,68 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
             </div>
 
             {/* Approver Details Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Your Full Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Dr. Abdul Rahman"
-                  value={approverName}
-                  onChange={(e) => setApproverName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
-                />
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Your Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. Abdul Rahman"
+                    value={approverName}
+                    onChange={(e) => setApproverName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Approving Role / Designation
+                  </label>
+                  <select
+                    value={selectedRoleOption}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedRoleOption(val);
+                      if (val !== 'Custom Role') {
+                        setApproverDesignation(val);
+                      } else {
+                        setApproverDesignation(customRole.trim() || 'Competent Authority');
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
+                  >
+                    <option value="Principal">Principal</option>
+                    <option value="Vice Principal">Vice Principal</option>
+                    <option value="Head of Department (HOD)">Head of Department (HOD)</option>
+                    <option value="Dean of Student Affairs">Dean of Student Affairs</option>
+                    <option value="Staff Advisor">Staff Advisor</option>
+                    <option value="Competent Authority">Competent Authority</option>
+                    <option value="Custom Role">Custom Role</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Approving Role / Designation
-                </label>
-                <select
-                  value={approverDesignation}
-                  onChange={(e) => setApproverDesignation(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all cursor-pointer"
-                >
-                  <option value="Principal">Principal</option>
-                  <option value="Vice Principal">Vice Principal</option>
-                  <option value="Head of Department (HOD)">Head of Department (HOD)</option>
-                  <option value="Dean of Student Affairs">Dean of Student Affairs</option>
-                  <option value="Staff Advisor">Staff Advisor</option>
-                  <option value="Competent Authority">Competent Authority</option>
-                </select>
-              </div>
+              {/* Custom Role Input (Displayed when 'Custom Role' is selected) */}
+              {selectedRoleOption === 'Custom Role' && (
+                <div className="animate-in fade-in duration-200">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Enter Custom Role
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Academic Coordinator, Program Director"
+                    value={customRole}
+                    onChange={(e) => {
+                      setCustomRole(e.target.value);
+                      setApproverDesignation(e.target.value.trim() || 'Competent Authority');
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-emerald-300 rounded-lg text-xs font-medium text-slate-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -1029,7 +1088,7 @@ export const PublicPermissionApprovalView: React.FC<PublicPermissionApprovalView
               </div>
 
               <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                Approving as: <strong className="text-slate-800">{approverName.trim() || approverDesignation}</strong> ({approverDesignation})
+                Approving as: <strong className="text-slate-800">{approverName.trim() || getEffectiveDesignation()}</strong> ({getEffectiveDesignation()})
               </div>
             </div>
 

@@ -211,11 +211,34 @@ export function getCleanProgramDescription(
 }
 
 /**
+ * Formats date into standard WhatsApp date format (e.g. "30 September 2026").
+ */
+export function formatWhatsAppDate(dateStr?: string): string {
+  if (!dateStr || !dateStr.trim()) return 'Scheduled Date';
+  const clean = dateStr.trim();
+  try {
+    const d = new Date(clean);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate();
+      const month = d.toLocaleDateString('en-GB', { month: 'long' });
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
+    }
+  } catch {}
+  return clean;
+}
+
+/**
  * Builds the official WhatsApp approval share message matching the exact institutional format.
+ * Bolds actual values using *value* formatting while keeping field labels unbolded.
  */
 export function buildWhatsAppShareMessage(
   permission: Partial<ProgramPermission>,
-  token?: string
+  token?: string,
+  options?: {
+    organizationName?: string;
+    subWingName?: string;
+  }
 ): string {
   const actualToken = token || permission.approvalToken || '';
   const publicUrl = actualToken ? getPublicApprovalUrl(actualToken) : '[Review & Approve Permission]';
@@ -229,25 +252,51 @@ export function buildWhatsAppShareMessage(
     permission.programName
   );
 
+  // Conducted By resolution:
+  // For a main-org program -> main organization name
+  // For a Sub-Wing proposal -> Sub-Wing name / main organization name
+  let conductedByValue = (permission.conductedBy || '').trim();
+  const subWing = (options?.subWingName || (permission as any).subWingName || '').trim();
+  const mainOrg = (options?.organizationName || (permission as any).organizationName || '').trim();
+
+  if (!conductedByValue) {
+    if (subWing && mainOrg && subWing.toLowerCase() !== mainOrg.toLowerCase()) {
+      conductedByValue = `${subWing} / ${mainOrg}`;
+    } else if (subWing) {
+      conductedByValue = subWing;
+    } else if (mainOrg) {
+      conductedByValue = mainOrg;
+    } else {
+      conductedByValue = 'Department / Organization';
+    }
+  } else if (!conductedByValue.includes(' / ') && subWing && mainOrg && conductedByValue.toLowerCase() === subWing.toLowerCase()) {
+    conductedByValue = `${subWing} / ${mainOrg}`;
+  }
+
+  const dateValue = formatWhatsAppDate(permission.date);
+  const programNameValue = permission.programName || 'College Program';
+  const venueValue = permission.venue || 'College Campus';
+  const audienceValue = permission.audience || 'Students';
+
   const lines: string[] = [
     'Assalamu Alaikum,',
     '',
     'Approval is requested for the following college program:',
     '',
-    `Program: ${permission.programName || 'College Program'}`,
-    `Conducted By: ${permission.conductedBy || 'Department / Organization'}`,
-    `Date: ${permission.date || 'Scheduled Date'}`,
-    `Time: ${timeDisplay}`,
-    `Venue: ${permission.venue || 'College Campus'}`,
-    `Target Audience: ${permission.audience || 'Students'}`,
+    `Program: *${programNameValue}*`,
+    `Conducted By: *${conductedByValue}*`,
+    `Date: *${dateValue}*`,
+    `Time: *${timeDisplay}*`,
+    `Venue: *${venueValue}*`,
+    `Target Audience: *${audienceValue}*`,
   ];
 
   if (permission.programInCharge && permission.programInCharge.trim()) {
-    lines.push(`Program In-Charge: ${permission.programInCharge.trim()}`);
+    lines.push(`Program In-Charge: *${permission.programInCharge.trim()}*`);
   }
 
   if (cleanDescription && cleanDescription.trim()) {
-    lines.push(`Description: ${cleanDescription.trim()}`);
+    lines.push(`Description: *${cleanDescription.trim()}*`);
   }
 
   lines.push('');

@@ -761,6 +761,7 @@ app.get('/api/public/college-permission/:token', async (req: Request, res: Respo
     timeTill: perm.timeTill || '',
     venue: perm.venue || '',
     audience: perm.audience || 'Students',
+    programInCharge: perm.programInCharge || perm.program_in_charge || perm.inCharge || '',
     resourcePerson: perm.resourcePerson || '',
     expectedAttendance: perm.expectedAttendance ? Number(perm.expectedAttendance) : undefined,
     description: perm.description || '',
@@ -1120,8 +1121,35 @@ async function startServer() {
     const distPath = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
       ? path.join(process.cwd(), 'dist')
       : path.join(process.cwd(), 'build');
-    app.use(express.static(distPath));
+
+    // Serve immutable hashed assets with 1 year cache
+    app.use('/assets', express.static(path.join(distPath, 'assets'), {
+      maxAge: '1y',
+      immutable: true,
+    }));
+
+    // Serve other root static files with anti-stale headers on critical files
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (
+          filePath.endsWith('index.html') ||
+          filePath.endsWith('sw.js') ||
+          filePath.includes('workbox-') ||
+          filePath.endsWith('version.json') ||
+          filePath.endsWith('manifest.json') ||
+          filePath.endsWith('manifest.webmanifest')
+        ) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      },
+    }));
+
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -42,8 +42,16 @@ export const PermissionRequestModal: React.FC<PermissionRequestModalProps> = ({
 
   const defaultConductedBy = () => {
     if (existingPermission?.conductedBy) return existingPermission.conductedBy;
-    if (program.subWingName) return program.subWingName;
-    return currentOrg?.name || 'Students Union';
+    const orgName = currentOrg?.name || currentOrg?.college_name || '';
+    const subWing = program.subWingName || (program as any).subWing;
+    if (subWing && orgName) {
+      if (subWing.toLowerCase() !== orgName.toLowerCase() && !subWing.includes(' / ')) {
+        return `${subWing} / ${orgName}`;
+      }
+      return subWing;
+    }
+    if (subWing) return subWing;
+    return orgName || 'Students Union';
   };
 
   const [programName, setProgramName] = useState(existingPermission?.programName || program.name);
