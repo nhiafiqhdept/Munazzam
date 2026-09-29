@@ -10,6 +10,7 @@ import {
   query,
   where,
   or,
+  limit,
   onSnapshot,
   addDoc,
   deleteDoc,
@@ -1416,17 +1417,17 @@ export const AppProvider: React.FC<{
         if (pubErr.message?.includes('already in use')) throw pubErr;
       }
 
-      // 2. Fallback check across accounts if permitted
+      // 2. Fallback check across accounts if permitted using targeted query
       try {
-        const querySnapshot = await getDocs(collection(db, 'accounts'));
-        for (const docSnap of querySnapshot.docs) {
-          if (docSnap.id !== user.id) {
-            const accData = docSnap.data();
-            const existingSearchName = (accData.profile?.searchableName || '').trim().toUpperCase();
-            if (existingSearchName === newSearchableName) {
-              throw new Error('That searchable name is already in use. Please choose another.');
-            }
-          }
+        const qAcc = query(
+          collection(db, 'accounts'),
+          where('profile.searchableName', '==', newSearchableName),
+          limit(2)
+        );
+        const querySnapshot = await getDocs(qAcc);
+        const isConflict = querySnapshot.docs.some((docSnap) => docSnap.id !== user.id);
+        if (isConflict) {
+          throw new Error('That searchable name is already in use. Please choose another.');
         }
       } catch (accErr: any) {
         if (accErr.message?.includes('already in use')) throw accErr;

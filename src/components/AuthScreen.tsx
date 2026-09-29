@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle, LogIn, UserPlus, Lock, Mail, Eye, EyeOff, HelpCircle, Search } from 'lucide-react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { getFirebaseErrorMessage } from '../utils/firebaseErrors';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
@@ -76,21 +76,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
         console.warn('public_organizations lookup error:', e);
       }
 
-      // 2. Fallback to accounts collection scan
+      // 2. Fallback to accounts collection query by searchableName with limit(1)
       if (!found) {
         try {
-          const querySnapshot = await getDocs(collection(db, 'accounts'));
-          for (const docSnap of querySnapshot.docs) {
+          const q = query(
+            collection(db, 'accounts'),
+            where('profile.searchableName', '==', queryTerm),
+            limit(1)
+          );
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0];
             const accData = docSnap.data();
             const profile = accData.profile || {};
-            const sName = (profile.searchableName || '').trim().toUpperCase();
-            if (sName === queryTerm) {
-              found = {
-                searchableName: sName,
-                name: profile.name || 'Organization',
-              };
-              break;
-            }
+            found = {
+              searchableName: (profile.searchableName || queryTerm).trim().toUpperCase(),
+              name: profile.name || accData.name || 'Organization',
+            };
           }
         } catch (e) {
           console.warn('accounts lookup error:', e);

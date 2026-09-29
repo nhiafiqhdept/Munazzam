@@ -96,6 +96,15 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const [publicPortalId, setPublicPortalId] = useState<string>('');
   const [portalLoading, setPortalLoading] = useState<boolean>(true);
 
+  // Pagination state for official programs
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 12;
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStatus, selectedCategory]);
+
   useEffect(() => {
     if (!currentOrg?.id) return;
 
@@ -695,33 +704,70 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           ) : (
             <div className="space-y-4">
               {(() => {
+                const totalPages = Math.ceil(filteredPrograms.length / pageSize) || 1;
+                const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+                const startIndex = (safeCurrentPage - 1) * pageSize;
+                const paginatedPrograms = filteredPrograms.slice(startIndex, startIndex + pageSize);
                 const officialThemes = getThemesForProgramList(filteredPrograms);
+
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {filteredPrograms.map((prog, idx) => (
-                      <ProgramCard
-                        key={prog.id}
-                        program={prog}
-                        onViewDetails={viewProgramDetails}
-                        onEdit={onOpenEditModal}
-                        onDelete={(p) => setDeleteTarget(p)}
-                        isAdmin={isAdmin}
-                        wingFallback={currentOrg.name}
-                        positionIndex={idx}
-                        theme={officialThemes[idx]}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {paginatedPrograms.map((prog, localIdx) => {
+                        const globalIdx = startIndex + localIdx;
+                        return (
+                          <ProgramCard
+                            key={prog.id}
+                            program={prog}
+                            onViewDetails={viewProgramDetails}
+                            onEdit={onOpenEditModal}
+                            onDelete={(p) => setDeleteTarget(p)}
+                            isAdmin={isAdmin}
+                            wingFallback={currentOrg.name}
+                            positionIndex={globalIdx}
+                            theme={officialThemes[globalIdx]}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination Controls & Results Footer */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-2 text-xs text-slate-500 font-medium">
+                      <span>
+                        Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filteredPrograms.length)} of {filteredPrograms.length} {filteredPrograms.length === 1 ? 'program' : 'programs'}
+                      </span>
+
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={safeCurrentPage === 1}
+                            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer font-bold text-[11px]"
+                          >
+                            Prev
+                          </button>
+                          
+                          <span className="px-2 text-slate-600 font-semibold">
+                            Page {safeCurrentPage} of {totalPages}
+                          </span>
+
+                          <button
+                            type="button"
+                            disabled={safeCurrentPage === totalPages}
+                            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition cursor-pointer font-bold text-[11px]"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+
+                      <span className="hidden sm:inline">Munazzam Institutional Management</span>
+                    </div>
+                  </>
                 );
               })()}
-
-              {/* Pagination / Results Footer */}
-              <div className="flex items-center justify-between px-2 pt-2 text-xs text-slate-500 font-medium">
-                <span>
-                  Showing {filteredPrograms.length} of {programs.length} {programs.length === 1 ? 'program' : 'programs'}
-                </span>
-                <span>Munazzam Institutional Management</span>
-              </div>
             </div>
           )}
         </>

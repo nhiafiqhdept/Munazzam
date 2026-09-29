@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Users,
   CalendarDays,
@@ -42,23 +42,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
 
   if (!currentOrg) return null;
 
-  // Calculate real balances from actual database state
-  const totalIncomes = incomes.reduce((sum, i) => sum + i.amount, 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalOpening = accounts.reduce((sum, a) => sum + a.opening_balance, 0);
-  const totalBalance = totalOpening + totalIncomes - totalExpenses;
+  // Memoize financial and organizers calculations
+  const { totalBalance, totalIncomes, totalExpenses, totalBorrowed, totalLent, activeAccountsCount, topOrganizers } = useMemo(() => {
+    const incomesSum = incomes.reduce((sum, i) => sum + i.amount, 0);
+    const expensesSum = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const openingSum = accounts.reduce((sum, a) => sum + a.opening_balance, 0);
+    const balance = openingSum + incomesSum - expensesSum;
 
-  const totalBorrowed = loans
-    .filter((l) => l.type === 'BORROWED')
-    .reduce((sum, l) => sum + l.outstanding_amount, 0);
+    const borrowed = loans
+      .filter((l) => l.type === 'BORROWED')
+      .reduce((sum, l) => sum + l.outstanding_amount, 0);
 
-  const totalLent = loans
-    .filter((l) => l.type === 'LENT')
-    .reduce((sum, l) => sum + l.outstanding_amount, 0);
+    const lent = loans
+      .filter((l) => l.type === 'LENT')
+      .reduce((sum, l) => sum + l.outstanding_amount, 0);
 
-  const activeAccountsCount = accounts.filter((a) => a.is_active).length;
+    const activeCount = accounts.filter((a) => a.is_active).length;
+    const topOrgs = organizers.slice(0, 6);
 
-  const topOrganizers = organizers.slice(0, 6);
+    return {
+      totalBalance: balance,
+      totalIncomes: incomesSum,
+      totalExpenses: expensesSum,
+      totalBorrowed: borrowed,
+      totalLent: lent,
+      activeAccountsCount: activeCount,
+      topOrganizers: topOrgs,
+    };
+  }, [incomes, expenses, accounts, loans, organizers]);
 
   const quickModules = [
     {
