@@ -11,277 +11,355 @@ import {
   Landmark,
   Shield,
   Save,
+  Send,
+  AlertCircle,
+  Activity,
+  Terminal,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import {
+  requestNotificationPermission,
+  sendRealTestPushNotification,
   getNotificationPreferences,
   saveNotificationPreferences,
-  requestNotificationPermission,
+  getDeviceId,
+  getClientEnvironment,
 } from '../../services/notificationService';
 import { NotificationPreferences } from '../../types';
 
 export const NotificationSettings: React.FC = () => {
   const { user, currentOrg } = useApp();
-  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
+  const [permissionStatus, setPermissionStatus] = useState<string>('default');
+  const [swStatus, setSwStatus] = useState<string>('checking');
+  const [hasPushSubscription, setHasPushSubscription] = useState<boolean>(false);
+  const [isRequesting, setIsRequesting] = useState<boolean>(false);
+  const [isTestingPush, setIsTestingPush] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const [prefs, setPrefs] = useState<NotificationPreferences>({
+    userId: user?.id || 'anonymous',
+    organizationId: currentOrg?.id || 'main',
+    enablePush: true,
+    enableInApp: true,
+    categories: {
+      programs: true,
+      permissions: true,
+      subwings: true,
+      suborgs: true,
+      achievements: true,
+      organizers: true,
+      treasury: true,
+      system: true,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [pushPermission, setPushPermission] = useState<NotificationPermission>(
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
-  );
 
   useEffect(() => {
-    const loadPrefs = async () => {
-      setLoading(true);
-      const data = await getNotificationPreferences(
-        user?.id || 'anonymous',
-        currentOrg?.id || 'main'
-      );
-      setPreferences(data);
-      setLoading(false);
-    };
+    // Check Notification API & Permission
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermissionStatus(Notification.permission);
+    } else {
+      setPermissionStatus('not_supported');
+    }
 
-    loadPrefs();
+    // Check Service Worker registration
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg) {
+          setSwStatus(reg.active ? 'active' : 'installing');
+          if (reg.pushManager) {
+            reg.pushManager.getSubscription().then((sub) => {
+              setHasPushSubscription(!!sub);
+            });
+          }
+        } else {
+          setSwStatus('not_registered');
+        }
+      });
+    }
+
+    // Load saved preferences
+    if (user?.id && currentOrg?.id) {
+      getNotificationPreferences(user.id, currentOrg.id).then((saved) => {
+        setPrefs(saved);
+      });
+    }
   }, [user?.id, currentOrg?.id]);
 
-  const handleToggleCategory = (catKey: keyof NotificationPreferences['categories']) => {
-    if (!preferences) return;
-    setPreferences({
-      ...preferences,
-      categories: {
-        ...preferences.categories,
-        [catKey]: !preferences.categories[catKey],
-      },
-    });
-    setSaveSuccess(false);
-  };
-
-  const handleTogglePush = async () => {
-    if (!preferences) return;
-    if (!preferences.enablePush && pushPermission !== 'granted') {
-      const result = await requestNotificationPermission(
-        user?.id || 'anonymous',
-        currentOrg?.id || 'main'
-      );
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        setPushPermission(Notification.permission);
-      }
-      if (result.success) {
-        setPreferences({ ...preferences, enablePush: true });
-      }
-    } else {
-      setPreferences({ ...preferences, enablePush: !preferences.enablePush });
-    }
-    setSaveSuccess(false);
-  };
-
-  const handleSave = async () => {
-    if (!preferences) return;
-    setSaving(true);
-    await saveNotificationPreferences(preferences);
-    setSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
-
-  if (loading || !preferences) {
-    return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center">
-        <div className="w-8 h-8 border-3 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto" />
-      </div>
+  const handleRequestPermission = async () => {
+    setIsRequesting(true);
+    setTestResult(null);
+    const result = await requestNotificationPermission(
+      user?.id || 'anonymous',
+      currentOrg?.id || 'main'
     );
-  }
+    setIsRequesting(false);
 
-  const categoryConfigs: {
-    key: keyof NotificationPreferences['categories'];
-    title: string;
-    description: string;
-    icon: React.FC<{ className?: string }>;
-  }[] = [
-    {
-      key: 'programs',
-      title: 'Program Activity',
-      description: 'Creation, updates, schedule changes, and status transitions for programs.',
-      icon: Calendar,
-    },
-    {
-      key: 'permissions',
-      title: 'College Permissions & Approvals',
-      description: 'Submission, approvals, rejections, and review feedback for official permissions.',
-      icon: FileCheck,
-    },
-    {
-      key: 'subwings',
-      title: 'Sub-Wings & Affiliated Units',
-      description: 'Sub-Wing logins, proposals, approvals, and partner submissions.',
-      icon: Layers,
-    },
-    {
-      key: 'achievements',
-      title: 'Achievements & Student Points',
-      description: 'Activity submissions, point allocations, and evaluation announcements.',
-      icon: Award,
-    },
-    {
-      key: 'organizers',
-      title: 'Leadership & Organizers',
-      description: 'Designation updates, new office bearers, and profile synchronization.',
-      icon: Users,
-    },
-    {
-      key: 'treasury',
-      title: 'Treasury & Financial Operations',
-      description: 'Important cashbook entries, transfers, and ledger movements.',
-      icon: Landmark,
-    },
-    {
-      key: 'system',
-      title: 'System & Security Notices',
-      description: 'Administrative events and institutional account security updates.',
-      icon: Shield,
-    },
-  ];
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermissionStatus(Notification.permission);
+    }
+
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      setSwStatus(reg.active ? 'active' : 'ready');
+      if (reg.pushManager) {
+        const sub = await reg.pushManager.getSubscription();
+        setHasPushSubscription(!!sub);
+      }
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setIsTestingPush(true);
+    setTestResult(null);
+    const result = await sendRealTestPushNotification(user?.id, currentOrg?.id);
+    setIsTestingPush(false);
+    setTestResult(result);
+  };
+
+  const handleToggleCategory = (key: keyof NotificationPreferences['categories']) => {
+    setPrefs((prev) => ({
+      ...prev,
+      categories: {
+        ...prev.categories,
+        [key]: !prev.categories[key],
+      },
+    }));
+  };
+
+  const handleSavePreferences = async () => {
+    setIsSaving(true);
+    await saveNotificationPreferences(prefs);
+    setIsSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
+
+  const env = getClientEnvironment();
+  const deviceId = getDeviceId();
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-6">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
         <div>
-          <h3 className="text-base font-bold text-slate-900 font-heading">
-            Notification Preferences
+          <h3 className="text-base sm:text-lg font-bold font-heading text-slate-900">
+            Notification & Alerts Management
           </h3>
           <p className="text-xs text-slate-500">
-            Control how and when Munazzam delivers alerts and updates to your devices.
+            Configure mobile push subscriptions, category alerts, and diagnostic status
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-2xs transition-transform active:scale-95 cursor-pointer self-start sm:self-auto"
-        >
-          {saving ? (
-            <>
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Saving...</span>
-            </>
-          ) : saveSuccess ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-              <span>Saved!</span>
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              <span>Save Preferences</span>
-            </>
-          )}
-        </button>
       </div>
 
-      {/* Global Delivery Channels */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-100/70 text-emerald-800 rounded-xl">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Web Push & Background</h4>
-                <p className="text-[11px] text-slate-500">Lock screen & system tray alerts</p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={preferences.enablePush}
-              onChange={handleTogglePush}
-              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-            />
+      {/* Push Subscription Card */}
+      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 bg-emerald-100/80 text-emerald-800 rounded-xl shrink-0 mt-0.5 sm:mt-0">
+            <Smartphone className="w-5 h-5 text-emerald-700" />
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <span>Browser Permission:</span>
-            <span
-              className={`font-semibold capitalize ${
-                pushPermission === 'granted'
-                  ? 'text-emerald-700'
-                  : pushPermission === 'denied'
-                  ? 'text-rose-600'
-                  : 'text-amber-600'
-              }`}
+          <div className="space-y-0.5">
+            <h4 className="text-sm font-bold text-slate-900">
+              Web Push & Mobile Lock-Screen Alerts
+            </h4>
+            <p className="text-xs text-slate-600 leading-relaxed max-w-lg">
+              Receive instant alerts in your Android notification shade and desktop notification tray when programs, approvals, or submissions occur.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+          {permissionStatus === 'granted' ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-900 rounded-xl text-xs font-bold border border-emerald-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+              <span>Permission Granted</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleRequestPermission}
+              disabled={isRequesting}
+              className="w-full sm:w-auto px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
             >
-              {pushPermission}
+              <Bell className="w-3.5 h-3.5" />
+              <span>{isRequesting ? 'Activating...' : 'Enable Mobile Push'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Real Push Testing & Diagnostics Section */}
+      <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-emerald-400" />
+            <h4 className="text-xs sm:text-sm font-bold text-emerald-400 font-heading">
+              Push Notification Pipeline Diagnostics
+            </h4>
+          </div>
+          <button
+            onClick={handleSendTestPush}
+            disabled={isTestingPush}
+            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>{isTestingPush ? 'Dispatching...' : 'Send Real Test Push'}</span>
+          </button>
+        </div>
+
+        {testResult && (
+          <div
+            className={`p-3 rounded-xl text-xs border ${
+              testResult.success
+                ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                : 'bg-rose-950/80 border-rose-500/40 text-rose-200'
+            }`}
+          >
+            <p className="font-semibold">{testResult.message}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px]">
+          <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+            <span className="text-slate-400 block text-[10px]">Notification API</span>
+            <span className="font-bold text-slate-100">
+              {permissionStatus !== 'not_supported' ? 'SUPPORTED' : 'NOT SUPPORTED'}
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+            <span className="text-slate-400 block text-[10px]">Permission State</span>
+            <span className={`font-bold uppercase ${permissionStatus === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {permissionStatus}
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+            <span className="text-slate-400 block text-[10px]">Service Worker</span>
+            <span className={`font-bold uppercase ${swStatus === 'active' || swStatus === 'ready' ? 'text-emerald-400' : 'text-slate-300'}`}>
+              {swStatus}
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+            <span className="text-slate-400 block text-[10px]">WebPush Subscription</span>
+            <span className={`font-bold uppercase ${hasPushSubscription ? 'text-emerald-400' : 'text-slate-300'}`}>
+              {hasPushSubscription ? 'ACTIVE' : 'PENDING'}
             </span>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-100/70 text-emerald-800 rounded-xl">
-                <Bell className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">In-App Notification Center</h4>
-                <p className="text-[11px] text-slate-500">Header badge & activity feed</p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={preferences.enableInApp}
-              onChange={() =>
-                setPreferences({ ...preferences, enableInApp: !preferences.enableInApp })
-              }
-              className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-            />
-          </div>
-          <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <span>Notification Stream:</span>
-            <span className="font-semibold text-emerald-700">Active</span>
-          </div>
+        <div className="text-[10px] text-slate-400 flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-800">
+          <span>Platform: <strong>{env.platform} ({env.browser})</strong></span>
+          <span>Device ID: <strong className="font-mono text-slate-300">{deviceId.substring(0, 16)}...</strong></span>
+          <span>Service Worker: <strong className="text-emerald-400">/sw.js (Unified)</strong></span>
         </div>
       </div>
 
       {/* Category Toggles */}
       <div className="space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Subscribed Categories
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Notification Category Subscriptions
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {categoryConfigs.map((config) => {
-            const Icon = config.icon;
-            const isChecked = preferences.categories[config.key];
-            return (
-              <div
-                key={config.key}
-                onClick={() => handleToggleCategory(config.key)}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
-                  isChecked
-                    ? 'bg-white border-emerald-200 shadow-2xs hover:border-emerald-300'
-                    : 'bg-slate-50 border-slate-200 opacity-60 hover:opacity-80'
-                }`}
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className="p-2 bg-slate-100 rounded-xl text-slate-700 mt-0.5">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-slate-900">{config.title}</h5>
-                    <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
-                      {config.description}
-                    </p>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => {}} // handled by parent div
-                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 mt-1 pointer-events-none"
-                />
-              </div>
-            );
-          })}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <Calendar className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs font-bold text-slate-800">Programs & Events</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.programs}
+              onChange={() => handleToggleCategory('programs')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
+
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <FileCheck className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-bold text-slate-800">College Permissions & Approvals</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.permissions}
+              onChange={() => handleToggleCategory('permissions')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
+
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <Layers className="w-4 h-4 text-purple-600" />
+              <span className="text-xs font-bold text-slate-800">Sub-Wing Activities & Proposals</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.subwings}
+              onChange={() => handleToggleCategory('subwings')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
+
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <Award className="w-4 h-4 text-amber-600" />
+              <span className="text-xs font-bold text-slate-800">Achievements & Student Points</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.achievements}
+              onChange={() => handleToggleCategory('achievements')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
+
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <Users className="w-4 h-4 text-teal-600" />
+              <span className="text-xs font-bold text-slate-800">Leadership & Organizers</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.organizers}
+              onChange={() => handleToggleCategory('organizers')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
+
+          <label className="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <Landmark className="w-4 h-4 text-emerald-700" />
+              <span className="text-xs font-bold text-slate-800">Treasury & Financial Records</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs.categories.treasury}
+              onChange={() => handleToggleCategory('treasury')}
+              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+            />
+          </label>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+        {saveSuccess ? (
+          <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
+            <CheckCircle2 className="w-4 h-4" /> Preferences saved!
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">Settings sync automatically with your cloud account.</span>
+        )}
+
+        <button
+          onClick={handleSavePreferences}
+          disabled={isSaving}
+          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+        >
+          <Save className="w-3.5 h-3.5" />
+          <span>{isSaving ? 'Saving...' : 'Save Preferences'}</span>
+        </button>
       </div>
     </div>
   );

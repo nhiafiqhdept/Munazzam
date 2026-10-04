@@ -13,10 +13,9 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
-import { getMessaging, getToken, onMessage, isSupported, Messaging } from 'firebase/messaging';
+import { getMessaging, getToken, isSupported, Messaging } from 'firebase/messaging';
 import { db, cleanFirestorePayload } from '../lib/firebase';
 import app from '../lib/firebase';
-import firebaseConfig from '../../firebase-applet-config.json';
 import {
   AppNotification,
   NotificationType,
@@ -27,6 +26,17 @@ import {
 } from '../types';
 
 let messagingInstance: Messaging | null = null;
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 /**
  * Safely initialize Firebase Cloud Messaging if supported by browser/runtime
@@ -64,7 +74,7 @@ export function getDeviceId(): string {
 /**
  * Detect current platform and browser
  */
-function getClientEnvironment(): { platform: 'web' | 'android' | 'ios' | 'desktop'; browser: string } {
+export function getClientEnvironment(): { platform: 'web' | 'android' | 'ios' | 'desktop'; browser: string } {
   if (typeof window === 'undefined') return { platform: 'web', browser: 'unknown' };
 
   const ua = navigator.userAgent.toLowerCase();
@@ -88,7 +98,7 @@ function getClientEnvironment(): { platform: 'web' | 'android' | 'ios' | 'deskto
 }
 
 /**
- * Request Notification Permission and register FCM device token
+ * Request Notification Permission, register Web Push & FCM device token
  */
 export async function requestNotificationPermission(
   userId: string,
@@ -106,19 +116,38 @@ export async function requestNotificationPermission(
       return { success: false, error: 'Notification permission was denied or dismissed.' };
     }
 
-    const messaging = await getFCMInstance();
+    let swRegistration: ServiceWorkerRegistration | undefined;
+    let webPushSub: PushSubscription | null = null;
     let fcmToken = '';
 
-    if (messaging) {
+    // 1. Get or register authoritative Service Worker
+    if ('serviceWorker' in navigator) {
       try {
-        let swRegistration: ServiceWorkerRegistration | undefined;
-        if ('serviceWorker' in navigator) {
-          swRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-          if (!swRegistration) {
-            swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          }
-        }
+        swRegistration = await navigator.serviceWorker.ready;
+      } catch {
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      }
 
+      // 2. Fetch VAPID public key and subscribe to Web Push
+      try {
+        const vapidRes = await fetch('/api/notifications/vapid-public-key');
+        const vapidData = await vapidRes.json();
+        if (vapidData.success && vapidData.publicKey && swRegistration.pushManager) {
+          const convertedKey = urlBase64ToUint8Array(vapidData.publicKey);
+          webPushSub = await swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey,
+          });
+        }
+      } catch (pushSubErr) {
+        console.warn('WebPush subscription notice:', pushSubErr);
+      }
+    }
+
+    // 3. Try Firebase Cloud Messaging token if available
+    const messaging = await getFCMInstance();
+    if (messaging && swRegistration) {
+      try {
         fcmToken = await getToken(messaging, {
           serviceWorkerRegistration: swRegistration,
         });
@@ -127,32 +156,73 @@ export async function requestNotificationPermission(
       }
     }
 
-    // Register device subscription in Firestore
+    // 4. Save device subscription to server and Firestore
     const deviceId = getDeviceId();
     const { platform, browser } = getClientEnvironment();
     const now = new Date().toISOString();
 
-    const deviceData = cleanFirestorePayload({
-      id: deviceId,
+    const deviceData = {
+      deviceId,
       userId: userId || 'anonymous',
       organizationId: organizationId || 'main',
       subOrganizationId: subOrgId || undefined,
       subWingId: subWingId || undefined,
       fcmToken: fcmToken || undefined,
+      webPushSubscription: webPushSub ? webPushSub.toJSON() : undefined,
       platform,
       browser,
       isActive: true,
       createdAt: now,
       updatedAt: now,
       lastSeenAt: now,
+    };
+
+    // Save to server backend
+    fetch('/api/notifications/register-device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(deviceData),
+    }).catch((err) => console.warn('Server device registration sync notice:', err));
+
+    // Save to Firestore
+    const cleaned = cleanFirestorePayload({
+      id: deviceId,
+      ...deviceData,
     });
+    await setDoc(doc(db, 'notification_devices', deviceId), cleaned, { merge: true });
 
-    await setDoc(doc(db, 'notification_devices', deviceId), deviceData, { merge: true });
-
-    return { success: true, token: fcmToken };
+    return { success: true, token: fcmToken || (webPushSub ? 'web_push_active' : undefined) };
   } catch (err: any) {
     console.error('Error requesting notification permission:', err);
     return { success: false, error: err?.message || 'Failed to activate notifications.' };
+  }
+}
+
+/**
+ * Send a real test push notification from backend to device
+ */
+export async function sendRealTestPushNotification(
+  userId?: string,
+  organizationId?: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const deviceId = getDeviceId();
+    const res = await fetch('/api/notifications/test-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deviceId,
+        userId: userId || 'anonymous',
+        organizationId: organizationId || 'main',
+      }),
+    });
+    const data = await res.json();
+    return {
+      success: Boolean(data.success),
+      message: data.message || (data.success ? 'Test push dispatched!' : 'Failed to deliver test push.'),
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Error communicating with push server.' };
   }
 }
 
@@ -217,7 +287,6 @@ export async function createNotification(
 
     const dupSnap = await getDocs(qDuplicate);
     if (!dupSnap.empty) {
-      // Duplicate event detected, return existing notification
       const existingDoc = dupSnap.docs[0];
       return { id: existingDoc.id, ...(existingDoc.data() as any) };
     }
@@ -249,36 +318,26 @@ export async function createNotification(
       ...payload,
     } as AppNotification;
 
-    // Trigger local browser notification if permitted and in background
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        if (document.hidden) {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then((registration) => {
-              registration.showNotification(title, {
-                body: message,
-                icon: '/pwa-192x192.png',
-                badge: '/favicon-32x32.png',
-                data: {
-                  url: route ? `/?view=${route}` : '/',
-                  notificationId: docRef.id,
-                  entityType,
-                  entityId,
-                },
-                tag: `munazzam-${docRef.id}`,
-              });
-            });
-          } else {
-            new Notification(title, {
-              body: message,
-              icon: '/pwa-192x192.png',
-            });
-          }
-        }
-      } catch (notifErr) {
-        console.warn('Local push trigger notice:', notifErr);
-      }
-    }
+    // Trigger backend WebPush dispatch to all registered target devices
+    fetch('/api/notifications/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organizationId,
+        recipientUserId,
+        subWingId,
+        title,
+        body: message,
+        icon: '/pwa-192x192.png',
+        url: route ? `/?view=${route}` : '/',
+        data: {
+          notificationId: docRef.id,
+          entityType,
+          entityId,
+          route,
+        },
+      }),
+    }).catch((pushErr) => console.warn('Backend push dispatch notice:', pushErr));
 
     return newNotification;
   } catch (err) {
@@ -311,7 +370,7 @@ export async function markAllNotificationsAsRead(
 ): Promise<void> {
   if (!organizationId) return;
   try {
-    let q = query(
+    const q = query(
       collection(db, 'notifications'),
       where('organizationId', '==', organizationId),
       where('isRead', '==', false),

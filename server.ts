@@ -1,3 +1,4 @@
+import webpush from 'web-push';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -96,6 +97,8 @@ interface DBData {
   transfers: any[];
   audit_logs: any[];
   program_permissions: any[];
+  notification_devices: any[];
+  notifications: any[];
 }
 
 let memoryCache: DBData | null = null;
@@ -114,6 +117,8 @@ function ensureCollections(data: any): DBData {
     'transfers',
     'audit_logs',
     'program_permissions',
+    'notification_devices',
+    'notifications',
   ];
   for (const c of collections) {
     if (!Array.isArray(data[c])) {
@@ -1096,6 +1101,259 @@ async function processPublicPermissionAction(req: Request, res: Response) {
 app.post('/api/public/college-permission/approve', processPublicPermissionAction);
 app.post('/api/public/college-permission/action', processPublicPermissionAction);
 app.post('/api/public/college-permission/:token/action', processPublicPermissionAction);
+
+// ==================== WEBPUSH & NOTIFICATIONS SYSTEM ====================
+const VAPID_KEY_FILE = path.join(process.cwd(), 'vapid_keys.json');
+let vapidKeys = {
+  publicKey: '',
+  privateKey: '',
+};
+
+try {
+  if (fs.existsSync(VAPID_KEY_FILE)) {
+    vapidKeys = JSON.parse(fs.readFileSync(VAPID_KEY_FILE, 'utf-8'));
+  } else {
+    vapidKeys = webpush.generateVAPIDKeys();
+    try {
+      fs.writeFileSync(VAPID_KEY_FILE, JSON.stringify(vapidKeys, null, 2), 'utf-8');
+    } catch {}
+  }
+} catch {
+  vapidKeys = webpush.generateVAPIDKeys();
+}
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+  try {
+    webpush.setVapidDetails(
+      'mailto:support@munazzam.app',
+      vapidKeys.publicKey,
+      vapidKeys.privateKey
+    );
+    console.log('[PUSH NOTIFICATIONS] WebPush VAPID configured successfully');
+  } catch (vapidErr) {
+    console.warn('[PUSH NOTIFICATIONS] VAPID configuration notice:', vapidErr);
+  }
+}
+
+// 1. Get VAPID Public Key for client-side subscription
+app.get('/api/notifications/vapid-public-key', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    publicKey: vapidKeys.publicKey,
+  });
+});
+
+// 2. Register Device Subscription
+app.post('/api/notifications/register-device', async (req: Request, res: Response) => {
+  try {
+    const {
+      deviceId,
+      userId,
+      organizationId,
+      subOrganizationId,
+      subWingId,
+      fcmToken,
+      webPushSubscription,
+      platform = 'web',
+      browser = 'Chrome',
+    } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({ success: false, error: 'Missing deviceId' });
+    }
+
+    const now = new Date().toISOString();
+    const db = readDB();
+
+    const deviceIndex = db.notification_devices.findIndex((d) => d.id === deviceId);
+    const existingDevice = deviceIndex !== -1 ? db.notification_devices[deviceIndex] : null;
+
+    const deviceRecord = {
+      id: deviceId,
+      userId: userId || existingDevice?.userId || 'anonymous',
+      organizationId: organizationId || existingDevice?.organizationId || 'main',
+      subOrganizationId: subOrganizationId || existingDevice?.subOrganizationId,
+      subWingId: subWingId || existingDevice?.subWingId,
+      fcmToken: fcmToken || existingDevice?.fcmToken,
+      webPushSubscription: webPushSubscription || existingDevice?.webPushSubscription,
+      platform,
+      browser,
+      isActive: true,
+      createdAt: existingDevice?.createdAt || now,
+      updatedAt: now,
+      lastSeenAt: now,
+    };
+
+    if (deviceIndex !== -1) {
+      db.notification_devices[deviceIndex] = deviceRecord;
+    } else {
+      db.notification_devices.push(deviceRecord);
+    }
+
+    writeDB(db);
+
+    // Also mirror to Firestore if server Firestore is active
+    try {
+      const fsDb = getServerFirestore();
+      if (fsDb) {
+        const docRef = doc(fsDb, 'notification_devices', deviceId);
+        await updateDoc(docRef, deviceRecord).catch(() => {});
+      }
+    } catch {}
+
+    return res.json({
+      success: true,
+      deviceId,
+      message: 'Device subscription registered successfully',
+    });
+  } catch (err: any) {
+    console.error('Error registering device subscription:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to register device' });
+  }
+});
+
+// 3. Dispatch Push Notification to target recipients
+app.post('/api/notifications/send-push', async (req: Request, res: Response) => {
+  try {
+    const {
+      organizationId,
+      recipientUserId,
+      subWingId,
+      title,
+      body,
+      icon = '/pwa-192x192.png',
+      url = '/',
+      data = {},
+    } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ success: false, error: 'Title and body are required' });
+    }
+
+    const db = readDB();
+    const activeDevices = (db.notification_devices || []).filter((device) => {
+      if (!device.isActive) return false;
+      if (!device.webPushSubscription && !device.fcmToken) return false;
+
+      // Match target user or organization
+      if (recipientUserId && device.userId === recipientUserId) return true;
+      if (organizationId && (device.organizationId === organizationId || device.userId === organizationId)) return true;
+      if (subWingId && device.subWingId === subWingId) return true;
+
+      // If no specific filter, deliver to organization
+      if (!recipientUserId && !subWingId && (!organizationId || organizationId === 'main')) return true;
+
+      return false;
+    });
+
+    const pushPayload = JSON.stringify({
+      title,
+      body,
+      icon,
+      badge: '/favicon-32x32.png',
+      url,
+      tag: `munazzam-${Date.now()}`,
+      data: {
+        url,
+        ...data,
+      },
+    });
+
+    let sentCount = 0;
+    let failedCount = 0;
+
+    await Promise.all(
+      activeDevices.map(async (device) => {
+        if (device.webPushSubscription) {
+          try {
+            await webpush.sendNotification(device.webPushSubscription, pushPayload);
+            sentCount++;
+          } catch (pushErr: any) {
+            failedCount++;
+            console.warn(`[PUSH DISPATCH] Error sending push to device ${device.id}:`, pushErr?.statusCode || pushErr?.message);
+            // If subscription is expired or unregistered (410 Gone / 404 Not Found), deactivate
+            if (pushErr?.statusCode === 410 || pushErr?.statusCode === 404) {
+              device.isActive = false;
+              device.updatedAt = new Date().toISOString();
+            }
+          }
+        }
+      })
+    );
+
+    if (failedCount > 0) {
+      writeDB(db);
+    }
+
+    return res.json({
+      success: true,
+      sentCount,
+      failedCount,
+      totalMatchedDevices: activeDevices.length,
+    });
+  } catch (err: any) {
+    console.error('Error dispatching push notification:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to dispatch push' });
+  }
+});
+
+// 4. Send Real Test Push Notification for Diagnostic Verification
+app.post('/api/notifications/test-push', async (req: Request, res: Response) => {
+  try {
+    const { userId, organizationId, deviceId } = req.body;
+    const db = readDB();
+
+    const targetDevices = (db.notification_devices || []).filter((device) => {
+      if (!device.isActive) return false;
+      if (deviceId && device.id === deviceId) return true;
+      if (userId && device.userId === userId) return true;
+      if (organizationId && (device.organizationId === organizationId || device.userId === organizationId)) return true;
+      return true; // Send to any registered active device if not filtered
+    });
+
+    if (targetDevices.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No active push subscriptions found on this device/account yet. Please ensure notification permission is enabled in browser.',
+        registeredDevicesCount: (db.notification_devices || []).length,
+      });
+    }
+
+    const testPayload = JSON.stringify({
+      title: 'Munazzam Test Notification',
+      body: 'Push notifications are working correctly on your device.',
+      icon: '/pwa-192x192.png',
+      badge: '/favicon-32x32.png',
+      url: '/?view=notifications',
+      tag: `munazzam-test-${Date.now()}`,
+      data: {
+        url: '/?view=notifications',
+        isTest: true,
+      },
+    });
+
+    let sent = 0;
+    for (const dev of targetDevices) {
+      if (dev.webPushSubscription) {
+        try {
+          await webpush.sendNotification(dev.webPushSubscription, testPayload);
+          sent++;
+        } catch (err: any) {
+          console.warn(`Test push error for device ${dev.id}:`, err?.message);
+        }
+      }
+    }
+
+    return res.json({
+      success: sent > 0,
+      sentCount: sent,
+      totalTargeted: targetDevices.length,
+      message: sent > 0 ? 'Real push notification dispatched to your device!' : 'Failed to deliver to subscription endpoint.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Test push failed' });
+  }
+});
 
 // ==================== VITE / STATIC SERVING ====================
 async function startServer() {

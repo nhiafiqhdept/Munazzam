@@ -42,6 +42,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { NotificationCenter } from './components/notifications/NotificationCenter';
 import { NotificationSettings } from './components/notifications/NotificationSettings';
 import { NotificationPermissionBanner } from './components/notifications/NotificationPermissionBanner';
+import { ForegroundNotificationToast } from './components/notifications/ForegroundNotificationToast';
 
 function extractPublicOrgSearchableName(): string | null {
   if (typeof window === 'undefined') return null;
@@ -63,7 +64,20 @@ function extractPublicOrgSearchableName(): string | null {
 }
 
 const MainLayout: React.FC = () => {
-  const { currentOrg, organizations, activeTab, logoutUser, user, hasConfiguredOrg, isPublicView, exitPublicView } = useApp();
+  const {
+    currentOrg,
+    organizations,
+    activeTab,
+    setActiveTab,
+    setSelectedProgramId,
+    logoutUser,
+    user,
+    hasConfiguredOrg,
+    isPublicView,
+    exitPublicView,
+    activeToast,
+    setActiveToast,
+  } = useApp();
 
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -145,6 +159,29 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans relative">
+      {/* Real-time In-App Foreground Notification Toast */}
+      <ForegroundNotificationToast
+        notification={activeToast}
+        onClose={() => setActiveToast(null)}
+        onClick={(notification) => {
+          setActiveToast(null);
+          if (notification.route) {
+            setActiveTab(notification.route as any);
+          } else if (notification.entityType === 'program' && notification.entityId) {
+            setSelectedProgramId(notification.entityId);
+            setActiveTab('programs');
+          } else if (notification.category === 'programs' || notification.category === 'permissions') {
+            setActiveTab('programs');
+          } else if (notification.category === 'organizers') {
+            setActiveTab('organizers');
+          } else if (notification.category === 'treasury') {
+            setActiveTab('treasury-dashboard');
+          } else if (notification.category === 'achievements' || notification.category === 'suborgs') {
+            setActiveTab('student-points');
+          }
+        }}
+      />
+
       {/* Top Header */}
       <Header
         onOpenOnboarding={() => setIsOnboardingOpen(true)}

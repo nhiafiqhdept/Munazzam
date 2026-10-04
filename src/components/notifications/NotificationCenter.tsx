@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Bell,
@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Shield,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AppNotification, NotificationCategory } from '../../types';
@@ -46,14 +47,23 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     currentOrg,
     user,
     setActiveTab,
-    viewProgramDetails,
     setSelectedProgramId,
-    programs,
   } = useApp();
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
   const [showOnlyUnread, setShowOnlyUnread] = useState<boolean>(false);
   const [isMarkingAll, setIsMarkingAll] = useState<boolean>(false);
+
+  // Lock body scroll when in modal mode on mobile
+  useEffect(() => {
+    if (isModal && typeof document !== 'undefined') {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isModal]);
 
   // Format relative timestamp
   const formatTime = (isoString: string) => {
@@ -78,7 +88,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   // Helper to get matching icon per category
-  const getCategoryIcon = (category: NotificationCategory, type: string) => {
+  const getCategoryIcon = (category?: NotificationCategory) => {
     switch (category) {
       case 'programs':
         return <Calendar className="w-4 h-4 text-emerald-600" />;
@@ -98,7 +108,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
-  const getCategoryBadgeClass = (category: NotificationCategory) => {
+  const getCategoryBadgeClass = (category?: NotificationCategory) => {
     switch (category) {
       case 'programs':
         return 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
@@ -144,10 +154,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       return;
     }
 
-    // Default deep linking navigation
+    // Direct deep link routing
     if (notification.route) {
-      const targetRoute = notification.route as any;
-      setActiveTab(targetRoute);
+      setActiveTab(notification.route as any);
     } else if (notification.entityType === 'program' && notification.entityId) {
       setSelectedProgramId(notification.entityId);
       setActiveTab('programs');
@@ -180,187 +189,186 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   ];
 
   return (
-    <div className={`flex flex-col bg-white ${isModal ? 'h-full max-h-[85vh]' : 'rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6'} overflow-hidden`}>
-      {/* Header Bar */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-100 gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-100 shadow-2xs">
-            <Bell className="w-5 h-5 text-emerald-700" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
-                Notification Center
-              </h2>
-              {unreadNotificationCount > 0 && (
-                <span className="px-2 py-0.5 bg-emerald-700 text-white rounded-full text-[11px] font-bold">
-                  {unreadNotificationCount} new
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">
-              Authoritative activity stream for {currentOrg?.name || 'your organization'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {unreadNotificationCount > 0 && (
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              disabled={isMarkingAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-              title="Mark all notifications as read"
-            >
-              <CheckCheck className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Mark all read</span>
-            </button>
-          )}
-
-          {isModal && onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center justify-between py-3 gap-2 overflow-x-auto no-scrollbar border-b border-slate-100">
-        <div className="flex items-center gap-1.5 shrink-0">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setActiveCategoryFilter(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none whitespace-nowrap ${
-                activeCategoryFilter === cat.id
-                  ? 'bg-emerald-700 text-white shadow-2xs font-bold'
-                  : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowOnlyUnread(!showOnlyUnread)}
-          className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-            showOnlyUnread
-              ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold shadow-2xs'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <span className={`w-2 h-2 rounded-full ${showOnlyUnread ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`} />
-          <span>Unread Only</span>
-        </button>
-      </div>
-
-      {/* Notification List Body */}
-      <div className="flex-1 overflow-y-auto py-2 space-y-2.5 min-h-[260px] pr-1">
-        {filteredNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3">
-            <div className="w-14 h-14 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400">
-              <Bell className="w-7 h-7 stroke-[1.5]" />
-            </div>
-            <div className="space-y-1 max-w-xs">
-              <p className="text-sm font-bold text-slate-800 font-heading">
-                {showOnlyUnread
-                  ? 'No unread notifications'
-                  : activeCategoryFilter !== 'all'
-                  ? `No ${activeCategoryFilter} notifications yet`
-                  : 'You are all caught up!'}
+    <div
+      className={`w-full max-w-full box-border flex flex-col ${
+        isModal ? 'h-full max-h-full bg-white sm:rounded-3xl shadow-2xl overflow-hidden' : 'bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6'
+      }`}
+    >
+      {/* Institutional Header */}
+      <div className={`shrink-0 border-b border-slate-100 ${isModal ? 'p-4 bg-slate-50/80 backdrop-blur-xs' : 'pb-4 mb-4'}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isModal && (
+              <button
+                onClick={onClose}
+                className="p-1.5 -ml-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                title="Back / Close"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-5 h-5 sm:hidden" />
+                <X className="w-5 h-5 hidden sm:block" />
+              </button>
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-bold font-heading text-slate-900 tracking-tight">
+                  Notification Center
+                </h3>
+                {unreadNotificationCount > 0 && (
+                  <span className="px-2 py-0.5 bg-emerald-700 text-white rounded-full text-[11px] font-bold">
+                    {unreadNotificationCount} unread
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 truncate hidden xs:block">
+                Activity stream for {currentOrg?.name || 'Munazzam'}
               </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {unreadNotificationCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                disabled={isMarkingAll}
+                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 rounded-xl transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                title="Mark all notifications as read"
+              >
+                <CheckCheck className="w-4 h-4 text-emerald-700" />
+                <span className="hidden xs:inline">Mark all read</span>
+              </button>
+            )}
+            {!isModal && (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                title="Notification Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="mt-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pt-1">
+          <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+            {categories.map((cat) => {
+              const active = activeCategoryFilter === cat.id;
+              const count = cat.id === 'all'
+                ? notifications.length
+                : notifications.filter((n) => n.category === cat.id).length;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategoryFilter(cat.id)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                    active
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  {count > 0 && (
+                    <span className={`ml-1.5 text-[10px] px-1.5 py-0.2 rounded-full ${active ? 'bg-slate-700 text-slate-100' : 'bg-slate-200 text-slate-700'}`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => setShowOnlyUnread(!showOnlyUnread)}
+            className={`px-2.5 py-1 text-xs font-medium rounded-xl border transition-all shrink-0 cursor-pointer ${
+              showOnlyUnread
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold'
+                : 'text-slate-500 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            Unread only
+          </button>
+        </div>
+      </div>
+
+      {/* Notifications Scrollable Stream */}
+      <div className={`flex-1 overflow-y-auto ${isModal ? 'p-3 sm:p-4 space-y-2.5' : 'space-y-3'}`}>
+        {filteredNotifications.length === 0 ? (
+          <div className="py-12 sm:py-16 text-center space-y-3 px-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+              <Bell className="w-6 h-6 stroke-[1.8]" />
+            </div>
+            <div className="space-y-1 max-w-xs mx-auto">
+              <h4 className="text-sm font-bold text-slate-800">No notifications yet</h4>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Updates regarding program approvals, permissions, Sub-Wings, and member achievements will appear here.
+                Real-time activity regarding programs, permissions, and leadership will appear here automatically.
               </p>
             </div>
           </div>
         ) : (
-          filteredNotifications.map((notification) => (
-            <motion.div
-              key={notification.id}
-              layout
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => handleItemClick(notification)}
-              className={`group relative p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex items-start gap-3.5 ${
-                notification.isRead
-                  ? 'bg-white border-slate-200/80 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs'
-                  : 'bg-emerald-50/40 border-emerald-200 hover:bg-emerald-50/70 shadow-xs'
-              }`}
-            >
-              {/* Unread dot indicator */}
-              {!notification.isRead && (
-                <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-              )}
+          filteredNotifications.map((item) => {
+            const isUnread = !item.isRead;
 
-              {/* Category Icon */}
+            return (
               <div
-                className={`p-2.5 rounded-xl border shrink-0 transition-transform group-hover:scale-105 ${
-                  notification.isRead
-                    ? 'bg-slate-50 border-slate-200/80'
-                    : 'bg-white border-emerald-200 shadow-2xs'
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className={`group relative p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                  isUnread
+                    ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-emerald-300/80 shadow-2xs'
+                    : 'bg-white hover:bg-slate-50/90 border-slate-200 shadow-2xs'
                 }`}
               >
-                {getCategoryIcon(notification.category, notification.type)}
-              </div>
+                <div className="flex items-start gap-3">
+                  {/* Category Icon */}
+                  <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs shrink-0 mt-0.5">
+                    {getCategoryIcon(item.category)}
+                  </div>
 
-              {/* Text content */}
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap pr-4">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${getCategoryBadgeClass(
-                      notification.category
-                    )}`}
-                  >
-                    {notification.category}
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {formatTime(notification.createdAt)}
-                  </span>
-                </div>
+                  {/* Content */}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getCategoryBadgeClass(item.category)}`}>
+                          {item.category || 'System'}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          {formatTime(item.createdAt)}
+                        </span>
+                      </div>
 
-                <h4
-                  className={`text-xs sm:text-sm leading-snug font-heading ${
-                    notification.isRead ? 'text-slate-800 font-semibold' : 'text-slate-950 font-bold'
-                  }`}
-                >
-                  {notification.title}
-                </h4>
+                      <div className="flex items-center gap-1">
+                        {isUnread && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" title="Unread" />
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(item.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          title="Delete notification"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
 
-                <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                  {notification.message}
-                </p>
-              </div>
+                    <h4 className={`text-xs sm:text-sm font-heading ${isUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
+                      {item.title}
+                    </h4>
 
-              {/* Action buttons on hover */}
-              <div className="flex items-center gap-1 shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteNotification(notification.id);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                  title="Dismiss notification"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                <div className="p-1 text-slate-400 group-hover:text-emerald-700 transition-colors">
-                  <ChevronRight className="w-4 h-4" />
+                    <p className="text-xs text-slate-600 leading-relaxed break-words">
+                      {item.message}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

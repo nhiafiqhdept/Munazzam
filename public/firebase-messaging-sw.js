@@ -1,11 +1,11 @@
-// Firebase Messaging Service Worker for Munazzam PWA
-// Handles background push notifications, lock-screen alerts, and notification clicks
+// Unified Firebase Cloud Messaging & Web Push Service Worker for Munazzam PWA
+// Handles background push notifications, Android notification shade alerts, and notification clicks
 
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-
-// Initialize Firebase in Service Worker
+// 1. Safe Load Firebase App & Messaging Compat SDKs
 try {
+  importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
+
   firebase.initializeApp({
     projectId: 'gen-lang-client-0644512836',
     appId: '1:304813139007:web:09552d87a507b12f34048a',
@@ -17,45 +17,90 @@ try {
   const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage((payload) => {
-    console.log('[firebase-messaging-sw.js] Received background message: ', payload);
+    console.log('[Munazzam SW] FCM Background message received:', payload);
 
-    const notificationTitle = payload.notification?.title || payload.data?.title || 'Munazzam Notification';
-    const notificationOptions = {
-      body: payload.notification?.body || payload.data?.message || payload.data?.body || 'You have an update in Munazzam.',
-      icon: payload.notification?.icon || payload.data?.icon || '/pwa-192x192.png',
+    const title = payload.notification?.title || payload.data?.title || 'Munazzam';
+    const body = payload.notification?.body || payload.data?.message || payload.data?.body || 'New update available in Munazzam.';
+    const icon = payload.notification?.icon || payload.data?.icon || '/pwa-192x192.png';
+    const tag = payload.data?.tag || `munazzam-${Date.now()}`;
+    const url = payload.data?.url || payload.data?.route || '/';
+
+    return self.registration.showNotification(title, {
+      body,
+      icon,
       badge: '/favicon-32x32.png',
-      tag: payload.data?.tag || payload.data?.notificationId || 'munazzam-notification',
+      tag,
       data: {
-        url: payload.data?.url || payload.data?.route || '/',
+        url,
         notificationId: payload.data?.notificationId,
         entityType: payload.data?.entityType,
         entityId: payload.data?.entityId,
       },
-      vibrate: [100, 50, 100],
+      vibrate: [150, 80, 150],
       requireInteraction: false,
-    };
-
-    return self.registration.showNotification(notificationTitle, notificationOptions);
+    });
   });
 } catch (err) {
-  console.warn('[firebase-messaging-sw.js] Firebase background messaging initialization note:', err);
+  console.warn('[Munazzam SW] Firebase compat messaging initialization note:', err);
 }
 
-// Handle notification click event: focus window or open client URL
+// 2. Direct Web Push Event Listener (Supports standard Web Push payloads on Android Chrome & desktop)
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
+  }
+
+  const title = data.title || data.notification?.title || 'Munazzam';
+  const body = data.body || data.message || data.notification?.body || 'New organization update received.';
+  const icon = data.icon || data.notification?.icon || '/pwa-192x192.png';
+  const tag = data.tag || `munazzam-push-${Date.now()}`;
+  const url = data.url || data.route || data.data?.url || '/';
+
+  const options = {
+    body,
+    icon,
+    badge: '/favicon-32x32.png',
+    tag,
+    data: {
+      url,
+      ...data,
+    },
+    vibrate: [150, 80, 150],
+    requireInteraction: false,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 3. Notification Click Handler: Focus or open window and navigate to target entity
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+
+  const data = event.notification.data || {};
+  let targetUrl = data.url || '/';
+
+  // Ensure absolute URL within current origin
+  if (!targetUrl.startsWith('http')) {
+    targetUrl = new URL(targetUrl, self.location.origin).href;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open on this origin, focus and navigate
       for (const client of clientList) {
-        if ('focus' in client) {
-          if (client.url.includes(self.location.origin)) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
             client.navigate(targetUrl);
-            return client.focus();
           }
+          return client.focus();
         }
       }
+      // If no window is currently open, open a new window
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

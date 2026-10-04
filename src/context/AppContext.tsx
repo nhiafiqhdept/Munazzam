@@ -203,6 +203,8 @@ interface AppContextType {
   notifications: AppNotification[];
   unreadNotificationCount: number;
   notificationsLoading: boolean;
+  activeToast: AppNotification | null;
+  setActiveToast: (n: AppNotification | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -335,6 +337,7 @@ export const AppProvider: React.FC<{
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState<boolean>(false);
+  const [activeToast, setActiveToast] = useState<AppNotification | null>(null);
   const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -1353,6 +1356,7 @@ export const AppProvider: React.FC<{
       where('organizationId', '==', uid),
       limit(50)
     );
+    let isInitialLoad = true;
     const unsubNotifications = onSnapshot(qNotifications, (snapshot) => {
       const list: AppNotification[] = [];
       snapshot.forEach((docSnap) => {
@@ -1379,6 +1383,23 @@ export const AppProvider: React.FC<{
         });
       });
       list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Check for newly added items to show in-app foreground toast
+      if (!isInitialLoad) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const added = change.doc.data();
+            const createdAtMs = new Date(added.createdAt || Date.now()).getTime();
+            if (Date.now() - createdAtMs < 30000) {
+              setActiveToast({
+                id: change.doc.id,
+                ...added,
+              } as AppNotification);
+            }
+          }
+        });
+      }
+      isInitialLoad = false;
       setNotifications(list);
       setNotificationsLoading(false);
     }, (err) => handleFirestoreError(err, OperationType.GET, 'notifications'));
@@ -1934,18 +1955,22 @@ export const AppProvider: React.FC<{
         }
       }
 
-      // Emit program updated notification
+      // Emit program updated notification with actual resolved program name
       try {
-        createNotification({
-          type: 'program_updated',
-          category: 'programs',
-          title: 'Program Details Updated',
-          message: `Program "${prog.name || 'Record'}" was updated.`,
-          organizationId: user.id,
-          entityType: 'program',
-          entityId: prog.id,
-          route: 'programs',
-        });
+        const existingProgram = programs.find((p) => p.id === prog.id);
+        const resolvedProgName = (prog.name || existingProgram?.name || '').trim();
+        if (resolvedProgName) {
+          createNotification({
+            type: 'program_updated',
+            category: 'programs',
+            title: 'Program Details Updated',
+            message: `Program "${resolvedProgName}" was updated.`,
+            organizationId: user.id,
+            entityType: 'program',
+            entityId: prog.id,
+            route: 'programs',
+          });
+        }
       } catch (notifErr) {
         console.warn('Program update notification note:', notifErr);
       }
@@ -2968,6 +2993,8 @@ export const AppProvider: React.FC<{
         notifications,
         unreadNotificationCount,
         notificationsLoading,
+        activeToast,
+        setActiveToast,
 
         isQuotaExceeded,
         isPublicView,
