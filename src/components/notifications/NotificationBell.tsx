@@ -12,17 +12,24 @@ export const NotificationBell: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (bellContainerRef.current && !bellContainerRef.current.contains(event.target as Node)) {
-        // Only auto-close on desktop clicks outside the container
         if (window.innerWidth >= 640) {
           setIsOpen(false);
         }
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -57,14 +64,20 @@ export const NotificationBell: React.FC = () => {
       {isOpen && (
         <>
           {/* Mobile Full-Screen Overlay & Sheet (< 640px) */}
-          <div className="sm:hidden fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end">
-            <div className="w-full max-w-full h-[92vh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-200">
+          <div
+            className="sm:hidden fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end"
+            onClick={() => setIsOpen(false)}
+          >
+            <div
+              className="w-full max-w-full h-[88vh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
               <NotificationCenter
                 isModal={true}
                 onClose={() => setIsOpen(false)}
                 onNavigateToEntity={() => setIsOpen(false)}
               />
-              <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between text-xs px-4">
+              <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between text-xs px-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -83,13 +96,13 @@ export const NotificationBell: React.FC = () => {
 
           {/* Desktop Compact Dropdown (>= 640px) */}
           <div className="hidden sm:block absolute right-0 mt-2 w-[440px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
-            <div className="max-h-[580px] flex flex-col">
+            <div className="h-[520px] max-h-[80vh] flex flex-col">
               <NotificationCenter
                 isModal={true}
                 onClose={() => setIsOpen(false)}
                 onNavigateToEntity={() => setIsOpen(false)}
               />
-              <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between text-xs px-4">
+              <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between text-xs px-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => {

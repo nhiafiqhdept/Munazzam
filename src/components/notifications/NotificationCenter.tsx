@@ -54,16 +54,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [showOnlyUnread, setShowOnlyUnread] = useState<boolean>(false);
   const [isMarkingAll, setIsMarkingAll] = useState<boolean>(false);
 
-  // Lock body scroll when in modal mode on mobile
+  // Ensure document body overflow is never stuck or locked
   useEffect(() => {
-    if (isModal && typeof document !== 'undefined') {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = '';
     }
-  }, [isModal]);
+  }, []);
 
   // Format relative timestamp
   const formatTime = (isoString: string) => {
@@ -191,7 +187,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   return (
     <div
       className={`w-full max-w-full box-border flex flex-col ${
-        isModal ? 'h-full max-h-full bg-white sm:rounded-3xl shadow-2xl overflow-hidden' : 'bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6'
+        isModal ? 'flex-1 min-h-0 bg-white overflow-hidden' : 'bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6'
       }`}
     >
       {/* Institutional Header */}
@@ -294,7 +290,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       </div>
 
       {/* Notifications Scrollable Stream */}
-      <div className={`flex-1 overflow-y-auto ${isModal ? 'p-3 sm:p-4 space-y-2.5' : 'space-y-3'}`}>
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y ${isModal ? 'p-3 sm:p-4 space-y-2.5' : 'space-y-3'}`}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {filteredNotifications.length === 0 ? (
           <div className="py-12 sm:py-16 text-center space-y-3 px-4">
             <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
