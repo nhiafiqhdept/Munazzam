@@ -247,8 +247,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {/* Filter Bar */}
-        <div className="mt-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pt-1">
-          <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+        <div className="mt-3 flex items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-1">
             {categories.map((cat) => {
               const active = activeCategoryFilter === cat.id;
               const count = cat.id === 'all'
@@ -284,15 +284,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 : 'text-slate-500 border-slate-200 hover:border-slate-300'
             }`}
           >
-            Unread only
+            Unread
           </button>
         </div>
       </div>
 
       {/* Notifications Scrollable Stream */}
       <div
-        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y ${isModal ? 'p-3 sm:p-4 space-y-2.5' : 'space-y-3'}`}
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className={`flex-1 min-h-0 overflow-y-auto scrollbar-thin ${isModal ? 'p-3 sm:p-4 space-y-2.5 max-h-[58dvh] sm:max-h-[380px]' : 'space-y-3 max-h-[600px] p-1'}`}
+        style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
       >
         {filteredNotifications.length === 0 ? (
           <div className="py-12 sm:py-16 text-center space-y-3 px-4">
@@ -314,7 +314,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               <div
                 key={item.id}
                 onClick={() => handleItemClick(item)}
-                className={`group relative p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                className={`group relative p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   isUnread
                     ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-emerald-300/80 shadow-2xs'
                     : 'bg-white hover:bg-slate-50/90 border-slate-200 shadow-2xs'
