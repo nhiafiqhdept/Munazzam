@@ -170,6 +170,19 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Notification System Collections
+    match /notifications/{notificationId} {
+      allow read, create, update, delete: if true;
+    }
+
+    match /notification_devices/{deviceId} {
+      allow read, create, update, delete: if true;
+    }
+
+    match /notification_preferences/{prefId} {
+      allow read, create, update, delete: if true;
+    }
+
     // Portal links isolated by mainAccountId (only owner can read or write)
     match /sp_portal_links/{accountId} {
       allow read, write: if request.auth != null && request.auth.uid == accountId;

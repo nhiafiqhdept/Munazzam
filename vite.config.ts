@@ -224,7 +224,13 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve('.'),
+        react: path.resolve(__dirname, 'node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       },
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'motion', 'lucide-react'],
     },
     build: {
       outDir: 'dist',
@@ -233,9 +239,12 @@ export default defineConfig(() => {
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'lucide-react', 'motion'],
-            firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase')) {
+                return 'firebase';
+              }
+            }
           },
         },
       },

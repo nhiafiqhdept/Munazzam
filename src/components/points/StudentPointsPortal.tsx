@@ -8,6 +8,7 @@ import { ViewerDashboard } from './ViewerDashboard';
 import { PortalUnavailableScreen } from './PortalUnavailableScreen';
 import { LogOut, Shield, Users, Award, Eye, EyeOff, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { createNotification } from '../../services/notificationService';
 
 const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => void }> = ({ regCode, onBackToLogin }) => {
   const { registerSubOrganization, getRegistrationLinkStatus, loginPortalUser } = usePortal();
@@ -635,6 +636,21 @@ const StudentPointsInner: React.FC = () => {
         try {
           sessionStorage.removeItem('sp_explicit_logout');
         } catch {}
+
+        // Emit Sub-Organization login notification
+        try {
+          const storedPortal = localStorage.getItem('sp_portal_id') || 'main';
+          createNotification({
+            type: 'suborg_login',
+            category: 'suborgs',
+            title: 'Sub-Organization Login',
+            message: `"${loginFormEmail.trim()}" has signed in to the Student Points & Extracurricular Portal.`,
+            organizationId: storedPortal,
+            route: 'student-points',
+          });
+        } catch (notifErr) {
+          console.warn('Sub-org login notification note:', notifErr);
+        }
       } else {
         setLoginError('Incorrect email or password. Please verify your credentials.');
       }

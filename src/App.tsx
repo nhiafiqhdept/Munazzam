@@ -39,6 +39,9 @@ import { OfflineBanner } from './components/pwa/OfflineBanner';
 import { QuotaBanner } from './components/pwa/QuotaBanner';
 import { PublicPermissionApprovalView } from './components/permissions/PublicPermissionApprovalView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { NotificationCenter } from './components/notifications/NotificationCenter';
+import { NotificationSettings } from './components/notifications/NotificationSettings';
+import { NotificationPermissionBanner } from './components/notifications/NotificationPermissionBanner';
 
 function extractPublicOrgSearchableName(): string | null {
   if (typeof window === 'undefined') return null;
@@ -156,6 +159,8 @@ const MainLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl lg:max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 sm:pb-32 lg:pb-16">
+        <NotificationPermissionBanner />
+
         {activeTab === 'dashboard' && (
           <Dashboard
             onOpenAddProgram={handleOpenAddProgram}
@@ -264,6 +269,13 @@ const MainLayout: React.FC = () => {
         {activeTab === 'treasury-reports' && !isPublicView && <ReportsView />}
 
         {activeTab === 'student-points' && <StudentPointsPortal />}
+
+        {activeTab === 'notifications' && !isPublicView && (
+          <div className="space-y-6">
+            <NotificationCenter />
+            <NotificationSettings />
+          </div>
+        )}
       </main>
 
       {/* Institutional Academic Footer */}

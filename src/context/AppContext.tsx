@@ -36,9 +36,11 @@ import {
   ProgramPermission,
   PermissionStatus,
   PermissionHistoryItem,
+  AppNotification,
 } from '../types';
 import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
 import { generateSecurePermissionToken, getPublicApprovalUrl } from '../utils/permissionTokens';
+import { createNotification } from '../services/notificationService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -196,6 +198,11 @@ interface AppContextType {
   resetToDemoData: () => void;
   exportDataJson: () => string;
   importDataJson: (jsonStr: string) => boolean;
+
+  // Notifications
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
+  notificationsLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -325,6 +332,10 @@ export const AppProvider: React.FC<{
       return [];
     }
   });
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState<boolean>(false);
+  const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
@@ -1336,6 +1347,42 @@ export const AppProvider: React.FC<{
       }
     }, (err) => handleFirestoreError(err, OperationType.GET, 'program_permissions'));
 
+    // 12. Notifications (isolated to current authenticated organization / UID)
+    const qNotifications = query(
+      collection(db, 'notifications'),
+      where('organizationId', '==', uid),
+      limit(50)
+    );
+    const unsubNotifications = onSnapshot(qNotifications, (snapshot) => {
+      const list: AppNotification[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          recipientUserId: d.recipientUserId,
+          organizationId: d.organizationId || uid,
+          subOrganizationId: d.subOrganizationId,
+          subWingId: d.subWingId,
+          type: d.type || 'system_update',
+          category: d.category || 'system',
+          title: d.title || 'Notification',
+          message: d.message || '',
+          createdAt: d.createdAt || new Date().toISOString(),
+          isRead: Boolean(d.isRead),
+          readAt: d.readAt,
+          entityType: d.entityType,
+          entityId: d.entityId,
+          route: d.route,
+          priority: d.priority || 'normal',
+          metadata: d.metadata || {},
+          idempotencyKey: d.idempotencyKey,
+        });
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotifications(list);
+      setNotificationsLoading(false);
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'notifications'));
+
     return () => {
       unsubOrg();
       unsubOrganizers();
@@ -1349,6 +1396,7 @@ export const AppProvider: React.FC<{
       unsubRepayments();
       unsubSubWings();
       unsubProgramPermissions();
+      unsubNotifications();
     };
   }, [user?.id, isAuthenticated]);
 
@@ -1528,6 +1576,22 @@ export const AppProvider: React.FC<{
         updated_at: now,
       });
       await setDoc(docRef, payload);
+
+      // Emit organizer added notification
+      try {
+        createNotification({
+          type: 'organizer_added',
+          category: 'organizers',
+          title: 'Leader / Organizer Added',
+          message: `${organizer.name} (${organizer.position}) has been added to the leadership team.`,
+          organizationId: user.id,
+          entityType: 'organizer',
+          entityId: docId,
+          route: 'organizers',
+        });
+      } catch (notifErr) {
+        console.warn('Organizer notification note:', notifErr);
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'organizers');
     }
@@ -1554,6 +1618,22 @@ export const AppProvider: React.FC<{
         updated_at: now,
       });
       await updateDoc(docRef, cleanedUpdates);
+
+      // Emit organizer updated notification
+      try {
+        createNotification({
+          type: 'organizer_updated',
+          category: 'organizers',
+          title: 'Organizer Profile Updated',
+          message: `Profile details for ${organizer.name || 'Leader / Organizer'} were updated.`,
+          organizationId: user.id,
+          entityType: 'organizer',
+          entityId: organizer.id,
+          route: 'organizers',
+        });
+      } catch (notifErr) {
+        console.warn('Organizer update notification note:', notifErr);
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `organizers/${organizer.id}`);
     }
@@ -1744,6 +1824,22 @@ export const AppProvider: React.FC<{
         return updated;
       });
 
+      // Emit new program notification
+      try {
+        createNotification({
+          type: 'program_created',
+          category: 'programs',
+          title: 'New Program Added',
+          message: `"${savedProg.name}" has been added to the organization calendar.`,
+          organizationId: uid,
+          entityType: 'program',
+          entityId: docRef.id,
+          route: 'programs',
+        });
+      } catch (notifErr) {
+        console.warn('New program notification note:', notifErr);
+      }
+
       return savedProg;
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'programs');
@@ -1836,6 +1932,22 @@ export const AppProvider: React.FC<{
             console.warn('Syncing program updates to pending permission notice:', err)
           );
         }
+      }
+
+      // Emit program updated notification
+      try {
+        createNotification({
+          type: 'program_updated',
+          category: 'programs',
+          title: 'Program Details Updated',
+          message: `Program "${prog.name || 'Record'}" was updated.`,
+          organizationId: user.id,
+          entityType: 'program',
+          entityId: prog.id,
+          route: 'programs',
+        });
+      } catch (notifErr) {
+        console.warn('Program update notification note:', notifErr);
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `programs/${prog.id}`);
@@ -1985,6 +2097,22 @@ export const AppProvider: React.FC<{
         body: JSON.stringify({ permission: savedPerm }),
       }).catch(() => {});
 
+      // Emit permission submitted notification
+      try {
+        createNotification({
+          type: 'permission_submitted',
+          category: 'permissions',
+          title: 'Program Approval Required',
+          message: `"${perm.programName}" permission request is awaiting administrative approval.`,
+          organizationId: user.id,
+          entityType: 'permission',
+          entityId: docRef.id,
+          route: 'programs',
+        });
+      } catch (notifErr) {
+        console.warn('Permission notification note:', notifErr);
+      }
+
       return savedPerm;
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'program_permissions');
@@ -2103,6 +2231,7 @@ export const AppProvider: React.FC<{
     notes?: string
   ) => {
     const now = new Date().toISOString();
+    const currentPerm = programPermissions.find((p) => p.id === id);
     await updateProgramPermission(
       id,
       {
@@ -2118,6 +2247,24 @@ export const AppProvider: React.FC<{
         notes,
       }
     );
+
+    // Emit permission approved notification
+    try {
+      if (user?.id) {
+        createNotification({
+          type: 'permission_approved',
+          category: 'permissions',
+          title: 'Program Approved',
+          message: `"${currentPerm?.programName || 'Program'}" has been approved by ${approverName}.`,
+          organizationId: user.id,
+          entityType: 'permission',
+          entityId: id,
+          route: 'programs',
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Permission approval notification note:', notifErr);
+    }
   };
 
   const rejectProgramPermission = async (
@@ -2126,6 +2273,7 @@ export const AppProvider: React.FC<{
     reason: string
   ) => {
     const now = new Date().toISOString();
+    const currentPerm = programPermissions.find((p) => p.id === id);
     await updateProgramPermission(
       id,
       {
@@ -2141,6 +2289,24 @@ export const AppProvider: React.FC<{
         notes: reason,
       }
     );
+
+    // Emit permission rejected notification
+    try {
+      if (user?.id) {
+        createNotification({
+          type: 'permission_rejected',
+          category: 'permissions',
+          title: 'Program Rejected',
+          message: `"${currentPerm?.programName || 'Program'}" was rejected by ${rejecterName}. Reason: ${reason}`,
+          organizationId: user.id,
+          entityType: 'permission',
+          entityId: id,
+          route: 'programs',
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Permission rejection notification note:', notifErr);
+    }
   };
 
   const requestPermissionChanges = async (
@@ -2149,6 +2315,7 @@ export const AppProvider: React.FC<{
     notes: string
   ) => {
     const now = new Date().toISOString();
+    const currentPerm = programPermissions.find((p) => p.id === id);
     await updateProgramPermission(
       id,
       {
@@ -2164,6 +2331,24 @@ export const AppProvider: React.FC<{
         notes,
       }
     );
+
+    // Emit changes requested notification
+    try {
+      if (user?.id) {
+        createNotification({
+          type: 'permission_changes_requested',
+          category: 'permissions',
+          title: 'Changes Requested for Program',
+          message: `Changes have been requested for "${currentPerm?.programName || 'Program'}" by ${reviewerName}: ${notes}`,
+          organizationId: user.id,
+          entityType: 'permission',
+          entityId: id,
+          route: 'programs',
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Permission changes notification note:', notifErr);
+    }
   };
 
   const generatePermissionApprovalToken = async (
@@ -2779,6 +2964,11 @@ export const AppProvider: React.FC<{
         resetToDemoData,
         exportDataJson,
         importDataJson,
+        // Notifications
+        notifications,
+        unreadNotificationCount,
+        notificationsLoading,
+
         isQuotaExceeded,
         isPublicView,
         exitPublicView,

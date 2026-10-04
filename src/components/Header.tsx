@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_ORG_LOGO } from '../utils/helpers';
+import { NotificationBell } from './notifications/NotificationBell';
 
 interface HeaderProps {
   onOpenAdminLogin?: () => void;
@@ -205,6 +206,7 @@ export const Header: React.FC<HeaderProps> = ({
                     {currentOrg.academic_year}
                   </span>
                 )}
+                <NotificationBell />
                 <button
                   id="header-settings-btn"
                   onClick={() => {

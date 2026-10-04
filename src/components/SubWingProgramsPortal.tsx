@@ -36,6 +36,7 @@ import {
 import { Program, SubWing } from '../types';
 import bcrypt from 'bcryptjs';
 import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
+import { createNotification } from '../services/notificationService';
 
 /**
  * Bulletproof password verification helper for Sub-Wings
@@ -558,6 +559,26 @@ export const SubWingProgramsPortal: React.FC = () => {
       setRegSuccess(false);
       setLoggedInSubWing(swData);
       setAuthError(null);
+
+      // Emit login notification for parent organization
+      try {
+        const targetOrgId = swData.accountId || targetAccountId || portalId;
+        if (targetOrgId) {
+          createNotification({
+            type: 'subwing_login',
+            category: 'subwings',
+            title: 'Sub-Wing Login',
+            message: `"${swData.name}" has signed in to the Sub-Wing Portal.`,
+            organizationId: targetOrgId,
+            subWingId: swData.id,
+            entityType: 'subwing',
+            entityId: swData.id,
+            route: 'programs',
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Sub-wing login notification note:', notifErr);
+      }
     } catch (err: any) {
       console.error('Login error:', err);
       setAuthError(
@@ -763,7 +784,24 @@ export const SubWingProgramsPortal: React.FC = () => {
         resourcePerson: progResourcePerson.trim(),
       });
 
-      await addDoc(collection(db, 'programs'), payload);
+      const docRef = await addDoc(collection(db, 'programs'), payload);
+
+      // Emit notification for parent organization
+      try {
+        createNotification({
+          type: 'subwing_proposal_submitted',
+          category: 'subwings',
+          title: 'Sub-Wing Program Proposal',
+          message: `"${progName.trim()}" was submitted by ${loggedInSubWing.name} for approval.`,
+          organizationId: targetAccountId,
+          subWingId: loggedInSubWing.id,
+          entityType: 'program',
+          entityId: docRef.id,
+          route: 'programs',
+        });
+      } catch (notifErr) {
+        console.warn('Sub-wing proposal notification note:', notifErr);
+      }
 
       // Reset Form
       setProgName('');

@@ -201,6 +201,7 @@ export type ActiveTab =
   | 'programs'
   | 'program-permissions'
   | 'settings'
+  | 'notifications'
   | 'program_details'
   | 'program-details'
   | 'treasury'
@@ -215,6 +216,97 @@ export type ActiveTab =
   | 'treasury-cashbook'
   | 'treasury-reports'
   | 'student-points';
+
+export type NotificationType =
+  | 'program_created'
+  | 'program_updated'
+  | 'program_status_changed'
+  | 'program_approved'
+  | 'program_rejected'
+  | 'permission_submitted'
+  | 'permission_approved'
+  | 'permission_rejected'
+  | 'permission_changes_requested'
+  | 'subwing_login'
+  | 'subwing_proposal_submitted'
+  | 'subwing_proposal_approved'
+  | 'subwing_proposal_rejected'
+  | 'suborg_login'
+  | 'achievement_submitted'
+  | 'achievement_approved'
+  | 'achievement_rejected'
+  | 'achievement_changes_requested'
+  | 'points_awarded'
+  | 'organizer_added'
+  | 'organizer_updated'
+  | 'treasury_transaction'
+  | 'system_update';
+
+export type NotificationCategory =
+  | 'programs'
+  | 'permissions'
+  | 'subwings'
+  | 'suborgs'
+  | 'achievements'
+  | 'organizers'
+  | 'treasury'
+  | 'system';
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface AppNotification {
+  id: string;
+  recipientUserId?: string;
+  organizationId: string;
+  subOrganizationId?: string;
+  subWingId?: string;
+  type: NotificationType;
+  category: NotificationCategory;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  readAt?: string;
+  entityType?: 'program' | 'permission' | 'subwing' | 'suborg' | 'achievement' | 'organizer' | 'treasury' | 'system';
+  entityId?: string;
+  route?: string;
+  priority?: NotificationPriority;
+  metadata?: Record<string, any>;
+  idempotencyKey?: string;
+}
+
+export interface NotificationDevice {
+  id: string;
+  userId: string;
+  organizationId: string;
+  subOrganizationId?: string;
+  subWingId?: string;
+  fcmToken?: string;
+  platform: 'web' | 'android' | 'ios' | 'desktop';
+  browser: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastSeenAt: string;
+}
+
+export interface NotificationPreferences {
+  userId: string;
+  organizationId: string;
+  enablePush: boolean;
+  enableInApp: boolean;
+  categories: {
+    programs: boolean;
+    permissions: boolean;
+    subwings: boolean;
+    suborgs: boolean;
+    achievements: boolean;
+    organizers: boolean;
+    treasury: boolean;
+    system: boolean;
+  };
+  updatedAt: string;
+}
 
 export type FinancialAccountType = 'cash' | 'bank' | 'upi' | 'emergency' | 'other';
 
@@ -348,53 +440,3 @@ export interface AppState {
   isPublicView?: boolean;
 }
 
-export type NotificationCategory =
-  | 'programs'
-  | 'approvals'
-  | 'subwings'
-  | 'achievements'
-  | 'points'
-  | 'treasury'
-  | 'organizers'
-  | 'system';
-
-export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
-
-export interface NotificationItem {
-  id: string;
-  organizationId: string;
-  recipientUserId?: string | null;
-  subWingId?: string;
-  type: string;
-  category: NotificationCategory;
-  title: string;
-  body: string;
-  createdAt: string;
-  readAt?: string | null;
-  isRead: boolean;
-  entityType?: string;
-  entityId?: string;
-  actionUrl?: string;
-  priority: NotificationPriority;
-  metadata?: Record<string, any>;
-  dedupKey?: string;
-}
-
-export interface NotificationPreferences {
-  pushEnabled: boolean;
-  inAppEnabled: boolean;
-  categories: Record<NotificationCategory, boolean>;
-  updatedAt?: string;
-}
-
-export interface NotificationDevice {
-  id: string;
-  userId: string;
-  organizationId: string;
-  token?: string;
-  endpoint?: string;
-  platform: string;
-  userAgent: string;
-  enabled: boolean;
-  updatedAt: string;
-}

@@ -36,6 +36,7 @@ import bcrypt from 'bcryptjs';
 import { PermissionStatusBadge } from './permissions/PermissionStatusBadge';
 import { ProgramPermissionsView } from './permissions/ProgramPermissionsView';
 import { ProgramCard, getThemesForProgramList } from './ProgramCard';
+import { createNotification } from '../services/notificationService';
 
 interface ProgramsViewProps {
   onOpenAddModal: () => void;
@@ -338,6 +339,25 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           prev ? { ...prev, subWingStatus: 'approved', status: calculatedStatus } : null
         );
       }
+
+      // Emit Sub-Wing approval notification
+      try {
+        if (currentOrg?.id) {
+          createNotification({
+            type: 'subwing_proposal_approved',
+            category: 'subwings',
+            title: 'Sub-Wing Proposal Approved',
+            message: `Proposal "${found?.name || 'Program'}" submitted by ${found?.subWingName || 'Sub-Wing'} has been approved.`,
+            organizationId: currentOrg.id,
+            subWingId: found?.subWingId,
+            entityType: 'program',
+            entityId: id,
+            route: 'programs',
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Sub-wing proposal approval notification note:', notifErr);
+      }
     } catch (err) {
       console.error('Error approving proposal:', err);
     }
@@ -345,11 +365,31 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   const handleRejectProposal = async (id: string) => {
     try {
+      const found = subWingPrograms.find((p) => p.id === id);
       await updateDoc(doc(db, 'programs', id), { subWingStatus: 'rejected' });
       if (selectedProposalForDetails?.id === id) {
         setSelectedProposalForDetails((prev) =>
           prev ? { ...prev, subWingStatus: 'rejected' } : null
         );
+      }
+
+      // Emit Sub-Wing rejection notification
+      try {
+        if (currentOrg?.id) {
+          createNotification({
+            type: 'subwing_proposal_rejected',
+            category: 'subwings',
+            title: 'Sub-Wing Proposal Rejected',
+            message: `Proposal "${found?.name || selectedProposalForDetails?.name || 'Program'}" was not approved.`,
+            organizationId: currentOrg.id,
+            subWingId: found?.subWingId || selectedProposalForDetails?.subWingId,
+            entityType: 'program',
+            entityId: id,
+            route: 'programs',
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Sub-wing proposal rejection notification note:', notifErr);
       }
     } catch (err) {
       console.error('Error rejecting proposal:', err);
