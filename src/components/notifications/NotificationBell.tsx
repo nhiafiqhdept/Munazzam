@@ -33,6 +33,17 @@ export const NotificationBell: React.FC = () => {
     };
   }, [isOpen]);
 
+  // Lock body scroll when mobile sheet / popover is open to prevent background scrolling
+  useEffect(() => {
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (isPublicView) return null;
 
   return (
@@ -69,7 +80,7 @@ export const NotificationBell: React.FC = () => {
             onClick={() => setIsOpen(false)}
           >
             <div
-              className="w-full max-w-full max-h-[85dvh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-200"
+              className="w-full max-w-full h-[88dvh] max-h-[88dvh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               <NotificationCenter

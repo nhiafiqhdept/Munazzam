@@ -98,6 +98,86 @@ export function getClientEnvironment(): { platform: 'web' | 'android' | 'ios' | 
 }
 
 /**
+ * Direct OS-level system notification for Android shade, lock screen, status bar, and heads-up banner
+ */
+export async function triggerSystemNotification(
+  title: string,
+  options: {
+    body?: string;
+    icon?: string;
+    badge?: string;
+    tag?: string;
+    route?: string;
+    entityType?: string;
+    entityId?: string;
+    data?: Record<string, any>;
+  } = {}
+): Promise<void> {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+    return;
+  }
+
+  const tag = options.tag || `munazzam-${Date.now()}`;
+  const notificationOptions: any = {
+    body: options.body || '',
+    icon: options.icon || '/pwa-192x192.png',
+    badge: options.badge || '/favicon-32x32.png',
+    tag,
+    data: {
+      url: options.route ? `/?view=${options.route}` : '/',
+      entityType: options.entityType,
+      entityId: options.entityId,
+      route: options.route,
+      ...options.data,
+    },
+    vibrate: [200, 100, 200, 100, 200],
+    requireInteraction: true,
+    renotify: true,
+    silent: false,
+  };
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, notificationOptions);
+      return;
+    }
+  } catch (swErr) {
+    console.warn('SW showNotification fallback:', swErr);
+  }
+
+  try {
+    new Notification(title, notificationOptions);
+  } catch (nativeErr) {
+    console.warn('Native Notification fallback notice:', nativeErr);
+  }
+}
+
+/**
+ * Ensure device registration is refreshed silently on app load if permission is already granted
+ */
+export async function ensureDeviceRegistration(
+  userId?: string,
+  organizationId?: string,
+  subOrgId?: string,
+  subWingId?: string
+): Promise<void> {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+    return;
+  }
+  try {
+    await requestNotificationPermission(
+      userId || 'anonymous',
+      organizationId || 'main',
+      subOrgId,
+      subWingId
+    );
+  } catch (err) {
+    console.warn('Silent device registration check note:', err);
+  }
+}
+
+/**
  * Request Notification Permission, register Web Push & FCM device token
  */
 export async function requestNotificationPermission(
@@ -130,14 +210,19 @@ export async function requestNotificationPermission(
 
       // 2. Fetch VAPID public key and subscribe to Web Push
       try {
-        const vapidRes = await fetch('/api/notifications/vapid-public-key');
-        const vapidData = await vapidRes.json();
-        if (vapidData.success && vapidData.publicKey && swRegistration.pushManager) {
-          const convertedKey = urlBase64ToUint8Array(vapidData.publicKey);
-          webPushSub = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedKey,
-          });
+        if (swRegistration?.pushManager) {
+          webPushSub = await swRegistration.pushManager.getSubscription();
+          if (!webPushSub) {
+            const vapidRes = await fetch('/api/notifications/vapid-public-key');
+            const vapidData = await vapidRes.json();
+            if (vapidData.success && vapidData.publicKey) {
+              const convertedKey = urlBase64ToUint8Array(vapidData.publicKey);
+              webPushSub = await swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedKey,
+              });
+            }
+          }
         }
       } catch (pushSubErr) {
         console.warn('WebPush subscription notice:', pushSubErr);
@@ -317,6 +402,15 @@ export async function createNotification(
       id: docRef.id,
       ...payload,
     } as AppNotification;
+
+    // Trigger local OS-level system notification immediately if permission granted
+    triggerSystemNotification(title, {
+      body: message,
+      route,
+      entityType,
+      entityId,
+      tag: key,
+    }).catch((notifErr) => console.warn('OS system notification note:', notifErr));
 
     // Trigger backend WebPush dispatch to all registered target devices
     fetch('/api/notifications/send-push', {

@@ -1,6 +1,14 @@
 // Unified Firebase Cloud Messaging & Web Push Service Worker for Munazzam PWA
 // Handles background push notifications, Android notification shade alerts, and notification clicks
 
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // 1. Safe Load Firebase App & Messaging Compat SDKs
 try {
   importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
@@ -20,15 +28,16 @@ try {
     console.log('[Munazzam SW] FCM Background message received:', payload);
 
     const title = payload.notification?.title || payload.data?.title || 'Munazzam';
-    const body = payload.notification?.body || payload.data?.message || payload.data?.body || 'New update available in Munazzam.';
+    const body = payload.notification?.body || payload.data?.message || payload.data?.body || 'New organization update received.';
     const icon = payload.notification?.icon || payload.data?.icon || '/pwa-192x192.png';
+    const badge = payload.notification?.badge || '/favicon-32x32.png';
     const tag = payload.data?.tag || `munazzam-${Date.now()}`;
     const url = payload.data?.url || payload.data?.route || '/';
 
-    return self.registration.showNotification(title, {
+    const notificationOptions = {
       body,
       icon,
-      badge: '/favicon-32x32.png',
+      badge,
       tag,
       data: {
         url,
@@ -36,9 +45,13 @@ try {
         entityType: payload.data?.entityType,
         entityId: payload.data?.entityId,
       },
-      vibrate: [150, 80, 150],
-      requireInteraction: false,
-    });
+      vibrate: [200, 100, 200, 100, 200],
+      requireInteraction: true,
+      renotify: true,
+      silent: false,
+    };
+
+    return self.registration.showNotification(title, notificationOptions);
   });
 } catch (err) {
   console.warn('[Munazzam SW] Firebase compat messaging initialization note:', err);
@@ -58,20 +71,23 @@ self.addEventListener('push', (event) => {
   const title = data.title || data.notification?.title || 'Munazzam';
   const body = data.body || data.message || data.notification?.body || 'New organization update received.';
   const icon = data.icon || data.notification?.icon || '/pwa-192x192.png';
-  const tag = data.tag || `munazzam-push-${Date.now()}`;
-  const url = data.url || data.route || data.data?.url || '/';
+  const badge = data.badge || '/favicon-32x32.png';
+  const tag = data.tag || (data.data && data.data.notificationId) || `munazzam-${Date.now()}`;
+  const url = data.url || data.route || (data.data && data.data.url) || '/';
 
   const options = {
     body,
     icon,
-    badge: '/favicon-32x32.png',
+    badge,
     tag,
     data: {
       url,
       ...data,
     },
-    vibrate: [150, 80, 150],
-    requireInteraction: false,
+    vibrate: [200, 100, 200, 100, 200],
+    requireInteraction: true,
+    renotify: true,
+    silent: false,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));

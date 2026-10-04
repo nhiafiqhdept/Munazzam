@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthScreen } from './components/AuthScreen';
 import { Header } from './components/Header';
@@ -42,7 +42,6 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { NotificationCenter } from './components/notifications/NotificationCenter';
 import { NotificationSettings } from './components/notifications/NotificationSettings';
 import { NotificationPermissionBanner } from './components/notifications/NotificationPermissionBanner';
-import { ForegroundNotificationToast } from './components/notifications/ForegroundNotificationToast';
 
 function extractPublicOrgSearchableName(): string | null {
   if (typeof window === 'undefined') return null;
@@ -75,9 +74,30 @@ const MainLayout: React.FC = () => {
     hasConfiguredOrg,
     isPublicView,
     exitPublicView,
-    activeToast,
-    setActiveToast,
   } = useApp();
+
+  // Handle notification deep links and URL search view routing
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const search = window.location.search;
+      const hash = window.location.hash;
+      const queryStr = search ? search.substring(1) : (hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : '');
+      if (queryStr) {
+        const params = new URLSearchParams(queryStr);
+        const view = params.get('view') || params.get('tab');
+        const programId = params.get('programId') || params.get('program_id');
+        if (programId) {
+          setSelectedProgramId(programId);
+          setActiveTab('programs');
+        } else if (view) {
+          setActiveTab(view as any);
+        }
+      }
+    } catch (e) {
+      console.warn('URL route parse error:', e);
+    }
+  }, []);
 
   // Modal open states
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -159,29 +179,6 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans relative">
-      {/* Real-time In-App Foreground Notification Toast */}
-      <ForegroundNotificationToast
-        notification={activeToast}
-        onClose={() => setActiveToast(null)}
-        onClick={(notification) => {
-          setActiveToast(null);
-          if (notification.route) {
-            setActiveTab(notification.route as any);
-          } else if (notification.entityType === 'program' && notification.entityId) {
-            setSelectedProgramId(notification.entityId);
-            setActiveTab('programs');
-          } else if (notification.category === 'programs' || notification.category === 'permissions') {
-            setActiveTab('programs');
-          } else if (notification.category === 'organizers') {
-            setActiveTab('organizers');
-          } else if (notification.category === 'treasury') {
-            setActiveTab('treasury-dashboard');
-          } else if (notification.category === 'achievements' || notification.category === 'suborgs') {
-            setActiveTab('student-points');
-          }
-        }}
-      />
-
       {/* Top Header */}
       <Header
         onOpenOnboarding={() => setIsOnboardingOpen(true)}

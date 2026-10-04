@@ -54,13 +54,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [showOnlyUnread, setShowOnlyUnread] = useState<boolean>(false);
   const [isMarkingAll, setIsMarkingAll] = useState<boolean>(false);
 
-  // Ensure document body overflow is never stuck or locked
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = '';
-    }
-  }, []);
-
   // Format relative timestamp
   const formatTime = (isoString: string) => {
     if (!isoString) return '';
@@ -291,8 +284,20 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
       {/* Notifications Scrollable Stream */}
       <div
-        className={`flex-1 min-h-0 overflow-y-auto scrollbar-thin ${isModal ? 'p-3 sm:p-4 space-y-2.5 max-h-[58dvh] sm:max-h-[380px]' : 'space-y-3 max-h-[600px] p-1'}`}
-        style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+        className={
+          isModal
+            ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-2.5 custom-scrollbar'
+            : 'space-y-3 p-1'
+        }
+        style={
+          isModal
+            ? {
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehaviorY: 'contain',
+                touchAction: 'pan-y',
+              }
+            : undefined
+        }
       >
         {filteredNotifications.length === 0 ? (
           <div className="py-12 sm:py-16 text-center space-y-3 px-4">

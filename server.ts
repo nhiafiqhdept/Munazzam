@@ -1235,15 +1235,17 @@ app.post('/api/notifications/send-push', async (req: Request, res: Response) => 
       if (!device.isActive) return false;
       if (!device.webPushSubscription && !device.fcmToken) return false;
 
-      // Match target user or organization
-      if (recipientUserId && device.userId === recipientUserId) return true;
-      if (organizationId && (device.organizationId === organizationId || device.userId === organizationId)) return true;
-      if (subWingId && device.subWingId === subWingId) return true;
+      // If targeted to a specific individual recipient, match userId
+      if (recipientUserId && device.userId !== recipientUserId) {
+        return false;
+      }
 
-      // If no specific filter, deliver to organization
-      if (!recipientUserId && !subWingId && (!organizationId || organizationId === 'main')) return true;
+      // If targeted to a subwing, match subWingId
+      if (subWingId && device.subWingId && device.subWingId !== subWingId) {
+        return false;
+      }
 
-      return false;
+      return true;
     });
 
     const pushPayload = JSON.stringify({

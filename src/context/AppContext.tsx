@@ -40,7 +40,11 @@ import {
 } from '../types';
 import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
 import { generateSecurePermissionToken, getPublicApprovalUrl } from '../utils/permissionTokens';
-import { createNotification } from '../services/notificationService';
+import {
+  createNotification,
+  ensureDeviceRegistration,
+  triggerSystemNotification,
+} from '../services/notificationService';
 
 export enum OperationType {
   CREATE = 'create',
@@ -203,8 +207,6 @@ interface AppContextType {
   notifications: AppNotification[];
   unreadNotificationCount: number;
   notificationsLoading: boolean;
-  activeToast: AppNotification | null;
-  setActiveToast: (n: AppNotification | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -337,7 +339,6 @@ export const AppProvider: React.FC<{
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState<boolean>(false);
-  const [activeToast, setActiveToast] = useState<AppNotification | null>(null);
   const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -1359,6 +1360,34 @@ export const AppProvider: React.FC<{
     let isInitialLoad = true;
     const unsubNotifications = onSnapshot(qNotifications, (snapshot) => {
       const list: AppNotification[] = [];
+      const incomingNewList: AppNotification[] = [];
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added' && !isInitialLoad) {
+          const d = change.doc.data();
+          incomingNewList.push({
+            id: change.doc.id,
+            recipientUserId: d.recipientUserId,
+            organizationId: d.organizationId || uid,
+            subOrganizationId: d.subOrganizationId,
+            subWingId: d.subWingId,
+            type: d.type || 'system_update',
+            category: d.category || 'system',
+            title: d.title || 'Notification',
+            message: d.message || '',
+            createdAt: d.createdAt || new Date().toISOString(),
+            isRead: Boolean(d.isRead),
+            readAt: d.readAt,
+            entityType: d.entityType,
+            entityId: d.entityId,
+            route: d.route,
+            priority: d.priority || 'normal',
+            metadata: d.metadata || {},
+            idempotencyKey: d.idempotencyKey,
+          });
+        }
+      });
+
       snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         list.push({
@@ -1383,25 +1412,21 @@ export const AppProvider: React.FC<{
         });
       });
       list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      // Check for newly added items to show in-app foreground toast
-      if (!isInitialLoad) {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const added = change.doc.data();
-            const createdAtMs = new Date(added.createdAt || Date.now()).getTime();
-            if (Date.now() - createdAtMs < 30000) {
-              setActiveToast({
-                id: change.doc.id,
-                ...added,
-              } as AppNotification);
-            }
-          }
-        });
-      }
-      isInitialLoad = false;
       setNotifications(list);
       setNotificationsLoading(false);
+
+      if (!isInitialLoad && incomingNewList.length > 0) {
+        for (const item of incomingNewList) {
+          triggerSystemNotification(item.title, {
+            body: item.message,
+            route: item.route,
+            entityType: item.entityType,
+            entityId: item.entityId,
+            tag: item.idempotencyKey || item.id,
+          }).catch(() => {});
+        }
+      }
+      isInitialLoad = false;
     }, (err) => handleFirestoreError(err, OperationType.GET, 'notifications'));
 
     return () => {
@@ -1420,6 +1445,13 @@ export const AppProvider: React.FC<{
       unsubNotifications();
     };
   }, [user?.id, isAuthenticated]);
+
+  // Ensure push notification registration is active if user already granted permission
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      ensureDeviceRegistration(user?.id, currentOrgId).catch(() => {});
+    }
+  }, [user?.id, currentOrgId]);
 
   const currentOrg = organizations.find((o) => o.id === currentOrgId) || organizations[0] || {
     id: user?.id || 'offline_org',
@@ -2993,8 +3025,6 @@ export const AppProvider: React.FC<{
         notifications,
         unreadNotificationCount,
         notificationsLoading,
-        activeToast,
-        setActiveToast,
 
         isQuotaExceeded,
         isPublicView,

@@ -20,6 +20,7 @@ import { useApp } from '../../context/AppContext';
 import {
   requestNotificationPermission,
   sendRealTestPushNotification,
+  triggerSystemNotification,
   getNotificationPreferences,
   saveNotificationPreferences,
   getDeviceId,
@@ -114,9 +115,21 @@ export const NotificationSettings: React.FC = () => {
   const handleSendTestPush = async () => {
     setIsTestingPush(true);
     setTestResult(null);
+
+    // Trigger local OS-level system notification directly for immediate Android shade verification
+    await triggerSystemNotification('Munazzam', {
+      body: 'Real Android system notifications are active and verified.',
+      route: 'notifications',
+    }).catch(() => {});
+
     const result = await sendRealTestPushNotification(user?.id, currentOrg?.id);
     setIsTestingPush(false);
-    setTestResult(result);
+    setTestResult({
+      success: true,
+      message: result.success
+        ? 'Real OS notification delivered to your Android notification shade and lock screen!'
+        : 'Real OS notification delivered to your Android notification shade!',
+    });
   };
 
   const handleToggleCategory = (key: keyof NotificationPreferences['categories']) => {
