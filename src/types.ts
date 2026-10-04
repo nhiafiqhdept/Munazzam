@@ -183,6 +183,7 @@ export interface Program {
 export interface SubWing {
   id: string;
   portalId: string; // matches main organization accountId
+  accountId?: string;
   name: string;
   president: string; // President / Responsible Person
   contactDetails: string;
@@ -191,6 +192,7 @@ export interface SubWing {
   description: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type ActiveTab =
@@ -344,4 +346,55 @@ export interface AppState {
   isAdmin: boolean;
   adminPin: string;
   isPublicView?: boolean;
+}
+
+export type NotificationCategory =
+  | 'programs'
+  | 'approvals'
+  | 'subwings'
+  | 'achievements'
+  | 'points'
+  | 'treasury'
+  | 'organizers'
+  | 'system';
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface NotificationItem {
+  id: string;
+  organizationId: string;
+  recipientUserId?: string | null;
+  subWingId?: string;
+  type: string;
+  category: NotificationCategory;
+  title: string;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+  isRead: boolean;
+  entityType?: string;
+  entityId?: string;
+  actionUrl?: string;
+  priority: NotificationPriority;
+  metadata?: Record<string, any>;
+  dedupKey?: string;
+}
+
+export interface NotificationPreferences {
+  pushEnabled: boolean;
+  inAppEnabled: boolean;
+  categories: Record<NotificationCategory, boolean>;
+  updatedAt?: string;
+}
+
+export interface NotificationDevice {
+  id: string;
+  userId: string;
+  organizationId: string;
+  token?: string;
+  endpoint?: string;
+  platform: string;
+  userAgent: string;
+  enabled: boolean;
+  updatedAt: string;
 }

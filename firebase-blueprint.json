@@ -430,6 +430,61 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "programId", "organizationId", "programName", "date", "venue", "status"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Institutional notification record with targeted organization routing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "recipientUserId": { "type": "string" },
+        "subWingId": { "type": "string" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "readAt": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "actionUrl": { "type": "string" },
+        "priority": { "type": "string" },
+        "dedupKey": { "type": "string" }
+      },
+      "required": ["id", "organizationId", "type", "category", "title", "body", "createdAt", "isRead"]
+    },
+    "NotificationDevice": {
+      "title": "NotificationDevice",
+      "description": "Registered Web Push device token for background notification delivery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "token": { "type": "string" },
+        "endpoint": { "type": "string" },
+        "platform": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "organizationId", "platform", "enabled", "updatedAt"]
+    },
+    "NotificationPreferences": {
+      "title": "NotificationPreferences",
+      "description": "Per-user notification category toggles and settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "pushEnabled": { "type": "boolean" },
+        "inAppEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "organizationId", "pushEnabled", "inAppEnabled"]
     }
   },
   "firestore": {
@@ -528,6 +583,18 @@
     "/program_permissions/{permissionId}": {
       "schema": "ProgramPermission",
       "description": "Formal college program permission and sanction records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "NotificationItem",
+      "description": "Institutional notification and push alert records"
+    },
+    "/notification_devices/{deviceId}": {
+      "schema": "NotificationDevice",
+      "description": "Registered device notification tokens"
+    },
+    "/notification_preferences/{prefId}": {
+      "schema": "NotificationPreferences",
+      "description": "User notification preferences and category toggles"
     }
   }
 }

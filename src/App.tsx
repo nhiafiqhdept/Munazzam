@@ -472,12 +472,14 @@ const AuthenticatedApp: React.FC = () => {
                          window.location.search.includes('reg=') || 
                          window.location.hash.includes('reg=');
 
-  const isSubwingPortal = window.location.search.includes('subwing=true') || 
-                          window.location.hash.includes('subwing=true') ||
+  const isSubwingPortal = window.location.search.includes('subwing=') || 
+                          window.location.hash.includes('subwing=') ||
                           window.location.search.includes('portal=swp_') ||
                           window.location.hash.includes('portal=swp_') ||
                           window.location.search.includes('swp_') ||
-                          window.location.hash.includes('swp_');
+                          window.location.hash.includes('swp_') ||
+                          window.location.search.includes('subwing_portal') ||
+                          window.location.hash.includes('subwing_portal');
 
   if ((authLoading || orgLoading) && !isSuborgPortal && !isSubwingPortal) {
     return (
