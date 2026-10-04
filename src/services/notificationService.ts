@@ -58,6 +58,26 @@ export async function getFCMInstance(): Promise<Messaging | null> {
 }
 
 /**
+ * Check if FCM token is registered on this device without exposing the raw token
+ */
+export async function checkFcmTokenStatus(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+    return false;
+  }
+  try {
+    const messaging = await getFCMInstance();
+    if (messaging && 'serviceWorker' in navigator) {
+      const swReg = await navigator.serviceWorker.ready;
+      const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
+      return Boolean(token);
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
  * Get or generate a persistent local device ID for multi-device support
  */
 export function getDeviceId(): string {
@@ -130,10 +150,10 @@ export async function triggerSystemNotification(
       route: options.route,
       ...options.data,
     },
-    vibrate: [200, 100, 200, 100, 200],
-    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
     renotify: true,
-    silent: false,
+    timestamp: Date.now(),
   };
 
   try {

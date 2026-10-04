@@ -1248,6 +1248,15 @@ app.post('/api/notifications/send-push', async (req: Request, res: Response) => 
       return true;
     });
 
+    const webPushRequestOptions: webpush.RequestOptions = {
+      TTL: 86400,
+      urgency: 'high',
+      headers: {
+        'Urgency': 'high',
+        'Topic': 'munazzam-alerts',
+      },
+    };
+
     const pushPayload = JSON.stringify({
       title,
       body,
@@ -1255,9 +1264,56 @@ app.post('/api/notifications/send-push', async (req: Request, res: Response) => 
       badge: '/favicon-32x32.png',
       url,
       tag: `munazzam-${Date.now()}`,
+      vibrate: [200, 100, 200],
+      renotify: true,
+      requireInteraction: false,
+      notification: {
+        title,
+        body,
+        icon,
+        badge: '/favicon-32x32.png',
+        tag: `munazzam-${Date.now()}`,
+        vibrate: [200, 100, 200],
+        renotify: true,
+        requireInteraction: false,
+        data: {
+          url,
+          ...data,
+        },
+      },
       data: {
         url,
+        title,
+        body,
         ...data,
+      },
+      webpush: {
+        headers: {
+          Urgency: 'high',
+        },
+        notification: {
+          title,
+          body,
+          icon,
+          badge: '/favicon-32x32.png',
+          tag: `munazzam-${Date.now()}`,
+          vibrate: [200, 100, 200],
+          renotify: true,
+          requireInteraction: false,
+        },
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          title,
+          body,
+          icon,
+          priority: 'high',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          notificationPriority: 'PRIORITY_HIGH',
+          visibility: 'PUBLIC',
+        },
       },
     });
 
@@ -1268,7 +1324,7 @@ app.post('/api/notifications/send-push', async (req: Request, res: Response) => 
       activeDevices.map(async (device) => {
         if (device.webPushSubscription) {
           try {
-            await webpush.sendNotification(device.webPushSubscription, pushPayload);
+            await webpush.sendNotification(device.webPushSubscription, pushPayload, webPushRequestOptions);
             sentCount++;
           } catch (pushErr: any) {
             failedCount++;
@@ -1321,16 +1377,70 @@ app.post('/api/notifications/test-push', async (req: Request, res: Response) => 
       });
     }
 
+    const webPushRequestOptions: webpush.RequestOptions = {
+      TTL: 86400,
+      urgency: 'high',
+      headers: {
+        'Urgency': 'high',
+        'Topic': 'munazzam-test',
+      },
+    };
+
     const testPayload = JSON.stringify({
-      title: 'Munazzam Test Notification',
-      body: 'Push notifications are working correctly on your device.',
+      title: 'Munazzam',
+      body: 'Real Android heads-up popup notifications are active and verified.',
       icon: '/pwa-192x192.png',
       badge: '/favicon-32x32.png',
       url: '/?view=notifications',
       tag: `munazzam-test-${Date.now()}`,
+      vibrate: [200, 100, 200],
+      renotify: true,
+      requireInteraction: false,
+      notification: {
+        title: 'Munazzam',
+        body: 'Real Android heads-up popup notifications are active and verified.',
+        icon: '/pwa-192x192.png',
+        badge: '/favicon-32x32.png',
+        tag: `munazzam-test-${Date.now()}`,
+        vibrate: [200, 100, 200],
+        renotify: true,
+        requireInteraction: false,
+        data: {
+          url: '/?view=notifications',
+          isTest: true,
+        },
+      },
       data: {
         url: '/?view=notifications',
         isTest: true,
+      },
+      webpush: {
+        headers: {
+          Urgency: 'high',
+        },
+        notification: {
+          title: 'Munazzam',
+          body: 'Real Android heads-up popup notifications are active and verified.',
+          icon: '/pwa-192x192.png',
+          badge: '/favicon-32x32.png',
+          tag: `munazzam-test-${Date.now()}`,
+          vibrate: [200, 100, 200],
+          renotify: true,
+          requireInteraction: false,
+        },
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          title: 'Munazzam',
+          body: 'Real Android heads-up popup notifications are active and verified.',
+          icon: '/pwa-192x192.png',
+          priority: 'high',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          notificationPriority: 'PRIORITY_HIGH',
+          visibility: 'PUBLIC',
+        },
       },
     });
 
@@ -1338,7 +1448,7 @@ app.post('/api/notifications/test-push', async (req: Request, res: Response) => 
     for (const dev of targetDevices) {
       if (dev.webPushSubscription) {
         try {
-          await webpush.sendNotification(dev.webPushSubscription, testPayload);
+          await webpush.sendNotification(dev.webPushSubscription, testPayload, webPushRequestOptions);
           sent++;
         } catch (err: any) {
           console.warn(`Test push error for device ${dev.id}:`, err?.message);

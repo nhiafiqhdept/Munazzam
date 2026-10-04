@@ -45,10 +45,10 @@ try {
         entityType: payload.data?.entityType,
         entityId: payload.data?.entityId,
       },
-      vibrate: [200, 100, 200, 100, 200],
-      requireInteraction: true,
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
       renotify: true,
-      silent: false,
+      timestamp: Date.now(),
     };
 
     return self.registration.showNotification(title, notificationOptions);
@@ -71,8 +71,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || data.notification?.title || 'Munazzam';
   const body = data.body || data.message || data.notification?.body || 'New organization update received.';
   const icon = data.icon || data.notification?.icon || '/pwa-192x192.png';
-  const badge = data.badge || '/favicon-32x32.png';
-  const tag = data.tag || (data.data && data.data.notificationId) || `munazzam-${Date.now()}`;
+  const badge = data.badge || data.notification?.badge || '/favicon-32x32.png';
+  const tag = data.tag || data.notification?.tag || (data.data && data.data.notificationId) || `munazzam-${Date.now()}`;
   const url = data.url || data.route || (data.data && data.data.url) || '/';
 
   const options = {
@@ -83,11 +83,12 @@ self.addEventListener('push', (event) => {
     data: {
       url,
       ...data,
+      ...(data.data || {}),
     },
-    vibrate: [200, 100, 200, 100, 200],
-    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
     renotify: true,
-    silent: false,
+    timestamp: Date.now(),
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
