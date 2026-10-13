@@ -100,7 +100,7 @@ export const ProgramPermissionsView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/10">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] text-white flex items-center justify-center shadow-md shadow-blue-900/10">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
@@ -108,7 +108,7 @@ export const ProgramPermissionsView: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                   Program Permissions
                 </h1>
-                <span className="bg-emerald-50 text-emerald-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <span className="bg-blue-50 text-[#1e3a8a] text-xs font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200">
                   College Approval Workflow
                 </span>
               </div>
@@ -121,7 +121,7 @@ export const ProgramPermissionsView: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowNewRequestSelectModal(true)}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer border border-blue-900/30"
             >
               <Plus className="w-4 h-4" />
               <span>Request College Permission</span>
@@ -147,8 +147,8 @@ export const ProgramPermissionsView: React.FC = () => {
             onClick={() => setStatusFilter('approved')}
             className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
               statusFilter === 'approved'
-                ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100/70'
+                ? 'bg-[#1e3a8a] text-white border-[#1e3a8a] shadow-sm'
+                : 'bg-blue-50 border-blue-200 text-blue-950 hover:bg-blue-100/70'
             }`}
           >
             <span className="text-[11px] font-bold block opacity-80">APPROVED</span>
@@ -215,7 +215,7 @@ export const ProgramPermissionsView: React.FC = () => {
             placeholder="Search by program name, conducted by, venue, or authority..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20 focus:border-[#1e3a8a]"
           />
         </div>
 
@@ -244,7 +244,7 @@ export const ProgramPermissionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Permissions Table / Cards */}
+      {/* Permissions List Cards */}
       {filteredPermissions.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-2xs">
           <div className="w-16 h-16 bg-slate-100 rounded-2xl mx-auto flex items-center justify-center text-slate-400">
@@ -261,7 +261,7 @@ export const ProgramPermissionsView: React.FC = () => {
           {programs.length > 0 && (
             <button
               onClick={() => setShowNewRequestSelectModal(true)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-gradient-to-r from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Create First Permission Request</span>
@@ -269,135 +269,63 @@ export const ProgramPermissionsView: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="p-4">Program & Conducted By</th>
-                  <th className="p-4">Date & Time</th>
-                  <th className="p-4">Venue</th>
-                  <th className="p-4">Permission Status</th>
-                  <th className="p-4">Approving Authority</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredPermissions.map((perm) => {
-                  const matchingProg = programs.find((p) => p.id === perm.programId);
-                  return (
-                    <tr key={perm.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Program & Conducted By */}
-                      <td className="p-4">
-                        <div className="font-bold text-slate-900 text-sm">{perm.programName}</div>
-                        <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                          <Building className="w-3 h-3 text-slate-400" />
-                          <span>{perm.conductedBy || currentOrg?.name}</span>
-                          {perm.category && (
-                            <span className="text-slate-400">• {perm.category}</span>
-                          )}
-                        </div>
-                      </td>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filteredPermissions.map((perm) => {
+            const matchingProg = programs.find((p) => p.id === perm.programId);
+            return (
+              <div key={perm.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="font-bold text-slate-900 text-sm">{perm.programName}</div>
+                  <PermissionStatusBadge status={perm.status} size="sm" />
+                </div>
+                
+                <div className="text-[11px] text-slate-500 font-medium space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Building className="w-3 h-3 text-slate-400" />
+                    {perm.conductedBy || currentOrg?.name}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3 h-3 text-slate-400" />
+                    {formatDate(perm.date)} {perm.timeFrom ? `at ${perm.timeFrom}` : ''}
+                  </div>
+                </div>
 
-                      {/* Date & Time */}
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-800">{formatDate(perm.date)}</div>
-                        {(perm.timeFrom || perm.timeTill) && (
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>
-                              {perm.timeFrom} {perm.timeTill ? `- ${perm.timeTill}` : ''}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Venue */}
-                      <td className="p-4">
-                        <span className="font-semibold text-slate-800">{perm.venue || 'Campus'}</span>
-                        {perm.audience && (
-                          <div className="text-[11px] text-slate-500 mt-0.5">For: {perm.audience}</div>
-                        )}
-                      </td>
-
-                      {/* Permission Status */}
-                      <td className="p-4">
-                        <PermissionStatusBadge status={perm.status} size="sm" />
-                        {perm.status === 'approved' && perm.approvedBy && (
-                          <div className="text-[10px] text-emerald-700 font-semibold mt-1">
-                            By {perm.approvedBy}
-                          </div>
-                        )}
-                        {perm.status === 'changes_required' && (
-                          <div className="text-[10px] text-orange-700 font-semibold mt-1 truncate max-w-[140px]">
-                            {perm.changesRequiredNotes || 'Changes requested'}
-                          </div>
-                        )}
-                        {perm.status === 'rejected' && (
-                          <div className="text-[10px] text-rose-700 font-semibold mt-1 truncate max-w-[140px]">
-                            {perm.rejectionReason || 'Rejected'}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Approving Authority */}
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-800">{perm.approvingAuthority}</div>
-                        <div className="text-[10px] text-slate-400">
-                          Submitted: {formatDate(perm.createdAt)}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Share via WhatsApp */}
-                          <button
-                            onClick={() => setSelectedSharePermission(perm)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] font-bold rounded-lg border border-[#25D366]/30 text-[11px] transition-colors cursor-pointer"
-                            title="Share via WhatsApp for Principal Approval"
-                          >
-                            <svg className="w-3.5 h-3.5 fill-[#25D366]" viewBox="0 0 24 24">
-                              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.043.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824zM12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.66 1.434 5.174L2 22l4.981-1.309A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18.25c-1.636 0-3.153-.497-4.417-1.352l-.316-.214-2.955.775.789-2.88-.236-.376C4.043 14.898 3.5 13.5 3.5 12c0-4.687 3.813-8.5 8.5-8.5s8.5 3.813 8.5 8.5-3.813 8.5-8.5 8.5z" />
-                            </svg>
-                            <span>Share</span>
-                          </button>
-
-                          {/* Print Approval Request */}
-                          <button
-                            onClick={() => setSelectedPrintPermission(perm)}
-                            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            title="Print Formal Approval Request"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-
-                          {/* Review Decision (Authority / Admin) */}
-                          <button
-                            onClick={() => setSelectedReviewPermission(perm)}
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                          >
-                            Review
-                          </button>
-
-                          {/* View Program Details */}
-                          {matchingProg && (
-                            <button
-                              onClick={() => viewProgramDetails(matchingProg.id)}
-                              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                              title="View Program Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedSharePermission(perm)}
+                      className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                      title="Share"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedPrintPermission(perm)}
+                      className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                      title="Print"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedReviewPermission(perm)}
+                      className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg transition-colors cursor-pointer"
+                      title="Review"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {matchingProg && (
+                    <button
+                      onClick={() => viewProgramDetails(matchingProg.id)}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    >
+                      View Details
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -444,10 +372,10 @@ export const ProgramPermissionsView: React.FC = () => {
                         setSelectedEditProgram(prog);
                         setExistingEditPermission(existingPerm);
                       }}
-                      className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all cursor-pointer flex items-center justify-between group"
+                      className="p-3.5 rounded-xl border border-slate-200 hover:border-[#1e3a8a] hover:bg-blue-50/40 transition-all cursor-pointer flex items-center justify-between group"
                     >
                       <div>
-                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-emerald-800">
+                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#1e3a8a]">
                           {prog.name}
                         </h4>
                         <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-1">
@@ -460,11 +388,11 @@ export const ProgramPermissionsView: React.FC = () => {
                         {existingPerm ? (
                           <PermissionStatusBadge status={existingPerm.status} size="sm" />
                         ) : (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                          <span className="text-[11px] font-bold text-[#1e3a8a] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
                             + Start Request
                           </span>
                         )}
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-transform group-hover:translate-x-0.5" />
+                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#1e3a8a] transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </div>
                   );

@@ -20,9 +20,9 @@ export const PermissionStatusBadge: React.FC<PermissionStatusBadgeProps> = ({
       case 'approved':
         return {
           label: 'Approved',
-          bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-          icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />,
-          dot: 'bg-emerald-500',
+          bg: 'bg-blue-50 text-blue-900 border-blue-200',
+          icon: <CheckCircle2 className="w-3.5 h-3.5 text-[#1e3a8a] shrink-0" />,
+          dot: 'bg-[#1e3a8a]',
         };
       case 'pending':
         return {

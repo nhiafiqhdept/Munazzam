@@ -144,6 +144,27 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   if (!currentOrg) return null;
 
+  // Derived status counts for official programs based on Asia/Kolkata date
+  const statusCounts = useMemo(() => {
+    let upcoming = 0;
+    let ongoing = 0;
+    let completed = 0;
+
+    programs.forEach((prog) => {
+      const s = getProgramEffectiveStatus(prog);
+      if (s === 'completed') completed++;
+      else if (s === 'ongoing') ongoing++;
+      else upcoming++;
+    });
+
+    return {
+      all: programs.length,
+      upcoming,
+      ongoing,
+      completed,
+    };
+  }, [programs]);
+
   // Filter & sort official programs
   const filteredPrograms = programs
     .filter((prog) => {
@@ -155,8 +176,13 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
         prog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prog.audience.toLowerCase().includes(searchQuery.toLowerCase());
 
+      const effectiveProgStatus = getProgramEffectiveStatus(prog);
       const matchesStatus =
-        selectedStatus === 'all' || getProgramEffectiveStatus(prog).toLowerCase() === selectedStatus.toLowerCase();
+        selectedStatus === 'all' ||
+        (selectedStatus === 'upcoming' && effectiveProgStatus === 'upcoming') ||
+        (selectedStatus === 'ongoing' && effectiveProgStatus === 'ongoing') ||
+        (selectedStatus === 'completed' && effectiveProgStatus === 'completed') ||
+        effectiveProgStatus.toLowerCase() === selectedStatus.toLowerCase();
 
       const matchesCategory =
         selectedCategory === 'all' ||
@@ -442,184 +468,165 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
   return (
     <div className="space-y-4 pb-12">
-      {/* Tab Switcher for Admin */}
+      {/* Three Section Cards for Admin (Stack on mobile, 3-column row on desktop) */}
       {isAdmin && !isPublicView && (
-        <>
-          {/* Mobile Institutional Navigation Menu (< lg) */}
-          <nav
-            aria-label="Programs & Activities Menu"
-            className="lg:hidden w-full bg-white rounded-xl border border-slate-200/90 shadow-2xs divide-y divide-slate-100 overflow-hidden"
+        <nav
+          aria-label="Programs Section Navigation"
+          className="grid grid-cols-3 gap-1"
+        >
+          {/* Card 1: Official Programs & Activities */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('official')}
+            className={`relative overflow-hidden rounded-lg bg-white p-1.5 transition-all duration-200 text-left flex items-center justify-between gap-1 cursor-pointer group ${
+              activeTab === 'official'
+                ? 'border border-[#1e3a8a] shadow-xs bg-blue-50/70 ring-1 ring-[#1e3a8a]/10'
+                : 'border border-slate-200/90 hover:border-blue-300 hover:bg-slate-50/80 shadow-2xs'
+            }`}
           >
-            {/* 1. Official Programs & Activities */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('official')}
-              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-1 transition-all ${
                 activeTab === 'official'
-                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
-                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+                  ? 'bg-[#1e3a8a]'
+                  : 'bg-slate-200 group-hover:bg-blue-300'
               }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <FileText
-                  className={`w-4.5 h-4.5 shrink-0 ${
-                    activeTab === 'official' ? 'text-emerald-700' : 'text-slate-400'
-                  }`}
-                />
+            />
+            <div className="flex items-center gap-1 min-w-0 pl-1">
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all ${
+                  activeTab === 'official'
+                    ? 'bg-[#1e3a8a] text-white'
+                    : 'bg-blue-50 text-[#1e3a8a] group-hover:bg-blue-100/80'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
                 <span
-                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                  className={`text-[9px] font-bold tracking-tight block leading-tight ${
                     activeTab === 'official'
-                      ? 'text-emerald-950 font-bold'
+                      ? 'text-[#0f1f4b]'
                       : 'text-slate-900'
                   }`}
                 >
-                  Official Programs & Activities
+                  Official
+                </span>
+                <span className="text-[8px] text-slate-500 font-medium block truncate">
+                  {programs.length} Events
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {activeTab === 'official' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
-                )}
-                <ChevronRight
-                  className={`w-4 h-4 ${
-                    activeTab === 'official' ? 'text-emerald-700' : 'text-slate-300'
-                  }`}
-                />
-              </div>
-            </button>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ChevronRight
+                className={`w-3 h-3 ${
+                  activeTab === 'official' ? 'text-[#1e3a8a]' : 'text-slate-400'
+                }`}
+              />
+            </div>
+          </button>
 
-            {/* 2. Sub-Wing Program Proposals */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('subwings')}
-              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+          {/* Card 2: Sub-Wing Program Proposals */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('subwings')}
+            className={`relative overflow-hidden rounded-lg bg-white p-1.5 transition-all duration-200 text-left flex items-center justify-between gap-1 cursor-pointer group ${
+              activeTab === 'subwings'
+                ? 'border border-[#1e3a8a] shadow-xs bg-blue-50/70 ring-1 ring-[#1e3a8a]/10'
+                : 'border border-slate-200/90 hover:border-blue-300 hover:bg-slate-50/80 shadow-2xs'
+            }`}
+          >
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-1 transition-all ${
                 activeTab === 'subwings'
-                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
-                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+                  ? 'bg-[#1e3a8a]'
+                  : 'bg-slate-200 group-hover:bg-blue-300'
               }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Layers
-                  className={`w-4.5 h-4.5 shrink-0 ${
-                    activeTab === 'subwings' ? 'text-emerald-700' : 'text-slate-400'
-                  }`}
-                />
+            />
+            <div className="flex items-center gap-1 min-w-0 pl-1">
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all ${
+                  activeTab === 'subwings'
+                    ? 'bg-[#1e3a8a] text-white'
+                    : 'bg-blue-50 text-[#1e3a8a] group-hover:bg-blue-100/80'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
                 <span
-                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                  className={`text-[9px] font-bold tracking-tight block leading-tight ${
                     activeTab === 'subwings'
-                      ? 'text-emerald-950 font-bold'
+                      ? 'text-[#0f1f4b]'
                       : 'text-slate-900'
                   }`}
                 >
-                  Sub-Wing Program Proposals
+                  Sub-Wings
+                </span>
+                <span className="text-[8px] text-slate-500 font-medium block truncate">
+                  {subWingPrograms.length} Prop.
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
-                  <span className="px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">
-                    {pendingSubWingsCount + pendingProposalsCount}
-                  </span>
-                )}
-                {activeTab === 'subwings' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
-                )}
-                <ChevronRight
-                  className={`w-4 h-4 ${
-                    activeTab === 'subwings' ? 'text-emerald-700' : 'text-slate-300'
-                  }`}
-                />
-              </div>
-            </button>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ChevronRight
+                className={`w-3 h-3 ${
+                  activeTab === 'subwings' ? 'text-[#1e3a8a]' : 'text-slate-400'
+                }`}
+              />
+            </div>
+          </button>
 
-            {/* 3. College Permissions */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('permissions')}
-              className={`w-full h-[50px] px-3.5 sm:px-4 flex items-center justify-between text-left transition-colors cursor-pointer ${
+          {/* Card 3: College Permissions */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('permissions')}
+            className={`relative overflow-hidden rounded-lg bg-white p-1.5 transition-all duration-200 text-left flex items-center justify-between gap-1 cursor-pointer group ${
+              activeTab === 'permissions'
+                ? 'border border-[#1e3a8a] shadow-xs bg-blue-50/70 ring-1 ring-[#1e3a8a]/10'
+                : 'border border-slate-200/90 hover:border-blue-300 hover:bg-slate-50/80 shadow-2xs'
+            }`}
+          >
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-1 transition-all ${
                 activeTab === 'permissions'
-                  ? 'bg-emerald-50/70 border-l-4 border-emerald-600'
-                  : 'hover:bg-slate-50/80 border-l-4 border-transparent'
+                  ? 'bg-[#1e3a8a]'
+                  : 'bg-slate-200 group-hover:bg-blue-300'
               }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <ShieldCheck
-                  className={`w-4.5 h-4.5 shrink-0 ${
-                    activeTab === 'permissions' ? 'text-emerald-700' : 'text-slate-400'
-                  }`}
-                />
+            />
+            <div className="flex items-center gap-1 min-w-0 pl-1">
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all ${
+                  activeTab === 'permissions'
+                    ? 'bg-[#1e3a8a] text-white'
+                    : 'bg-blue-50 text-[#1e3a8a] group-hover:bg-blue-100/80'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
                 <span
-                  className={`text-xs sm:text-sm font-semibold tracking-tight truncate ${
+                  className={`text-[9px] font-bold tracking-tight block leading-tight ${
                     activeTab === 'permissions'
-                      ? 'text-emerald-950 font-bold'
+                      ? 'text-[#0f1f4b]'
                       : 'text-slate-900'
                   }`}
                 >
-                  College Permissions
+                  Permissions
+                </span>
+                <span className="text-[8px] text-slate-500 font-medium block truncate">
+                  Approvals
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                {pendingPermissionsCount > 0 && (
-                  <span className="px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-bold">
-                    {pendingPermissionsCount}
-                  </span>
-                )}
-                {activeTab === 'permissions' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1" />
-                )}
-                <ChevronRight
-                  className={`w-4 h-4 ${
-                    activeTab === 'permissions' ? 'text-emerald-700' : 'text-slate-300'
-                  }`}
-                />
-              </div>
-            </button>
-          </nav>
-
-          {/* Desktop Tab Switcher (Unchanged) */}
-          <div className="hidden lg:flex flex-wrap gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
-            <button
-              onClick={() => setActiveTab('official')}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'official'
-                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span>Official Programs & Activities</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('subwings')}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
-                activeTab === 'subwings'
-                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Sub-Wing Program Proposals</span>
-              {(pendingSubWingsCount > 0 || pendingProposalsCount > 0) && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('permissions')}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 relative cursor-pointer ${
-                activeTab === 'permissions'
-                  ? 'bg-white text-emerald-800 shadow-sm font-extrabold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>College Permissions</span>
-              {pendingPermissionsCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
-                  {pendingPermissionsCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </>
+            </div>
+            <div className="flex items-center shrink-0">
+              <ChevronRight
+                className={`w-3 h-3 ${
+                  activeTab === 'permissions' ? 'text-[#1e3a8a]' : 'text-slate-400'
+                }`}
+              />
+            </div>
+          </button>
+        </nav>
       )}
 
       {/* VIEW A: OFFICIAL PROGRAMS & ACTIVITIES */}
@@ -628,16 +635,16 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           {/* Executive Combined Header & Toolbar Card */}
           <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
             {/* Top Header Row */}
-            <div className="flex items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100/80 shrink-0 shadow-2xs">
-                  <CalendarDays className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-emerald-700" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                <div className="p-2 sm:p-2.5 bg-blue-50 text-[#1e3a8a] rounded-xl border border-blue-100/80 shrink-0 shadow-2xs mt-0.5 sm:mt-0">
+                  <CalendarDays className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-[#1e3a8a]" />
                 </div>
-                <div className="min-w-0">
-                  <h1 className="text-base sm:text-xl font-bold text-slate-900 font-heading leading-tight truncate">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-base sm:text-xl font-bold text-slate-900 font-heading leading-tight whitespace-normal break-words">
                     Programs & Activities
                   </h1>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                  <p className="text-xs text-slate-500 mt-0.5 whitespace-normal break-words leading-relaxed">
                     Manage, track, and review institutional programs and activities.
                   </p>
                 </div>
@@ -647,7 +654,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                 <button
                   id="add-program-btn"
                   onClick={onOpenAddModal}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-2xs hover:shadow-xs transition-all active:scale-[0.98] shrink-0 cursor-pointer border border-emerald-600/30"
+                  className="hidden sm:inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1e3a8a] hover:bg-[#1d4ed8] transition shadow-xs shrink-0 cursor-pointer active:scale-98"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Program</span>
@@ -665,30 +672,45 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search programs, categories, venues..."
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20 focus:border-[#1e3a8a] transition-colors text-slate-800"
                 />
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
-                {/* Status Filter Chips */}
-                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                {/* Status Filter Chips with Derived Counts */}
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 custom-scrollbar">
                   {[
-                    { id: 'all', label: 'All' },
-                    { id: 'upcoming', label: 'Upcoming' },
-                    { id: 'completed', label: 'Completed' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setSelectedStatus(tab.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                        selectedStatus === tab.id
-                          ? 'bg-emerald-700 text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                    { id: 'all', label: 'All', count: statusCounts.all },
+                    { id: 'upcoming', label: 'Upcoming', count: statusCounts.upcoming },
+                    ...(statusCounts.ongoing > 0
+                      ? [{ id: 'ongoing', label: 'Happening Today', count: statusCounts.ongoing }]
+                      : []),
+                    { id: 'completed', label: 'Completed', count: statusCounts.completed },
+                  ].map((tab) => {
+                    const isSelected = selectedStatus === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setSelectedStatus(tab.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] text-white shadow-xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-200/90 text-slate-600'
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Category Selector */}
@@ -696,7 +718,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full sm:w-auto px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer"
+                    className="w-full sm:w-auto px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20 focus:border-[#1e3a8a]"
                   >
                     <option value="all">All Categories</option>
                     {programCategories.map((cat) => (
@@ -821,7 +843,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             {/* Link Copy Widget */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 md:col-span-2 flex flex-col justify-between gap-4 shadow-2xs">
               <div className="space-y-1.5">
-                <span className="inline-flex px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold rounded-md">
+                <span className="inline-flex px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-900 text-[10px] font-bold rounded-md">
                   🔗 Public Registration & Proposal Portal
                 </span>
                 <h3 className="text-sm font-bold text-slate-900">Partner Sub-Wing Integration</h3>
@@ -840,8 +862,8 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                 >
                   {linkCopied ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span className="text-emerald-700">Copied!</span>
+                      <Check className="w-4 h-4 text-[#1e3a8a]" />
+                      <span className="text-[#1e3a8a]">Copied!</span>
                     </>
                   ) : (
                     <>
@@ -854,7 +876,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   href={portalUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors"
+                  className="p-2 text-slate-500 hover:text-[#1e3a8a] hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors"
                   title="Open Portal Tab"
                 >
                   <ExternalLink className="w-4 h-4" />
@@ -863,12 +885,12 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
             </div>
 
             {/* Quick Metrics */}
-            <div className="bg-emerald-800 text-white p-5 rounded-2xl flex flex-col justify-between gap-3 shadow-sm">
+            <div className="bg-gradient-to-br from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] text-white p-5 rounded-2xl flex flex-col justify-between gap-3 shadow-sm">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-emerald-300 tracking-wider uppercase">Active Sub-Wings</p>
+                <p className="text-[10px] font-bold text-blue-200 tracking-wider uppercase">Active Sub-Wings</p>
                 <h3 className="text-3xl font-black font-heading tracking-tight">{totalSubWings} Partners</h3>
               </div>
-              <div className="text-xs text-emerald-100 flex justify-between pt-3 border-t border-emerald-700/60">
+              <div className="text-xs text-blue-100 flex justify-between pt-3 border-t border-blue-400/30">
                 <span>Pending Wings: <strong>{pendingSubWingsCount}</strong></span>
                 <span>Pending Proposals: <strong>{pendingProposalsCount}</strong></span>
               </div>
@@ -883,7 +905,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               }}
               className={`pb-2.5 px-4 text-xs font-bold transition-all relative cursor-pointer ${
                 activeSubTab === 'proposals'
-                  ? 'text-emerald-700 border-b-2 border-emerald-700 font-extrabold'
+                  ? 'text-[#1e3a8a] border-b-2 border-[#1e3a8a] font-extrabold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -898,7 +920,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
               onClick={() => setActiveSubTab('partners')}
               className={`pb-2.5 px-4 text-xs font-bold transition-all relative cursor-pointer ${
                 activeSubTab === 'partners'
-                  ? 'text-emerald-700 border-b-2 border-emerald-700 font-extrabold'
+                  ? 'text-[#1e3a8a] border-b-2 border-[#1e3a8a] font-extrabold'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -921,7 +943,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-100">
                     <div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-900 font-heading flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-emerald-700" />
+                        <Building2 className="w-4 h-4 text-[#1e3a8a]" />
                         <span>Sub-Wing Program Proposals</span>
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -937,7 +959,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                           value={subWingSearch}
                           onChange={(e) => setSubWingSearch(e.target.value)}
                           placeholder="Search sub-wings..."
-                          className="w-full pl-8.5 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          className="w-full pl-8.5 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                         />
                       </div>
                     )}
@@ -984,16 +1006,16 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 setSelectedSubWingId(wing.id);
                                 setProposalFilter(stats.pending > 0 ? 'pending' : 'all');
                               }}
-                              className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+                              className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 hover:border-[#1e3a8a] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4 group"
                             >
                               <div className="space-y-3">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm flex-shrink-0 shadow-2xs">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-[#0f1f4b] text-sm flex-shrink-0 shadow-2xs">
                                       {initials}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors truncate">
+                                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#1e3a8a] transition-colors truncate">
                                         {wing.name}
                                       </h4>
                                       <p className="text-xs text-slate-500 truncate mt-0.5">
@@ -1033,7 +1055,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                   </div>
                                   <div className="border-r border-slate-200/60">
                                     <span className="text-[9px] text-slate-400 font-bold uppercase block">Approved</span>
-                                    <span className="font-bold text-emerald-600">{stats.approved}</span>
+                                    <span className="font-bold text-[#1d4ed8]">{stats.approved}</span>
                                   </div>
                                   <div>
                                     <span className="text-[9px] text-slate-400 font-bold uppercase block">Rejected</span>
@@ -1043,7 +1065,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                               </div>
 
                               <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+                                <div className="flex items-center gap-1 text-xs font-bold text-[#1e3a8a] group-hover:text-[#1d4ed8]">
                                   <span>Review Proposals →</span>
                                   <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                                 </div>
@@ -1079,7 +1101,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                         <p className="text-sm text-slate-600">Sub-Wing not found or has been removed.</p>
                         <button
                           onClick={() => setSelectedSubWingId(null)}
-                          className="px-4 py-2 bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                          className="px-4 py-2 bg-[#1e3a8a] hover:bg-[#1d4ed8] text-white text-xs font-bold rounded-xl cursor-pointer"
                         >
                           ← Back to Sub-Wings
                         </button>
@@ -1099,7 +1121,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                       <div className="flex items-center justify-between gap-3">
                         <button
                           onClick={() => setSelectedSubWingId(null)}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-800 bg-white border border-slate-200 hover:border-emerald-300 px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-2xs group"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#1e3a8a] bg-white border border-slate-200 hover:border-blue-300 px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-2xs group"
                         >
                           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
                           <span>Back to Sub-Wings</span>
@@ -1113,7 +1135,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                       {/* Selected Sub-Wing Header Card */}
                       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-base flex-shrink-0 shadow-2xs">
+                          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-[#0f1f4b] text-base flex-shrink-0 shadow-2xs">
                             {selectedSubWing.name.trim().substring(0, 2).toUpperCase() || 'SW'}
                           </div>
                           <div className="min-w-0">
@@ -1124,7 +1146,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
                                   selectedSubWing.status === 'approved'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    ? 'bg-blue-50 text-blue-900 border-blue-200'
                                     : 'bg-amber-50 text-amber-800 border-amber-200'
                                 }`}
                               >
@@ -1149,7 +1171,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                           <span className="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-bold">
                             Pending: {selectedStats.pending}
                           </span>
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl font-bold">
+                          <span className="px-3 py-1 bg-blue-50 text-blue-900 border border-blue-200 rounded-xl font-bold">
                             Approved: {selectedStats.approved}
                           </span>
                           <span className="px-3 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl font-bold">
@@ -1180,7 +1202,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             onClick={() => setProposalFilter('approved')}
                             className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
                               proposalFilter === 'approved'
-                                ? 'bg-white text-emerald-800 shadow-2xs font-bold'
+                                ? 'bg-white text-[#1e3a8a] shadow-2xs font-bold'
                                 : 'text-slate-500 hover:text-slate-800'
                             }`}
                           >
@@ -1251,13 +1273,13 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 {/* Date & Status */}
                                 <div className="flex justify-between items-center gap-2">
                                   <span className="text-xs text-slate-500 font-bold flex items-center gap-1.5">
-                                    <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
+                                    <CalendarDays className="w-3.5 h-3.5 text-[#1e3a8a]" />
                                     {formatDate(proposal.date)}
                                   </span>
                                   <span
                                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                                       proposal.subWingStatus === 'approved'
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        ? 'bg-blue-50 text-blue-900 border-blue-200'
                                         : proposal.subWingStatus === 'rejected'
                                         ? 'bg-rose-50 text-rose-800 border-rose-200'
                                         : 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
@@ -1304,12 +1326,12 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
                                 {/* Resource Person / Faculty (if provided, otherwise omitted) */}
                                 {proposal.resourcePerson && (
-                                  <div className="text-xs text-slate-700 bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/80">
-                                    <span className="font-bold block text-emerald-800 text-[9px] uppercase tracking-wider">
+                                  <div className="text-xs text-slate-700 bg-blue-50/60 p-2.5 rounded-xl border border-blue-100/80">
+                                    <span className="font-bold block text-blue-900 text-[9px] uppercase tracking-wider">
                                       Resource Person / Faculty
                                     </span>
                                     <span
-                                      className="font-semibold text-emerald-950 block mt-0.5 truncate"
+                                      className="font-semibold text-blue-950 block mt-0.5 truncate"
                                       title={proposal.resourcePerson}
                                     >
                                       {proposal.resourcePerson}
@@ -1337,7 +1359,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                               <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                                 <button
                                   onClick={() => setSelectedProposalForDetails(proposal)}
-                                  className="text-xs font-bold text-slate-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1"
+                                  className="text-xs font-bold text-slate-600 hover:text-[#1e3a8a] px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                   <span>View Details</span>
@@ -1353,7 +1375,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                     </button>
                                     <button
                                       onClick={() => handleApproveProposal(proposal.id)}
-                                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-2xs"
+                                      className="px-3 py-1.5 bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-2xs"
                                     >
                                       Approve & Publish
                                     </button>
@@ -1363,7 +1385,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 {proposal.subWingStatus === 'approved' && (
                                   <button
                                     onClick={() => viewProgramDetails(proposal.id)}
-                                    className="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                                    className="px-3 py-1.5 bg-blue-50 text-blue-900 border border-blue-200 hover:bg-blue-100 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                                   >
                                     <span>View in Official Programs</span>
                                     <ChevronRight className="w-3.5 h-3.5" />
@@ -1391,7 +1413,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                 </h3>
                 <button
                   onClick={() => setIsAddPartnerOpen(true)}
-                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-2xs"
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition-transform active:scale-95 shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Partner</span>
@@ -1418,19 +1440,19 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                     return (
                       <div
                         key={wing.id}
-                        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs hover:border-emerald-600 hover:shadow-md transition-all flex flex-col justify-between gap-4"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs hover:border-[#1e3a8a] hover:shadow-md transition-all flex flex-col justify-between gap-4"
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-xs flex-shrink-0 shadow-2xs">
+                              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-[#0f1f4b] text-xs flex-shrink-0 shadow-2xs">
                                 {initials}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <h4 className="font-bold text-slate-900 text-sm leading-snug truncate">{wing.name}</h4>
                                 <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-md text-[9px] font-extrabold border ${
                                   wing.status === 'approved'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    ? 'bg-blue-50 text-blue-900 border-blue-200'
                                     : wing.status === 'rejected'
                                     ? 'bg-rose-50 text-rose-800 border-rose-200'
                                     : 'bg-amber-50 text-amber-800 border-amber-200'
@@ -1441,7 +1463,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             </div>
 
                             {stats.total > 0 && (
-                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 shrink-0">
+                              <span className="text-[11px] font-bold text-blue-900 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 shrink-0">
                                 {stats.total} {stats.total === 1 ? 'proposal' : 'proposals'}
                               </span>
                             )}
@@ -1479,7 +1501,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                             </button>
                             <button
                               onClick={() => handleApproveSubWing(wing.id)}
-                              className="flex-1 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                              className="flex-1 py-1.5 bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
                             >
                               Approve Partner
                             </button>
@@ -1492,7 +1514,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                                 setActiveSubTab('proposals');
                                 setProposalFilter('all');
                               }}
-                              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer transition-colors"
+                              className="text-xs font-bold text-[#1e3a8a] hover:text-[#1d4ed8] flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <span>Review Proposals ({stats.total})</span>
                               <ChevronRight className="w-3.5 h-3.5" />
@@ -1555,7 +1577,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
                   placeholder="e.g. Department of Fiqh, Arts Council"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 />
               </div>
 
@@ -1567,7 +1589,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerPresident}
                   onChange={(e) => setNewPartnerPresident(e.target.value)}
                   placeholder="President's name"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 />
               </div>
 
@@ -1578,7 +1600,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerContact}
                   onChange={(e) => setNewPartnerContact(e.target.value)}
                   placeholder="Phone number, Telegram, etc."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 />
               </div>
 
@@ -1590,7 +1612,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerEmail}
                   onChange={(e) => setNewPartnerEmail(e.target.value)}
                   placeholder="partner@munazzam.org"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 />
               </div>
 
@@ -1602,7 +1624,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerPassword}
                   onChange={(e) => setNewPartnerPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 />
               </div>
 
@@ -1613,7 +1635,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   value={newPartnerDesc}
                   onChange={(e) => setNewPartnerDesc(e.target.value)}
                   placeholder="Notes about sub-wing activities or department targets..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20 resize-none"
                 />
               </div>
 
@@ -1628,7 +1650,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                 <button
                   type="submit"
                   disabled={addPartnerSubmitting}
-                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] disabled:bg-slate-300 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                 >
                   {addPartnerSubmitting ? 'Registering...' : 'Register Partner'}
                 </button>
@@ -1644,7 +1666,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 w-full max-w-lg space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start pb-3 border-b border-slate-100">
               <div className="space-y-0.5">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-wider block">
                   Sub-Wing Proposal Review
                 </span>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
@@ -1707,9 +1729,9 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
 
             {/* Resource Person / Faculty */}
             {selectedProposalForDetails.resourcePerson && (
-              <div className="text-xs bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100">
-                <span className="font-bold text-emerald-800 text-[10px] uppercase block">Resource Person / Faculty</span>
-                <span className="font-semibold text-emerald-950 block mt-0.5">{selectedProposalForDetails.resourcePerson}</span>
+              <div className="text-xs bg-blue-50/70 p-3 rounded-2xl border border-blue-100">
+                <span className="font-bold text-blue-900 text-[10px] uppercase block">Resource Person / Faculty</span>
+                <span className="font-semibold text-blue-950 block mt-0.5">{selectedProposalForDetails.resourcePerson}</span>
               </div>
             )}
 
@@ -1779,7 +1801,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleApproveProposal(selectedProposalForDetails.id)}
-                    className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
+                    className="flex-1 py-2.5 bg-gradient-to-r from-[#0f1f4b] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-2xs"
                   >
                     Approve & Publish
                   </button>
@@ -1895,6 +1917,20 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Mobile-Only Floating Action Button (FAB) */}
+      {isAdmin && (
+        <button
+          id="mobile-add-program-fab"
+          type="button"
+          onClick={onOpenAddModal}
+          aria-label="Add Program"
+          className="sm:hidden fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] z-40 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] text-white font-bold text-xs shadow-[0_8px_24px_rgba(30,58,138,0.45)] border border-blue-400/30 transition-all duration-200 active:scale-95 cursor-pointer touch-manipulation select-none"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Add Program</span>
+        </button>
+      )}
     </div>
   );
 };

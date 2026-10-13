@@ -6,9 +6,10 @@ import { AdminDashboard } from './AdminDashboard';
 import { SubOrgDashboard } from './SubOrgDashboard';
 import { ViewerDashboard } from './ViewerDashboard';
 import { PortalUnavailableScreen } from './PortalUnavailableScreen';
-import { LogOut, Shield, Users, Award, Eye, EyeOff, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { LogOut, Shield, Users, Award, Eye, EyeOff, Trophy, HelpCircle, Mail, Lock, User, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { createNotification } from '../../services/notificationService';
+import { PointsSetupWizardModal } from './PointsSetupWizardModal';
 
 const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => void }> = ({ regCode, onBackToLogin }) => {
   const { registerSubOrganization, getRegistrationLinkStatus, loginPortalUser } = usePortal();
@@ -506,9 +507,11 @@ const StudentPointsInner: React.FC = () => {
     portalErrorMessage,
     loading,
     rejectionInfo,
-    clearRejectionInfo
+    clearRejectionInfo,
+    competitions
   } = usePortal();
   const [explicitLogout, setExplicitLogout] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   // Check query parameter/hash for registration token
   const [regCode, setRegCode] = useState<string | null>(null);
@@ -1012,6 +1015,8 @@ const StudentPointsInner: React.FC = () => {
     return <PortalLogin onJoinAsViewer={() => setShowLogin(false)} />;
   }
 
+  const hasActivePeriod = competitions.some(c => c.status === 'active');
+
   // Public Mode Default: Show clean responsive header with [ Login as Sub-Org ] button, and render the ViewerDashboard directly
   return (
     <div className="space-y-6" id="public-portal-dashboard-wrapper">
@@ -1027,7 +1032,16 @@ const StudentPointsInner: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          {!hasActivePeriod && (
+            <button
+              onClick={() => setIsWizardOpen(true)}
+              className="py-2.5 px-3.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+              <span>Setup Wizard</span>
+            </button>
+          )}
           <button
             onClick={() => {
               setSuborgViewMode('login');
@@ -1041,7 +1055,35 @@ const StudentPointsInner: React.FC = () => {
         </div>
       </div>
 
+      {!hasActivePeriod && (
+        <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-xl text-amber-800 shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-slate-900">No Active Evaluation Period</h4>
+              <p className="text-[11px] text-slate-600">
+                Extracurricular point submissions and rankings are awaiting an active evaluation cycle.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsWizardOpen(true)}
+            className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+          >
+            <Sparkles className="w-3 h-3 text-emerald-200" />
+            <span>Launch Points Wizard</span>
+          </button>
+        </div>
+      )}
+
       <ViewerDashboard />
+
+      <PointsSetupWizardModal
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+      />
     </div>
   );
 }

@@ -1835,7 +1835,7 @@ export const AppProvider: React.FC<{
       description: (prog.description || '').trim(),
       poster: prog.poster || '',
       media: formattedMedia,
-      status: prog.status || determineProgramStatusByDate(prog.date || now.split('T')[0]),
+      status: determineProgramStatusByDate(prog.date || now.split('T')[0]),
       attendance_count: prog.attendance_count !== undefined && !isNaN(Number(prog.attendance_count)) ? Number(prog.attendance_count) : 0,
       resourcePerson: (prog.resourcePerson || '').trim(),
       created_at: now,
@@ -1926,14 +1926,18 @@ export const AppProvider: React.FC<{
     };
 
     if (prog.name !== undefined) updatesToApply.name = (prog.name || '').trim();
-    if (prog.date !== undefined) updatesToApply.date = prog.date;
+    if (prog.date !== undefined) {
+      updatesToApply.date = prog.date;
+      updatesToApply.status = determineProgramStatusByDate(prog.date);
+    } else if (prog.status !== undefined) {
+      updatesToApply.status = prog.status;
+    }
     if (prog.time !== undefined) updatesToApply.time = prog.time;
     if (prog.place !== undefined) updatesToApply.place = (prog.place || '').trim();
     if (prog.audience !== undefined) updatesToApply.audience = prog.audience;
     if (prog.description !== undefined) updatesToApply.description = (prog.description || '').trim();
     if (prog.poster !== undefined) updatesToApply.poster = prog.poster;
     if (prog.media !== undefined) updatesToApply.media = prog.media;
-    if (prog.status !== undefined) updatesToApply.status = prog.status;
     if (prog.resourcePerson !== undefined) updatesToApply.resourcePerson = (prog.resourcePerson || '').trim();
     if (prog.subCategory !== undefined) updatesToApply.subCategory = (prog.subCategory || '').trim() || '';
     if (prog.attendance_count !== undefined) {
@@ -1950,7 +1954,14 @@ export const AppProvider: React.FC<{
     const payload = cleanFirestorePayload(updatesToApply);
 
     setPrograms((prev) => {
-      const updated = prev.map((p) => (p.id === prog.id ? { ...p, ...prog, updated_at: now } : p));
+      const updated = prev.map((p) => {
+        if (p.id !== prog.id) return p;
+        const merged = { ...p, ...prog, updated_at: now };
+        return {
+          ...merged,
+          status: getProgramEffectiveStatus(merged),
+        };
+      });
       try {
         localStorage.setItem('local_programs', JSON.stringify(updated));
       } catch {}

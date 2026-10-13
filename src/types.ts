@@ -164,7 +164,7 @@ export interface Program {
   description: string;
   poster: string;
   media: ProgramMedia[];
-  status?: 'completed' | 'upcoming';
+  status?: 'completed' | 'upcoming' | 'ongoing';
   attendance_count?: number;
   created_at: string;
   updated_at: string;

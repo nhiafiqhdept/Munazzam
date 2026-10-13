@@ -50,7 +50,7 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
             <h2 className="text-2xl sm:text-3xl font-bold text-white font-heading leading-tight">
               {organizer.name}
             </h2>
-            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full border border-emerald-400 shadow-sm">
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full border border-blue-400 shadow-sm">
               <Shield className="w-3.5 h-3.5" />
               <span>{organizer.position}</span>
             </div>
@@ -74,7 +74,7 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
             
             {organizer.email && (
               <div className="flex items-center gap-3 text-slate-700">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                   <Mail className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">

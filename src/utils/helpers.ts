@@ -236,91 +236,229 @@ export const DEFAULT_CATEGORY_NAMES = [
 
 export const DEFAULT_ORG_LOGO = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>';
 
-export function determineProgramStatusByDate(dateStr: string): 'upcoming' | 'completed' {
-  if (!dateStr) return 'upcoming';
-  
+/**
+ * Returns today's date string (YYYY-MM-DD) in Asia/Kolkata timezone.
+ */
+export function getKolkataTodayDateString(): string {
   try {
-    // Current date in local time
-    const today = new Date();
-    // Reset hours, minutes, seconds, ms for today to do a pure date comparison
-    today.setHours(0, 0, 0, 0);
-    
-    // Parse the program date
-    let progDate = new Date(dateStr);
-    
-    // If the input date is just YYYY-MM-DD, parsing it with `new Date('YYYY-MM-DD')`
-    // in JS defaults to UTC midnight, which when converted to local time might shift to the previous day!
-    // To prevent timezone shifting, we should parse the YYYY-MM-DD manually in local time:
-    if (typeof dateStr === 'string' && dateStr.includes('-') && !dateStr.includes('T')) {
-      const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // 0-indexed
-        const day = parseInt(parts[2], 10);
-        progDate = new Date(year, month, day, 0, 0, 0, 0);
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date()); // e.g. "2026-10-12"
+  } catch {
+    const d = new Date();
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const istTime = new Date(utc + (3600000 * 5.5));
+    const year = istTime.getFullYear();
+    const month = String(istTime.getMonth() + 1).padStart(2, '0');
+    const day = String(istTime.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+}
+
+/**
+ * Normalizes a given date string into a clean YYYY-MM-DD representation in Asia/Kolkata.
+ */
+export function normalizeDateToKolkataYMD(dateStr?: string): string {
+  if (!dateStr) return '';
+  const trimmed = dateStr.trim();
+
+  // If date starts with YYYY-MM-DD
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymdMatch) {
+    const y = ymdMatch[1];
+    const m = ymdMatch[2].padStart(2, '0');
+    const d = ymdMatch[3].padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Handle slashes: YYYY/MM/DD or MM/DD/YYYY
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      } else {
+        return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
       }
-    } else if (typeof dateStr === 'string' && dateStr.includes('/') && !dateStr.includes('T')) {
-      // Sometimes dates are in MM/DD/YYYY format
-      const parts = dateStr.split('/');
-      if (parts.length === 3) {
-        let month = parseInt(parts[0], 10) - 1;
-        let day = parseInt(parts[1], 10);
-        let year = parseInt(parts[2], 10);
-        // handle YYYY/MM/DD
-        if (parts[0].length === 4) {
-          year = parseInt(parts[0], 10);
-          month = parseInt(parts[1], 10) - 1;
-          day = parseInt(parts[2], 10);
-        }
-        progDate = new Date(year, month, day, 0, 0, 0, 0);
-      }
     }
-    
-    // If invalid date parsing fallback, use standard date
-    if (isNaN(progDate.getTime())) {
-      progDate = new Date(dateStr);
+  }
+
+  // Fallback parsing with timezone conversion
+  try {
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      return formatter.format(parsed);
     }
-    
-    // Reset time of program date to midnight for comparison
-    progDate.setHours(0, 0, 0, 0);
-    
-    // IF program date is today or in the future: upcoming, otherwise: completed
-    if (progDate.getTime() >= today.getTime()) {
-      return 'upcoming';
-    } else {
-      return 'completed';
-    }
-  } catch (err) {
-    console.error('Error determining program status:', err);
-    return 'upcoming'; // safe fallback
+  } catch {}
+
+  return trimmed;
+}
+
+/**
+ * Derives a program's status strictly from its date relative to today in Asia/Kolkata:
+ * - date < today (Asia/Kolkata) => 'completed'
+ * - date === today (Asia/Kolkata) => 'ongoing' (Happening Today / Ongoing)
+ * - date > today (Asia/Kolkata) => 'upcoming'
+ */
+export function determineProgramStatusByDate(
+  dateStr?: string
+): 'completed' | 'ongoing' | 'upcoming' {
+  if (!dateStr) return 'upcoming';
+
+  const progYMD = normalizeDateToKolkataYMD(dateStr);
+  if (!progYMD) return 'upcoming';
+
+  const todayYMD = getKolkataTodayDateString();
+
+  if (progYMD < todayYMD) {
+    return 'completed';
+  } else if (progYMD === todayYMD) {
+    return 'ongoing';
+  } else {
+    return 'upcoming';
   }
 }
 
 /**
  * Resolves the effective status for a program.
- * - If an explicit status is saved ('completed' | 'upcoming'), it is treated as AUTHORITATIVE and returned directly.
- * - If no status is saved on the record (or legacy 'ongoing'), derives the default status based on the program date.
+ * - Always derives status from the program's date relative to today (Asia/Kolkata).
+ * - If a stored/manual status exists, the date-derived status overrides it to ensure
+ *   past programs are Completed, today's are Ongoing, and future programs are Upcoming.
  */
 export function getProgramEffectiveStatus(prog?: {
   date?: string;
   status?: string;
   subWingId?: string;
   subWingStatus?: string;
-}): 'upcoming' | 'completed' {
+}): 'completed' | 'ongoing' | 'upcoming' {
   if (!prog) return 'upcoming';
 
-  // If the record has a valid saved status, it is authoritative (manual Admin choice)
-  if (prog.status && typeof prog.status === 'string') {
-    const s = prog.status.trim().toLowerCase();
-    if (s === 'completed' || s === 'upcoming') {
-      return s as 'upcoming' | 'completed';
-    }
-  }
-
-  // Fallback: If no status was saved or legacy 'ongoing', determine default status by date
+  // Primary source of truth: date relative to today (Asia/Kolkata)
   if (prog.date) {
     return determineProgramStatusByDate(prog.date);
   }
 
+  // Fallback if no date is recorded on the document
+  if (prog.status && typeof prog.status === 'string') {
+    const s = prog.status.trim().toLowerCase();
+    if (s === 'completed' || s === 'ongoing' || s === 'upcoming') {
+      return s as 'completed' | 'ongoing' | 'upcoming';
+    }
+  }
+
   return 'upcoming';
 }
+
+/**
+ * Visual metadata and labels for program statuses.
+ */
+export function getProgramStatusDisplay(status: 'completed' | 'ongoing' | 'upcoming' | string): {
+  label: string;
+  badgeText: string;
+  subLabel: string;
+} {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'completed') {
+    return {
+      label: 'Completed',
+      badgeText: 'COMPLETED',
+      subLabel: 'Event concluded (Past date)',
+    };
+  }
+  if (normalized === 'ongoing') {
+    return {
+      label: 'Happening Today / Ongoing',
+      badgeText: 'HAPPENING TODAY',
+      subLabel: 'Scheduled for today (Asia/Kolkata)',
+    };
+  }
+  return {
+    label: 'Upcoming',
+    badgeText: 'UPCOMING',
+    subLabel: 'Future event scheduled',
+  };
+}
+
+/**
+ * Role badge styling matching the approved navy/indigo/amber/sky-blue design system:
+ * - Indigo for HOD/Faculty/Dean/Advisor
+ * - Royal blue for Chairman/Convenor/President/Secretary
+ * - Warm amber for Treasurer/Finance Secretary
+ * - Sky blue for PRO/Public Relations/Media
+ * - Supporting violet/slate for other roles
+ */
+export function getRoleBadgeStyle(position?: string): {
+  badge: string;
+  dot: string;
+  category: 'indigo' | 'royal' | 'amber' | 'sky' | 'default';
+} {
+  const pos = (position || '').toLowerCase();
+
+  // Indigo for HOD/Faculty/Dean/Advisor
+  if (
+    pos.includes('hod') ||
+    pos.includes('faculty') ||
+    pos.includes('head') ||
+    pos.includes('dean') ||
+    pos.includes('advisor') ||
+    pos.includes('professor')
+  ) {
+    return {
+      badge: 'bg-indigo-50 text-indigo-700 border-indigo-200/90',
+      dot: 'bg-indigo-500',
+      category: 'indigo',
+    };
+  }
+
+  // Warm Amber for Treasurer / Finance Secretary
+  if (pos.includes('treasurer') || pos.includes('finance')) {
+    return {
+      badge: 'bg-amber-50 text-amber-800 border-amber-200/90',
+      dot: 'bg-amber-500',
+      category: 'amber',
+    };
+  }
+
+  // Sky blue for PRO / Public Relations / Media
+  if (pos.includes('pro') || pos.includes('public relation') || pos.includes('media')) {
+    return {
+      badge: 'bg-sky-50 text-sky-700 border-sky-200/90',
+      dot: 'bg-sky-500',
+      category: 'sky',
+    };
+  }
+
+  // Royal Blue for Chairman / Convenor / President / General Secretary
+  if (
+    pos.includes('chairman') ||
+    pos.includes('convenor') ||
+    pos.includes('conveener') ||
+    pos.includes('president') ||
+    pos.includes('secretary') ||
+    pos.includes('leader')
+  ) {
+    return {
+      badge: 'bg-blue-50 text-[#1d4ed8] border-blue-200/90',
+      dot: 'bg-blue-500',
+      category: 'royal',
+    };
+  }
+
+  // Supporting Violet / Slate for other roles
+  return {
+    badge: 'bg-violet-50 text-violet-700 border-violet-200/90',
+    dot: 'bg-violet-500',
+    category: 'default',
+  };
+}
+

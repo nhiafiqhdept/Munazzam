@@ -73,7 +73,7 @@ export const Navigation: React.FC = () => {
                 onClick={() => handleTabClick(item.id)}
                 className={`flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 cursor-pointer select-none group touch-manipulation ${
                   active
-                    ? 'text-[#0B7A5A] font-bold'
+                    ? 'text-[#1e3a8a] font-bold'
                     : 'text-slate-400 hover:text-slate-600 font-medium'
                 }`}
                 aria-label={item.label}
@@ -81,18 +81,18 @@ export const Navigation: React.FC = () => {
                 <div
                   className={`relative flex items-center justify-center p-1.5 rounded-xl transition-all duration-200 ${
                     active
-                      ? 'bg-emerald-50 text-[#0B7A5A] scale-105 shadow-2xs'
+                      ? 'bg-blue-50 text-[#1e3a8a] scale-105 shadow-2xs ring-1 ring-blue-900/10'
                       : 'group-active:scale-95 text-slate-400 group-hover:text-slate-600'
                   }`}
                 >
                   <Icon className="w-5 h-5 sm:w-5 sm:h-5 stroke-[2.2]" />
                   {active && (
-                    <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[#0B7A5A]" />
+                    <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[#1e3a8a]" />
                   )}
                 </div>
                 <span
                   className={`text-[10px] sm:text-[11px] tracking-tight mt-0.5 leading-tight transition-colors truncate w-full text-center ${
-                    active ? 'text-[#0B7A5A] font-bold' : 'text-slate-500 font-medium'
+                    active ? 'text-[#1e3a8a] font-bold' : 'text-slate-500 font-medium'
                   }`}
                 >
                   {item.label}

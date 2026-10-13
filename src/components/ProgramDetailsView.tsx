@@ -460,7 +460,12 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
             <div className="space-y-4">
               {/* Badges Ribbon */}
               <div className="flex flex-wrap items-center gap-2">
-                {effectiveStatus === 'upcoming' ? (
+                {effectiveStatus === 'ongoing' ? (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/25 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+                    Happening Today / Ongoing
+                  </span>
+                ) : effectiveStatus === 'upcoming' ? (
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                     Upcoming
@@ -627,7 +632,12 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
         <div className="p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 flex-wrap">
-              {effectiveStatus === 'upcoming' ? (
+              {effectiveStatus === 'ongoing' ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                  Happening Today
+                </span>
+              ) : effectiveStatus === 'upcoming' ? (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 uppercase tracking-wider flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                   Upcoming

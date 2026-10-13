@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, ArrowRight, Camera, Sparkles, Clock } from 'lucide-react';
 import { Program } from '../types';
-import { ProgramThumbnail, getThemesForProgramList } from './ProgramCard';
+import { CardTheme, THUMBNAIL_THEMES, getThemesForProgramList, getDecorativeIcon } from './ProgramCard';
+import { formatDate, getProgramEffectiveStatus } from '../utils/helpers';
 
 interface UpcomingProgramsCarouselProps {
   programs: Program[];
   onViewDetails: (id: string) => void;
+  onOpenAddProgram?: () => void;
 }
 
 function getSlideIndex(offset: number, current: number, total: number): number {
@@ -13,24 +15,182 @@ function getSlideIndex(offset: number, current: number, total: number): number {
   return ((current + offset) % total + total) % total;
 }
 
+/**
+ * Format program date cleanly for hero showcase badge
+ */
+function formatShowcaseDate(dateStr?: string): string {
+  if (!dateStr) return 'Date TBA';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Modern Hero Showcase Card designed specifically for the prominent hero showcase
+ */
+interface ShowcaseCardProps {
+  program: Program;
+  theme: CardTheme;
+  onViewDetails?: (id: string) => void;
+  interactive?: boolean;
+  isCenter?: boolean;
+  className?: string;
+}
+
+const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
+  program,
+  theme,
+  onViewDetails,
+  interactive = true,
+  isCenter = true,
+  className = '',
+}) => {
+  const effectiveStatus = getProgramEffectiveStatus(program);
+  const IconComponent = getDecorativeIcon(program);
+  const dateFormatted = formatShowcaseDate(program.date);
+  const categoryText = (
+    program.subWingName ||
+    program.category ||
+    'Academic Event'
+  ).toUpperCase();
+
+  return (
+    <div
+      onClick={() => {
+        if (interactive && onViewDetails) {
+          onViewDetails(program.id);
+        }
+      }}
+      className={`relative w-full h-full rounded-2xl overflow-hidden select-none flex flex-col justify-between p-4 sm:p-5 lg:p-6 transition-all duration-300 ${
+        interactive ? 'cursor-pointer' : ''
+      } ${className}`}
+    >
+      {/* Rich Backdrop Gradient (using theme with deep navy/royal/amber palettes) */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient || 'from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8]'}`} />
+
+      {/* Subtle Decorative Star/Grid Pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.14] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+        }}
+      />
+
+      {/* Ambient Radial Lighting Overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-45 mix-blend-screen"
+        style={{
+          background: `radial-gradient(ellipse at 50% 35%, ${theme.glow || 'rgba(59,130,246,0.35)'} 0%, transparent 75%)`,
+        }}
+      />
+
+      {/* TOP ROW: Date Badge + Status Badge */}
+      <div className="relative z-10 flex items-center justify-between gap-2 w-full flex-wrap">
+
+
+        {/* Colour-Coded Status Badge:
+            - Happening Today: warm amber (#f59e0b / amber-400)
+            - Upcoming: vibrant royal blue
+            - Completed: elegant slate
+        */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {effectiveStatus === 'ongoing' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-amber-400 text-amber-950 border border-amber-300 text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-sm ring-1 ring-amber-400/40">
+              <span className="w-2 h-2 rounded-full bg-amber-950 animate-pulse" />
+              Happening Today
+            </span>
+          ) : effectiveStatus === 'completed' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-slate-700/95 text-slate-100 border border-slate-500/80 text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-slate-300" />
+              Completed
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-blue-600 text-white border border-blue-400/80 text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-sm ring-1 ring-blue-400/30">
+              <span className="w-2 h-2 rounded-full bg-sky-200" />
+              Upcoming
+            </span>
+          )}
+
+          {program.media && program.media.length > 0 && (
+            <span className="px-2 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-amber-300 text-[10px] font-bold flex items-center gap-1">
+              <Camera className="w-3 h-3" />
+              <span>{program.media.length}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* CENTER ROW: Decorative Icon + Program Title + Category */}
+      <div className="relative z-10 my-auto flex flex-col items-center justify-center text-center px-2 py-2">
+        {/* Translucent Frosted Glass Circle Icon */}
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/15 backdrop-blur-xs border border-white/25 flex items-center justify-center text-white mb-2.5 shadow-sm group-hover:scale-110 transition-transform">
+          <IconComponent className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+        </div>
+
+        {/* Large Bold Uppercase Program Title */}
+        <h3 className="text-base sm:text-xl md:text-2xl font-black uppercase tracking-tight text-white leading-tight line-clamp-2 px-2 drop-shadow-md font-heading">
+          {program.name}
+        </h3>
+
+        {/* Category Pill + Venue/Time */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-white/15 text-white/90 backdrop-blur-xs border border-white/20">
+            {categoryText}
+          </span>
+          {program.place && (
+            <span className="text-[11px] sm:text-xs text-white/80 font-medium truncate max-w-[200px]">
+              • {program.place}
+            </span>
+          )}
+        </div>
+      </div>
+
+
+    </div>
+  );
+};
+
 export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> = ({
   programs,
   onViewDetails,
+  onOpenAddProgram,
 }) => {
-  // Filter strictly for authoritative saved status 'upcoming'
-  const upcomingPrograms = React.useMemo(() => {
-    return programs
-      .filter((p) => p.status && p.status.trim().toLowerCase() === 'upcoming')
-      .sort((a, b) => {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        return dateA - dateB;
-      });
+  // Filter and sort programs:
+  // 1. Ongoing (Happening Today) first
+  // 2. Upcoming (sorted nearest date ascending) next
+  // 3. Completed (sorted recent date descending) next
+  // Ensures all three status badges appear accurately with real dates
+  const showcasePrograms = useMemo(() => {
+    const ongoing: Program[] = [];
+    const upcoming: Program[] = [];
+    const completed: Program[] = [];
+
+    programs.forEach((p) => {
+      const derived = getProgramEffectiveStatus(p);
+      if (derived === 'ongoing') ongoing.push(p);
+      else if (derived === 'upcoming') upcoming.push(p);
+    });
+
+    ongoing.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+    upcoming.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+
+    // Combine all
+    return [...ongoing, ...upcoming];
   }, [programs]);
 
-  const programThemes = React.useMemo(() => {
-    return getThemesForProgramList(upcomingPrograms);
-  }, [upcomingPrograms]);
+  const programThemes = useMemo(() => {
+    return getThemesForProgramList(showcasePrograms);
+  }, [showcasePrograms]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -42,7 +202,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAnimatingRef = useRef(false);
 
-  // Measure desktop container width for responsive carousel layout without overflow
+  // Desktop container reference
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1000);
 
@@ -53,7 +213,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     return false;
   });
 
-  const totalSlides = upcomingPrograms.length;
+  const totalSlides = showcasePrograms.length;
 
   // Check prefers-reduced-motion
   const prefersReducedMotion = useRef(false);
@@ -63,7 +223,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     }
   }, []);
 
-  // Track window resize to toggle desktop mode
+  // Window resize listener
   useEffect(() => {
     const handleResize = () => {
       setIsDesktop(window.innerWidth >= 1024);
@@ -72,7 +232,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Measure desktop container dynamically
+  // Measure desktop container
   useEffect(() => {
     if (!desktopContainerRef.current) return;
     const updateWidth = () => {
@@ -86,7 +246,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     return () => ro.disconnect();
   }, [isDesktop]);
 
-  // Cleanup all timers on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
@@ -144,8 +304,8 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     }, 300);
   }, [totalSlides]);
 
-  // Autoplay handler:
-  // Strictly preserves 1200ms interval for mobile view, and uses 900ms for desktop view
+  // CRITICAL REQUIREMENT 2:
+  // Strict preservation of existing auto-scroll behavior: 900ms desktop, 1200ms mobile
   useEffect(() => {
     if (autoplayTimerRef.current) {
       clearInterval(autoplayTimerRef.current);
@@ -174,13 +334,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     };
   }, [totalSlides, isPaused, isDesktop, handleNext]);
 
-  if (totalSlides === 0) {
-    return null;
-  }
-
-  const currentProgram = upcomingPrograms[currentIndex] || upcomingPrograms[0];
-
-  // Mobile Touch handlers (strictly unmodified)
+  // Mobile touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
     if (resumeTimerRef.current) {
@@ -195,10 +349,8 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     const diffX = e.changedTouches[0].clientX - touchStartXRef.current;
     if (Math.abs(diffX) > 40) {
       if (diffX > 0) {
-        // Swipe right -> previous
         setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
       } else {
-        // Swipe left -> next
         setCurrentIndex((prev) => (prev + 1) % totalSlides);
       }
     }
@@ -206,7 +358,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     pauseTemporarily(2000);
   };
 
-  // Desktop Mouse Drag / Swipe Handlers
+  // Desktop drag handlers
   const handleDesktopMouseDown = (e: React.MouseEvent) => {
     touchStartXRef.current = e.clientX;
     setIsPaused(true);
@@ -226,15 +378,44 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     pauseTemporarily(2500);
   };
 
-  // Dimensions calculation for Desktop 3-poster display
-  // Ensures 3 posters sit horizontally with center card dominant, without clipping or horizontal overflow
+  // If there are 0 programs, render an inviting showcase placeholder card
+  if (totalSlides === 0) {
+    return (
+      <section className="w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs text-center">
+        <div className="max-w-md mx-auto space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-[#1e3a8a] flex items-center justify-center mx-auto shadow-xs">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <h3 className="text-base sm:text-lg font-bold font-heading text-slate-900">
+            No Programs Scheduled
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Add events and activities to showcase them live on the executive dashboard carousel.
+          </p>
+          {onOpenAddProgram && (
+            <button
+              type="button"
+              onClick={onOpenAddProgram}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1e3a8a] hover:bg-[#1d4ed8] text-white text-xs font-bold transition-colors cursor-pointer shadow-sm mt-1"
+            >
+              <span>+ Add First Program</span>
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  const currentProgram = showcasePrograms[currentIndex] || showcasePrograms[0];
+
+  // Desktop Dimensions: Prominent Hero Showcase
+  // Card height 290px, prominent cardWidth up to 460px
   const gap = 24;
   const availableWidth = Math.max(700, containerWidth - 48);
-  const cardWidth = Math.min(440, Math.max(290, Math.floor((availableWidth - 2 * gap) / 2.92)));
+  const cardWidth = Math.min(480, Math.max(320, Math.floor((availableWidth - 2 * gap) / 2.75)));
   const shiftX = cardWidth + gap;
-  const cardHeight = 256;
+  const cardHeight = 290;
 
-  // Offsets rendered in desktop sliding track: [-2, -1, 0, 1, 2]
   const desktopOffsets = [-2, -1, 0, 1, 2];
 
   const trackTransform =
@@ -249,10 +430,11 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     : 'none';
 
   return (
-    <section className="w-full">
+    <section className="w-full space-y-3" data-purpose="hero-programs-showcase">
+
+
       {/* ============================================================== */}
       {/* 1. MOBILE VIEW (Screens < 1024px)                             */}
-      {/* STRICTLY PRESERVED: Design, dimensions, autoplay, swipe untouched*/}
       {/* ============================================================== */}
       <div className="block lg:hidden">
         <div
@@ -268,20 +450,24 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Render ONLY the exact Program Thumbnail with smooth 300ms transition */}
-          <div className="w-full transition-all duration-300 ease-in-out transform">
-            <ProgramThumbnail
+          {/* Card Container */}
+          <div className="w-full h-[260px] rounded-2xl shadow-md overflow-hidden transition-all duration-300 ease-in-out">
+            <ShowcaseCard
               program={currentProgram}
-              onViewDetails={onViewDetails}
               theme={programThemes[currentIndex]}
-              positionIndex={currentIndex}
+              onViewDetails={onViewDetails}
+              interactive={true}
+              isCenter={true}
             />
           </div>
 
-          {/* Pagination Indicators (Below Thumbnail) */}
+          {/* Mobile Left & Right Arrows */}
+          {totalSlides > 1 && null}
+
+          {/* Mobile Pagination Indicators */}
           {totalSlides > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-3">
-              {upcomingPrograms.map((_, idx) => (
+            <div className="flex items-center justify-center gap-1.5 pt-3">
+              {showcasePrograms.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -291,7 +477,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                   }}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                     currentIndex === idx
-                      ? 'w-6 bg-emerald-600'
+                      ? 'w-6 bg-blue-600 shadow-xs'
                       : 'w-2 bg-slate-300 hover:bg-slate-400'
                   }`}
                   aria-label={`Go to slide ${idx + 1}`}
@@ -303,8 +489,7 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
       </div>
 
       {/* ============================================================== */}
-      {/* 2. DESKTOP CINEMATIC 3-POSTER CAROUSEL (Screens >= 1024px)     */}
-      {/* Professional 3-poster display: Center highlighted, sides subdued*/}
+      {/* 2. DESKTOP CINEMATIC 3-POSTER HERO SHOWCASE (Screens >= 1024px) */}
       {/* ============================================================== */}
       <div
         ref={desktopContainerRef}
@@ -321,38 +506,40 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
         onMouseUp={handleDesktopMouseUp}
       >
         {totalSlides === 1 ? (
-          /* Single slide on desktop: perfectly centered, highlighted */
+          /* Single slide on desktop */
           <div className="flex justify-center items-center py-4">
             <div style={{ width: cardWidth, height: cardHeight }} className="relative">
               <div
-                className="absolute -inset-2.5 rounded-3xl -z-10 pointer-events-none transition-all duration-500"
+                className="absolute -inset-3 rounded-3xl -z-10 pointer-events-none transition-all duration-500"
                 style={{
-                  background: programThemes[0]?.glow || 'rgba(16,185,129,0.3)',
-                  filter: 'blur(24px)',
-                  opacity: 0.45,
+                  background: programThemes[0]?.glow || 'rgba(29,78,216,0.35)',
+                  filter: 'blur(26px)',
+                  opacity: 0.5,
                 }}
               />
-              <ProgramThumbnail
-                program={upcomingPrograms[0]}
-                onViewDetails={onViewDetails}
-                theme={programThemes[0]}
-                positionIndex={0}
-                className="shadow-[0_20px_45px_-12px_rgba(0,0,0,0.35)] ring-1 ring-white/20"
-              />
+              <div className="w-full h-full rounded-2xl shadow-[0_20px_45px_-12px_rgba(15,31,75,0.4)] ring-1 ring-white/25">
+                <ShowcaseCard
+                  program={showcasePrograms[0]}
+                  theme={programThemes[0]}
+                  onViewDetails={onViewDetails}
+                  interactive={true}
+                  isCenter={true}
+                />
+              </div>
             </div>
           </div>
         ) : (
           /* 3-Poster Horizontal Stage */
-          <div className="relative w-full h-[300px] overflow-hidden py-3">
+          <div className="relative w-full h-[340px] overflow-hidden py-3">
             {/* Ambient Radial Backlight for Center Poster */}
             <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[260px] rounded-full pointer-events-none -z-10 transition-colors duration-300"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[300px] rounded-full pointer-events-none -z-10 transition-colors duration-300"
               style={{
                 background: `radial-gradient(ellipse at center, ${
-                  programThemes[currentIndex]?.glow || 'rgba(16,185,129,0.35)'
+                  programThemes[currentIndex]?.glow || 'rgba(29,78,216,0.35)'
                 } 0%, transparent 70%)`,
-                filter: 'blur(40px)',
-                opacity: 0.5,
+                filter: 'blur(42px)',
+                opacity: 0.55,
               }}
             />
 
@@ -366,10 +553,9 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
             >
               {desktopOffsets.map((off) => {
                 const slideIdx = getSlideIndex(off, currentIndex, totalSlides);
-                const prog = upcomingPrograms[slideIdx];
+                const prog = showcasePrograms[slideIdx];
                 const theme = programThemes[slideIdx];
 
-                // Compute effective target slot during animation for scale and focus transitions
                 let effectiveOff = off;
                 if (slidingDirection === 'next') {
                   effectiveOff = off - 1;
@@ -426,20 +612,17 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                       isCenter
                         ? 'cursor-pointer'
                         : isSide
-                        ? 'cursor-pointer hover:opacity-80 transition-opacity'
+                        ? 'cursor-pointer hover:opacity-85 transition-opacity'
                         : ''
                     }`}
                     onClick={() => {
                       if (isAnimatingRef.current) return;
                       if (off === 0) {
-                        // Click on center poster opens full program details
                         onViewDetails(prog.id);
                       } else if (off === -1) {
-                        // Click on left poster smoothly navigates to it
                         handlePrev();
                         pauseTemporarily(3000);
                       } else if (off === 1) {
-                        // Click on right poster smoothly navigates to it
                         handleNext();
                         pauseTemporarily(3000);
                       }
@@ -452,38 +635,38 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                         : `Next: ${prog.name} (Click to focus)`
                     }
                   >
-                    {/* Ambient Glow behind center poster */}
+                    {/* Center Poster Backlight Glow */}
                     {isCenter && (
                       <div
-                        className="absolute -inset-3 rounded-3xl -z-10 pointer-events-none transition-all duration-300"
+                        className="absolute -inset-3.5 rounded-3xl -z-10 pointer-events-none transition-all duration-300"
                         style={{
-                          background: theme?.glow || 'rgba(16,185,129,0.3)',
-                          filter: 'blur(20px)',
-                          opacity: 0.45,
+                          background: theme?.glow || 'rgba(29,78,216,0.35)',
+                          filter: 'blur(24px)',
+                          opacity: 0.5,
                         }}
                       />
                     )}
 
-                    {/* Program Thumbnail Container */}
+                    {/* Program Card Container */}
                     <div
                       className={`w-full h-full rounded-2xl overflow-hidden transition-shadow duration-300 ${
                         isCenter
-                          ? 'shadow-[0_20px_45px_-12px_rgba(0,0,0,0.35)] ring-1 ring-white/25'
+                          ? 'shadow-[0_20px_45px_-12px_rgba(15,31,75,0.45)] ring-1 ring-white/30'
                           : 'shadow-md'
                       }`}
                     >
-                      <ProgramThumbnail
+                      <ShowcaseCard
                         program={prog}
-                        onViewDetails={isCenter ? onViewDetails : undefined}
                         theme={theme}
-                        positionIndex={slideIdx}
+                        onViewDetails={isCenter ? onViewDetails : undefined}
                         interactive={isCenter}
+                        isCenter={isCenter}
                         className="!h-full w-full"
                       />
 
-                      {/* Subtle darkening veil over subdued side posters */}
+                      {/* Subtle darkening veil over side cards */}
                       {!isCenter && (
-                        <div className="absolute inset-0 bg-slate-950/20 hover:bg-slate-950/5 rounded-2xl transition-colors pointer-events-none" />
+                        <div className="absolute inset-0 bg-[#0f1f4b]/25 hover:bg-[#0f1f4b]/10 rounded-2xl transition-colors pointer-events-none" />
                       )}
                     </div>
                   </div>
@@ -491,42 +674,13 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
               })}
             </div>
 
-            {/* Floating Sleek Navigation Arrow: Left */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePrev();
-                pauseTemporarily(3000);
-              }}
-              disabled={isAnimatingRef.current}
-              aria-label="Previous program"
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/65 hover:bg-slate-900/90 text-white backdrop-blur-md border border-white/20 shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer group"
-            >
-              <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-
-            {/* Floating Sleek Navigation Arrow: Right */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNext();
-                pauseTemporarily(3000);
-              }}
-              disabled={isAnimatingRef.current}
-              aria-label="Next program"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/65 hover:bg-slate-900/90 text-white backdrop-blur-md border border-white/20 shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer group"
-            >
-              <ChevronRight className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
-            </button>
           </div>
         )}
 
-        {/* Desktop Pagination Indicators */}
+        {/* Desktop Progress Dots Indicator */}
         {totalSlides > 1 && (
           <div className="flex items-center justify-center gap-2 pt-3">
-            {upcomingPrograms.map((p, idx) => (
+            {showcasePrograms.map((p, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -541,10 +695,10 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                   }
                   pauseTemporarily(3000);
                 }}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                   currentIndex === idx
-                    ? 'w-8 bg-emerald-600 shadow-xs'
-                    : 'w-2 bg-slate-300 hover:bg-slate-400'
+                    ? 'w-9 bg-blue-600 shadow-xs'
+                    : 'w-2.5 bg-slate-300 hover:bg-slate-400'
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
                 title={p.name}
@@ -556,4 +710,3 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
     </section>
   );
 };
-

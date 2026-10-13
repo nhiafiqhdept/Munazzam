@@ -83,14 +83,14 @@ export const THUMBNAIL_THEMES: CardTheme[] = [
     glow: 'rgba(232, 121, 249, 0.35)',
     badgeBorder: 'border-fuchsia-400/30',
   },
-  // 2. Emerald + Mint (Green)
+  // 2. Deep Navy + Royal Blue
   {
-    id: 'emerald-mint',
-    category: 'green',
-    gradient: 'from-[#022c22] via-[#046c4e] to-[#0f766e]',
-    accent: '#34d399',
-    glow: 'rgba(52, 211, 153, 0.35)',
-    badgeBorder: 'border-emerald-400/30',
+    id: 'navy-royal',
+    category: 'navy',
+    gradient: 'from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8]',
+    accent: '#60a5fa',
+    glow: 'rgba(96, 165, 250, 0.35)',
+    badgeBorder: 'border-blue-400/30',
   },
   // 3. Orange + Amber
   {
@@ -137,14 +137,14 @@ export const THUMBNAIL_THEMES: CardTheme[] = [
     glow: 'rgba(45, 212, 191, 0.35)',
     badgeBorder: 'border-teal-400/30',
   },
-  // 8. Forest Green + Lime
+  // 8. Cobalt + Sky Blue
   {
-    id: 'forest-lime',
-    category: 'lime',
-    gradient: 'from-[#14532d] via-[#15803d] to-[#4d7c0f]',
-    accent: '#a3e635',
-    glow: 'rgba(163, 230, 53, 0.35)',
-    badgeBorder: 'border-lime-400/30',
+    id: 'cobalt-sky',
+    category: 'blue',
+    gradient: 'from-[#082f49] via-[#0369a1] to-[#0284c7]',
+    accent: '#38bdf8',
+    glow: 'rgba(56, 189, 248, 0.35)',
+    badgeBorder: 'border-sky-400/30',
   },
   // 9. Burgundy + Coral
   {
@@ -191,14 +191,14 @@ export const THUMBNAIL_THEMES: CardTheme[] = [
     glow: 'rgba(255, 140, 0, 0.35)',
     badgeBorder: 'border-amber-400/30',
   },
-  // 14. Pine + Aquamarine
+  // 14. Deep Navy + Cerulean Sky
   {
-    id: 'pine-aquamarine',
-    category: 'green',
-    gradient: 'from-[#064e3b] via-[#047857] to-[#0284c7]',
-    accent: '#38edf8',
-    glow: 'rgba(56, 237, 248, 0.35)',
-    badgeBorder: 'border-cyan-400/30',
+    id: 'navy-cerulean',
+    category: 'blue',
+    gradient: 'from-[#0f1f4b] via-[#0284c7] to-[#38bdf8]',
+    accent: '#7dd3fc',
+    glow: 'rgba(125, 211, 252, 0.35)',
+    badgeBorder: 'border-sky-400/30',
   },
   // 15. Ultra Violet + Amethyst
   {
@@ -213,9 +213,9 @@ export const THUMBNAIL_THEMES: CardTheme[] = [
   {
     id: 'cobalt-cyan',
     category: 'cyan',
-    gradient: 'from-[#0c4a6e] via-[#0369a1] to-[#0d9488]',
-    accent: '#22d3ee',
-    glow: 'rgba(34, 211, 238, 0.35)',
+    gradient: 'from-[#0c4a6e] via-[#0369a1] to-[#0284c7]',
+    accent: '#38bdf8',
+    glow: 'rgba(56, 189, 248, 0.35)',
     badgeBorder: 'border-cyan-400/30',
   },
   // 17. Maroon + Terracotta
@@ -236,11 +236,11 @@ export const THUMBNAIL_THEMES: CardTheme[] = [
     glow: 'rgba(129, 140, 248, 0.35)',
     badgeBorder: 'border-indigo-400/30',
   },
-  // 19. Emerald + Rich Gold
+  // 19. Royal Blue + Warm Amber
   {
-    id: 'emerald-gold',
+    id: 'royal-amber',
     category: 'amber',
-    gradient: 'from-[#064e3b] via-[#15803d] to-[#b45309]',
+    gradient: 'from-[#0f1f4b] via-[#1e3a8a] to-[#b45309]',
     accent: '#facc15',
     glow: 'rgba(250, 204, 21, 0.35)',
     badgeBorder: 'border-amber-400/30',
@@ -320,7 +320,7 @@ export function getThemesForProgramList(programs: Program[]): CardTheme[] {
 /**
  * Returns a contextual icon for the visual header
  */
-function getDecorativeIcon(prog: Program) {
+export function getDecorativeIcon(prog: Program) {
   const text = `${prog.name} ${prog.category || ''} ${prog.subCategory || ''}`.toLowerCase();
   if (text.includes('academic') || text.includes('lecture') || text.includes('talk') || text.includes('study')) {
     return BookOpen;
@@ -423,27 +423,12 @@ export const ProgramThumbnail: React.FC<{
   const theme = themeProp || getCardTheme(program, positionIndex);
   const IconComponent = getDecorativeIcon(program);
   const effectiveStatus = getProgramEffectiveStatus(program);
-  const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
-  const canEditStatus = isAdmin && !isPublicView;
-
-  const handleBadgeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!canEditStatus || isTogglingStatus) return;
-
-    setIsTogglingStatus(true);
-    const nextStatus = effectiveStatus === 'completed' ? 'upcoming' : 'completed';
-    try {
-      await updateProgram({
-        id: program.id,
-        status: nextStatus,
-      });
-    } catch (err) {
-      console.error('Failed to toggle program status:', err);
-    } finally {
-      setIsTogglingStatus(false);
-    }
-  };
+  const statusBadgeText =
+    effectiveStatus === 'ongoing'
+      ? 'HAPPENING TODAY'
+      : effectiveStatus === 'completed'
+      ? 'COMPLETED'
+      : 'UPCOMING';
 
   const isClickable = interactive && typeof onViewDetails === 'function';
 
@@ -482,23 +467,24 @@ export const ProgramThumbnail: React.FC<{
       {/* Top Row: Status Pill Badge */}
       {showStatusBadge && (
         <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-          <button
-            type="button"
-            onClick={handleBadgeClick}
-            disabled={!canEditStatus || isTogglingStatus}
-            title={
-              canEditStatus
-                ? `Click to change status to ${effectiveStatus === 'completed' ? 'UPCOMING' : 'COMPLETED'}`
-                : `Program status: ${statusBadgeText}`
-            }
-            className={`px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] transition-all ${
-              canEditStatus
-                ? 'cursor-pointer hover:bg-black/60 hover:scale-105 active:scale-95 hover:border-white/40 ring-1 ring-white/10'
-                : 'cursor-default'
-            } ${isTogglingStatus ? 'opacity-70 animate-pulse' : ''}`}
+          <div
+            title={`Program status: ${
+              effectiveStatus === 'ongoing'
+                ? 'Happening Today / Ongoing'
+                : effectiveStatus === 'completed'
+                ? 'Completed'
+                : 'Upcoming'
+            } (Automatically derived by date in Asia/Kolkata)`}
+            className={`px-3 py-1 rounded-full backdrop-blur-md border ${
+              effectiveStatus === 'ongoing'
+                ? 'bg-amber-500/30 border-amber-400 text-amber-200 ring-1 ring-amber-400/40'
+                : effectiveStatus === 'completed'
+                ? 'bg-slate-900/60 border-slate-500/80 text-slate-200'
+                : 'bg-blue-900/60 border-blue-400/80 text-blue-200'
+            } text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] select-none`}
           >
             {statusBadgeText}
-          </button>
+          </div>
 
           {program.media && program.media.length > 0 && (
             <span className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
@@ -550,27 +536,12 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
   const theme = themeProp || getCardTheme(program, positionIndex);
   const IconComponent = getDecorativeIcon(program);
   const effectiveStatus = getProgramEffectiveStatus(program);
-  const statusBadgeText = (effectiveStatus || 'upcoming').toUpperCase();
-  const canEditStatus = isAdmin && !isPublicView;
-
-  const handleBadgeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!canEditStatus || isTogglingStatus) return;
-
-    setIsTogglingStatus(true);
-    const nextStatus = effectiveStatus === 'completed' ? 'upcoming' : 'completed';
-    try {
-      await updateProgram({
-        id: program.id,
-        status: nextStatus,
-      });
-    } catch (err) {
-      console.error('Failed to toggle program status:', err);
-    } finally {
-      setIsTogglingStatus(false);
-    }
-  };
+  const statusBadgeText =
+    effectiveStatus === 'ongoing'
+      ? 'HAPPENING TODAY'
+      : effectiveStatus === 'completed'
+      ? 'COMPLETED'
+      : 'UPCOMING';
 
   // Category / Wing badge at bottom-left
   const wingBadgeText = (
@@ -614,23 +585,24 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
 
         {/* Top Row: Status Pill Badge */}
         <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-          <button
-            type="button"
-            onClick={handleBadgeClick}
-            disabled={!canEditStatus || isTogglingStatus}
-            title={
-              canEditStatus
-                ? `Click to change status to ${effectiveStatus === 'completed' ? 'UPCOMING' : 'COMPLETED'}`
-                : `Program status: ${statusBadgeText}`
-            }
-            className={`px-2.5 py-0.5 rounded-full bg-black/40 backdrop-blur-md border ${theme.badgeBorder} text-white/95 text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] transition-all ${
-              canEditStatus
-                ? 'cursor-pointer hover:bg-black/60 hover:scale-105 active:scale-95 hover:border-white/40 ring-1 ring-white/10'
-                : 'cursor-default'
-            } ${isTogglingStatus ? 'opacity-70 animate-pulse' : ''}`}
+          <div
+            title={`Program status: ${
+              effectiveStatus === 'ongoing'
+                ? 'Happening Today / Ongoing'
+                : effectiveStatus === 'completed'
+                ? 'Completed'
+                : 'Upcoming'
+            } (Automatically derived by date in Asia/Kolkata)`}
+            className={`px-2.5 py-0.5 rounded-full backdrop-blur-md border ${
+              effectiveStatus === 'ongoing'
+                ? 'bg-amber-500/30 border-amber-400 text-amber-200 ring-1 ring-amber-400/40'
+                : effectiveStatus === 'completed'
+                ? 'bg-slate-900/60 border-slate-500/80 text-slate-200'
+                : 'bg-blue-900/60 border-blue-400/80 text-blue-200'
+            } text-[10px] font-semibold tracking-wide uppercase shadow-2xs truncate max-w-[80%] select-none`}
           >
             {statusBadgeText}
-          </button>
+          </div>
 
           {program.media && program.media.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 shadow-2xs">
@@ -685,7 +657,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
           {/* Row 2: Program Title in Body */}
           <h3
             onClick={() => onViewDetails(program.id)}
-            className="text-sm sm:text-base font-bold text-slate-900 font-heading leading-snug line-clamp-1 hover:text-emerald-700 transition cursor-pointer"
+            className="text-sm sm:text-base font-bold text-slate-900 font-heading leading-snug line-clamp-1 hover:text-[#1d4ed8] transition cursor-pointer"
             title={program.name}
           >
             {program.name}
@@ -728,7 +700,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
                       e.stopPropagation();
                       onEdit(program);
                     }}
-                    className="p-1 text-slate-400 hover:text-emerald-700 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                    className="p-1 text-slate-400 hover:text-[#1d4ed8] rounded-md hover:bg-blue-50 transition-colors cursor-pointer"
                     title="Edit Program"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -752,7 +724,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
             {/* View Program Action */}
             <button
               onClick={() => onViewDetails(program.id)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors group-hover:translate-x-0.5 transition-transform cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#1e3a8a] hover:text-[#1d4ed8] transition-colors group-hover:translate-x-0.5 transition-transform cursor-pointer"
             >
               <span>View Program</span>
               <ArrowRight className="w-3.5 h-3.5" />
