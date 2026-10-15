@@ -98,22 +98,17 @@ export const ProgramPermissionsView: React.FC = () => {
     <div className="space-y-6">
       {/* Header Section */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] text-white flex items-center justify-center shadow-md shadow-blue-900/10">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Program Permissions
-                </h1>
-                <span className="bg-blue-50 text-[#1e3a8a] text-xs font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200">
-                  College Approval Workflow
-                </span>
-              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Permissions
+              </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Official administrative permission dossier and printable approval requests
+                Manage and track program approval requests
               </p>
             </div>
           </div>
@@ -124,83 +119,8 @@ export const ProgramPermissionsView: React.FC = () => {
               className="px-4 py-2.5 bg-gradient-to-r from-[#0f1f4b] via-[#1e3a8a] to-[#1d4ed8] hover:from-[#1e3a8a] hover:to-[#2563eb] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer border border-blue-900/30"
             >
               <Plus className="w-4 h-4" />
-              <span>Request College Permission</span>
+              <span>New Request</span>
             </button>
-          </div>
-        </div>
-
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-slate-100">
-          <div
-            onClick={() => setStatusFilter('all')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'all'
-                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">ALL REQUESTS</span>
-            <span className="text-xl font-black">{stats.total}</span>
-          </div>
-
-          <div
-            onClick={() => setStatusFilter('approved')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'approved'
-                ? 'bg-[#1e3a8a] text-white border-[#1e3a8a] shadow-sm'
-                : 'bg-blue-50 border-blue-200 text-blue-950 hover:bg-blue-100/70'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">APPROVED</span>
-            <span className="text-xl font-black">{stats.approved}</span>
-          </div>
-
-          <div
-            onClick={() => setStatusFilter('pending')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'pending'
-                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100/70'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">PENDING</span>
-            <span className="text-xl font-black">{stats.pending}</span>
-          </div>
-
-          <div
-            onClick={() => setStatusFilter('recommended')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'recommended'
-                ? 'bg-blue-700 text-white border-blue-700 shadow-sm'
-                : 'bg-blue-50 border-blue-200 text-blue-900 hover:bg-blue-100/70'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">RECOMMENDED</span>
-            <span className="text-xl font-black">{stats.recommended}</span>
-          </div>
-
-          <div
-            onClick={() => setStatusFilter('changes_required')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'changes_required'
-                ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
-                : 'bg-orange-50 border-orange-200 text-orange-900 hover:bg-orange-100/70'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">CHANGES REQ.</span>
-            <span className="text-xl font-black">{stats.changes_required}</span>
-          </div>
-
-          <div
-            onClick={() => setStatusFilter('rejected')}
-            className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-              statusFilter === 'rejected'
-                ? 'bg-rose-700 text-white border-rose-700 shadow-sm'
-                : 'bg-rose-50 border-rose-200 text-rose-900 hover:bg-rose-100/70'
-            }`}
-          >
-            <span className="text-[11px] font-bold block opacity-80">REJECTED</span>
-            <span className="text-xl font-black">{stats.rejected}</span>
           </div>
         </div>
       </div>

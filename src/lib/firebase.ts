@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize or reuse Firebase App instance singleton
@@ -11,12 +11,28 @@ function createFirestoreInstance(): Firestore {
   try {
     const dbId = (firebaseConfig as any)?.firestoreDatabaseId;
     if (dbId && typeof dbId === 'string' && dbId.trim().length > 0 && dbId !== '(default)') {
-      return getFirestore(app, dbId);
+      const db = getFirestore(app, dbId);
+      enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+        } else if (err.code === 'unimplemented') {
+            console.warn('The current browser does not support persistence.');
+        }
+      });
+      return db;
     }
   } catch (err) {
     console.warn('Could not initialize custom firestoreDatabaseId, falling back to default:', err);
   }
-  return getFirestore(app);
+  const db = getFirestore(app);
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+    } else if (err.code === 'unimplemented') {
+        console.warn('The current browser does not support persistence.');
+    }
+  });
+  return db;
 }
 
 export const db: Firestore = createFirestoreInstance();

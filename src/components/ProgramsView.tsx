@@ -847,9 +847,6 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
                   🔗 Public Registration & Proposal Portal
                 </span>
                 <h3 className="text-sm font-bold text-slate-900">Partner Sub-Wing Integration</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Share this unique link with your departments, student unions, and sub-wings. They will be able to register, log in, and directly propose programs & activities for your review and approval.
-                </p>
               </div>
 
               <div className="flex items-center gap-2">

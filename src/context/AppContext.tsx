@@ -372,9 +372,7 @@ export const AppProvider: React.FC<{
           await getDocFromServer(doc(db, 'test', 'connection'));
         }
       } catch (error) {
-        if (error instanceof Error && error.message.includes('the client is offline')) {
-          console.error('Firestore connection offline check:', error.message);
-        }
+        console.error('Firestore connection check failed:', error);
       }
     }
     testConnection();

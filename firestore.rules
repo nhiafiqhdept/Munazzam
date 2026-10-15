@@ -7,6 +7,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Test collection for connectivity check
+    match /test/connection {
+      allow read: if true;
+    }
+
     // Accounts collection indexed by Firebase UID
     match /accounts/{accountId} {
       allow read: if true;
