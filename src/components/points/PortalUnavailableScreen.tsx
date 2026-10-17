@@ -85,7 +85,7 @@ export const PortalUnavailableScreen: React.FC<PortalUnavailableScreenProps> = (
           {onRetry && (
             <button
               onClick={onRetry}
-              className="w-full sm:w-auto px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
+              className="w-full sm:w-auto px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Try Again</span>

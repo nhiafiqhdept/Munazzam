@@ -467,7 +467,7 @@ export const ProgramsView: React.FC<ProgramsViewProps> = ({
   const effectiveTab = isPublicView ? 'official' : activeTab;
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-2 pb-6">
       {/* Three Section Cards for Admin (Stack on mobile, 3-column row on desktop) */}
       {isAdmin && !isPublicView && (
         <nav

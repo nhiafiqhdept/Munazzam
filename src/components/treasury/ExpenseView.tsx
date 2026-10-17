@@ -86,7 +86,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
         {isAdmin && (
           <button
             onClick={onOpenAddModal}
-            className="w-full sm:w-auto px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Record New Expense</span>
@@ -110,7 +110,7 @@ export const ExpenseView: React.FC<ExpenseViewProps> = ({ onOpenAddModal, onOpen
             placeholder="Search payee, description, ref..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-rose-500 text-slate-800"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-800"
           />
         </div>
 

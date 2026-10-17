@@ -58,11 +58,21 @@ export interface ProgramMedia {
 
 export interface ProgramCategory {
   id: string;
-  organization_id: string; // matches accountId
+  organization_id: string;
   name: string;
   created_at: string;
   updated_at: string;
 }
+
+export interface ProgramSubCategory {
+  id: string;
+  organization_id: string;
+  category_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export type PermissionStatus =
   | 'not_requested'

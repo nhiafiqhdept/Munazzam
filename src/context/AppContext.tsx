@@ -23,6 +23,7 @@ import {
   Organizer,
   Program,
   ProgramCategory,
+  ProgramSubCategory,
   ProgramMedia,
   ActiveTab,
   FinancialAccount,
@@ -79,7 +80,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path,
   };
   
-  if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exceeded')) {
+  if ((error as any)?.code === 'resource-exhausted') {
     console.warn('Firestore Operation Paused (Quota Limit Exceeded):', JSON.stringify(errInfo));
     try {
       window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
@@ -99,6 +100,7 @@ interface AppContextType {
   loginUser: (token: string, user: AuthUser) => void;
   logoutUser: () => Promise<void>;
   isQuotaExceeded: boolean;
+  setIsQuotaExceeded: (exceeded: boolean) => void;
   isPublicView: boolean;
   exitPublicView: () => void;
 
@@ -120,13 +122,19 @@ interface AppContextType {
   programs: Program[];
   allPrograms: Program[];
   programCategories: ProgramCategory[];
+  programSubCategories: ProgramSubCategory[];
   addProgram: (prog: Omit<Program, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => Promise<Program>;
   updateProgram: (prog: Partial<Program> & { id: string }) => Promise<void>;
   deleteProgram: (id: string) => Promise<void>;
   addProgramMedia: (programId: string, mediaItem: Omit<ProgramMedia, 'id' | 'program_id' | 'created_at'>) => Promise<void>;
   deleteProgramMedia: (programId: string, mediaId: string) => Promise<void>;
   addProgramCategory: (name: string) => Promise<ProgramCategory>;
+  updateProgramCategory: (id: string, name: string) => Promise<void>;
+  deleteProgramCategory: (id: string) => Promise<void>;
   ensureCategoryExists: (name: string) => Promise<ProgramCategory | null>;
+  addProgramSubCategory: (name: string) => Promise<ProgramSubCategory>;
+  updateProgramSubCategory: (id: string, name: string) => Promise<void>;
+  deleteProgramSubCategory: (id: string) => Promise<void>;
   subWings: SubWing[];
   subWingPrograms: Program[];
   setSubWings: React.Dispatch<React.SetStateAction<SubWing[]>>;
@@ -211,6 +219,34 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Module-level registry of active session listeners to ensure each collection listener
+// is attached only once per session and never duplicated across auth/state re-runs.
+const activeSessionListeners = new Map<string, () => void>();
+let currentActiveSessionUid: string | null = null;
+
+/**
+ * Cache-aware account document lookup with server fallback (getDocFromServer)
+ * only if the cache read fails or the document is not found in cache.
+ */
+export async function loginByAccountId(accountId: string) {
+  const accountRef = doc(db, 'accounts', accountId);
+  try {
+    const cachedSnap = await getDoc(accountRef);
+    if (cachedSnap.exists()) {
+      return cachedSnap;
+    }
+  } catch (cacheErr) {
+    console.warn('Cache lookup failed for account, attempting server fallback:', cacheErr);
+  }
+  // Server fallback only if cache read fails or document is missing
+  try {
+    return await getDocFromServer(accountRef);
+  } catch (serverErr) {
+    console.error('Server account lookup failed:', serverErr);
+    return null;
+  }
+}
+
 export const AppProvider: React.FC<{
   children: React.ReactNode;
   isPublicView?: boolean;
@@ -223,14 +259,19 @@ export const AppProvider: React.FC<{
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState<boolean>(false);
 
-  // Set up event listener for quota exceeded
+  // Set up event listeners for quota exceeded & recovery
   useEffect(() => {
     const handleQuota = () => {
       setIsQuotaExceeded(true);
     };
+    const handleReset = () => {
+      setIsQuotaExceeded(false);
+    };
     window.addEventListener('firestore-quota-exceeded', handleQuota);
+    window.addEventListener('firestore-quota-reset', handleReset);
     return () => {
       window.removeEventListener('firestore-quota-exceeded', handleQuota);
+      window.removeEventListener('firestore-quota-reset', handleReset);
     };
   }, []);
 
@@ -267,6 +308,14 @@ export const AppProvider: React.FC<{
   const [programCategories, setProgramCategories] = useState<ProgramCategory[]>(() => {
     try {
       const cached = localStorage.getItem('local_categories');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [programSubCategories, setProgramSubCategories] = useState<ProgramSubCategory[]>(() => {
+    try {
+      const cached = localStorage.getItem('local_sub_categories');
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
@@ -364,23 +413,10 @@ export const AppProvider: React.FC<{
     }
   }, []);
 
-  // Connection test per skill requirements
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        if (db) {
-          await getDocFromServer(doc(db, 'test', 'connection'));
-        }
-      } catch (error) {
-        console.error('Firestore connection check failed:', error);
-      }
-    }
-    testConnection();
-  }, []);
-
   // Public View Data Synchronizer
   useEffect(() => {
-    if (!isPublicView || !publicOrgQuery) return;
+    // If authenticated, the user is viewing their own organization — omit duplicate public view listeners
+    if (!isPublicView || !publicOrgQuery || isAuthenticated) return;
 
     let isMounted = true;
     const unsubs: (() => void)[] = [];
@@ -405,11 +441,11 @@ export const AppProvider: React.FC<{
           console.warn('public_organizations check failed:', e);
         }
 
-        // 2. Direct account ID lookup
+        // 2. Direct account ID lookup using cache-aware read with server fallback
         if (!targetAccountId) {
           try {
-            const accSnap = await getDoc(doc(db, 'accounts', queryTerm));
-            if (accSnap.exists()) {
+            const accSnap = await loginByAccountId(queryTerm);
+            if (accSnap && accSnap.exists()) {
               targetAccountId = queryTerm;
               const p = accSnap.data()?.profile || {};
               initialOrgData = {
@@ -491,6 +527,7 @@ export const AppProvider: React.FC<{
         // 1. Real-time Account / Profile listener
         const unsubProfile = onSnapshot(doc(db, 'accounts', targetAccountId), (accSnap) => {
           if (accSnap.exists() && isMounted) {
+            setIsQuotaExceeded(false);
             const accData = accSnap.data();
             const prof = accData?.profile || {};
             const updatedOrg: Organization = {
@@ -518,6 +555,7 @@ export const AppProvider: React.FC<{
         // 2. Real-time Organizers listener
         const qOrg = query(collection(db, 'organizers'), where('accountId', '==', targetAccountId));
         const unsubOrg = onSnapshot(qOrg, (orgSnap) => {
+          setIsQuotaExceeded(false);
           const list: Organizer[] = [];
           orgSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -551,6 +589,7 @@ export const AppProvider: React.FC<{
         // 3. Real-time Program Categories listener
         const qCat = query(collection(db, 'program_categories'), where('accountId', '==', targetAccountId));
         const unsubCat = onSnapshot(qCat, (catSnap) => {
+          setIsQuotaExceeded(false);
           const list: ProgramCategory[] = [];
           catSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -572,9 +611,36 @@ export const AppProvider: React.FC<{
         }, (err) => console.warn('Error syncing public categories:', err));
         unsubs.push(unsubCat);
 
+        // 3b. Real-time Program Subcategories listener
+        const qSubCat = query(collection(db, 'program_subcategories'), where('accountId', '==', targetAccountId));
+        const unsubSubCat = onSnapshot(qSubCat, (subCatSnap) => {
+          setIsQuotaExceeded(false);
+          const list: ProgramSubCategory[] = [];
+          subCatSnap.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              organization_id: targetAccountId!,
+              category_id: d.categoryId || '',
+              name: d.name || '',
+              created_at: d.createdAt || d.created_at || '',
+              updated_at: d.updatedAt || d.updated_at || '',
+            });
+          });
+          list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+          if (isMounted) {
+            setProgramSubCategories(list);
+            try {
+              localStorage.setItem('local_sub_categories', JSON.stringify(list));
+            } catch {}
+          }
+        }, (err) => console.warn('Error syncing public subcategories:', err));
+        unsubs.push(unsubSubCat);
+
         // 4. Real-time Programs listener (Official only)
         const qProg = query(collection(db, 'programs'), where('accountId', '==', targetAccountId));
         const unsubProg = onSnapshot(qProg, (progSnap) => {
+          setIsQuotaExceeded(false);
           const list: Program[] = [];
           progSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -623,6 +689,7 @@ export const AppProvider: React.FC<{
         // 5. Real-time Financial Accounts listener (Read-Only for Treasury Dashboard)
         const qAccs = query(collection(db, 'financial_accounts'), where('accountId', '==', targetAccountId));
         const unsubAccs = onSnapshot(qAccs, (accSnap) => {
+          setIsQuotaExceeded(false);
           const list: FinancialAccount[] = [];
           accSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -645,6 +712,7 @@ export const AppProvider: React.FC<{
         // 6. Real-time Incomes listener
         const qInc = query(collection(db, 'incomes'), where('accountId', '==', targetAccountId));
         const unsubInc = onSnapshot(qInc, (incSnap) => {
+          setIsQuotaExceeded(false);
           const list: Income[] = [];
           incSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -672,6 +740,7 @@ export const AppProvider: React.FC<{
         // 7. Real-time Expenses listener
         const qExp = query(collection(db, 'expenses'), where('accountId', '==', targetAccountId));
         const unsubExp = onSnapshot(qExp, (expSnap) => {
+          setIsQuotaExceeded(false);
           const list: Expense[] = [];
           expSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -699,6 +768,7 @@ export const AppProvider: React.FC<{
         // 8. Real-time Transfers listener
         const qTr = query(collection(db, 'transfers'), where('accountId', '==', targetAccountId));
         const unsubTr = onSnapshot(qTr, (trSnap) => {
+          setIsQuotaExceeded(false);
           const list: AccountTransfer[] = [];
           trSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -722,6 +792,7 @@ export const AppProvider: React.FC<{
         // 9. Real-time Loans listener
         const qLoans = query(collection(db, 'loans'), where('accountId', '==', targetAccountId));
         const unsubLoans = onSnapshot(qLoans, (loanSnap) => {
+          setIsQuotaExceeded(false);
           const list: Loan[] = [];
           loanSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -751,6 +822,7 @@ export const AppProvider: React.FC<{
         // 10. Real-time Loan Repayments listener
         const qRep = query(collection(db, 'repayments'), where('accountId', '==', targetAccountId));
         const unsubRep = onSnapshot(qRep, (repSnap) => {
+          setIsQuotaExceeded(false);
           const list: LoanRepayment[] = [];
           repSnap.forEach((docSnap) => {
             const d = docSnap.data();
@@ -790,7 +862,7 @@ export const AppProvider: React.FC<{
         } catch {}
       });
     };
-  }, [isPublicView, publicOrgQuery]);
+  }, [isPublicView, publicOrgQuery, isAuthenticated]);
 
   // Initial permissions cache sync
   useEffect(() => {
@@ -828,11 +900,11 @@ export const AppProvider: React.FC<{
           setUser(authUser);
           setIsAuthenticated(true);
 
-          // Verify/create account document in Firestore
+          // Verify/create account document in Firestore using cache-aware read with server fallback
           if (db && firebaseUser.uid) {
-            const accountRef = doc(db, 'accounts', firebaseUser.uid);
-            const docSnap = await getDoc(accountRef);
-            if (!docSnap.exists()) {
+            const docSnap = await loginByAccountId(firebaseUser.uid);
+            if (!docSnap || !docSnap.exists()) {
+              const accountRef = doc(db, 'accounts', firebaseUser.uid);
               const now = new Date().toISOString();
               await setDoc(accountRef, {
                 accountId: firebaseUser.uid,
@@ -851,9 +923,8 @@ export const AppProvider: React.FC<{
               });
             }
           }
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exceeded')) {
+        } catch (err: any) {
+          if (err?.code === 'resource-exhausted') {
             console.warn('Error handling Firebase auth state (Quota Exceeded):', err);
             try {
               window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
@@ -865,6 +936,13 @@ export const AppProvider: React.FC<{
           setAuthLoading(false);
         }
       } else {
+        // Clean up all active session listeners when unauthenticated
+        activeSessionListeners.forEach((unsub) => {
+          try { unsub(); } catch {}
+        });
+        activeSessionListeners.clear();
+        currentActiveSessionUid = null;
+
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
@@ -895,6 +973,13 @@ export const AppProvider: React.FC<{
   }, []);
 
   const logoutUser = useCallback(async () => {
+    // Clean up all active session listeners on explicit logout
+    activeSessionListeners.forEach((unsub) => {
+      try { unsub(); } catch {}
+    });
+    activeSessionListeners.clear();
+    currentActiveSessionUid = null;
+
     try {
       await signOut(auth);
     } catch (err) {
@@ -933,438 +1018,522 @@ export const AppProvider: React.FC<{
 
     const uid = user.id;
 
+    // Reset previous listeners if the active user ID has changed
+    if (currentActiveSessionUid && currentActiveSessionUid !== uid) {
+      activeSessionListeners.forEach((unsub) => {
+        try { unsub(); } catch {}
+      });
+      activeSessionListeners.clear();
+    }
+    currentActiveSessionUid = uid;
+
+    const attachAuthListener = (key: string, attachFn: () => () => void) => {
+      if (activeSessionListeners.has(key)) {
+        return;
+      }
+      try {
+        const unsub = attachFn();
+        activeSessionListeners.set(key, unsub);
+      } catch (err) {
+        console.warn(`Failed to attach session listener for ${key}:`, err);
+      }
+    };
+
     // 1. Account Profile
-    const unsubOrg = onSnapshot(doc(db, 'accounts', uid), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const profile = data.profile || {};
-        const isInitialized = profile.isInitialized ?? (profile.name && profile.name !== 'My Organization' && profile.name !== '');
-        const orgObj: Organization = {
-          id: uid,
-          name: profile.name || 'My Organization',
-          college_name: profile.college_name || 'Main Campus',
-          logo: profile.logo || '',
-          tagline: profile.tagline || '',
-          established_year: profile.established_year || '',
-          description: profile.description || '',
-          email: profile.email || data.email || user.email || '',
-          website: profile.website || '',
-          created_at: data.createdAt || new Date().toISOString(),
-          updated_at: data.updatedAt || new Date().toISOString(),
-          isInitialized: isInitialized,
-          about: profile.about || '',
-          academic_year: profile.academic_year || '',
-          searchableName: profile.searchableName || '',
-        };
-        setOrganizations([orgObj]);
-        setCurrentOrgId(uid);
-
-        try {
-          localStorage.setItem('local_organizations', JSON.stringify([orgObj]));
-          localStorage.setItem('local_currentOrgId', uid);
-        } catch {}
-
-        if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
-        if (profile.name) localStorage.setItem('last_org_name', profile.name);
-
-        if (profile.searchableName) {
-          const sName = profile.searchableName.trim().toUpperCase();
-          setDoc(doc(db, 'public_organizations', sName), {
-            accountId: uid,
-            searchableName: sName,
-            name: profile.name || 'Organization',
+    attachAuthListener(`auth_org_${uid}`, () => {
+      return onSnapshot(doc(db, 'accounts', uid), (snapshot) => {
+        if (snapshot.exists()) {
+          setIsQuotaExceeded(false);
+          const data = snapshot.data();
+          const profile = data.profile || {};
+          const isInitialized = profile.isInitialized ?? (profile.name && profile.name !== 'My Organization' && profile.name !== '');
+          const orgObj: Organization = {
+            id: uid,
+            name: profile.name || 'My Organization',
             college_name: profile.college_name || 'Main Campus',
-            tagline: profile.tagline || '',
             logo: profile.logo || '',
+            tagline: profile.tagline || '',
             established_year: profile.established_year || '',
             description: profile.description || '',
             email: profile.email || data.email || user.email || '',
             website: profile.website || '',
+            created_at: data.createdAt || new Date().toISOString(),
+            updated_at: data.updatedAt || new Date().toISOString(),
+            isInitialized: isInitialized,
             about: profile.about || '',
             academic_year: profile.academic_year || '',
-            updatedAt: data.updatedAt || new Date().toISOString(),
-          }, { merge: true }).catch(() => {});
+            searchableName: profile.searchableName || '',
+          };
+          setOrganizations([orgObj]);
+          setCurrentOrgId(uid);
+
+          try {
+            localStorage.setItem('local_organizations', JSON.stringify([orgObj]));
+            localStorage.setItem('local_currentOrgId', uid);
+          } catch {}
+
+          if (profile.logo) localStorage.setItem('last_org_logo', profile.logo);
+          if (profile.name) localStorage.setItem('last_org_name', profile.name);
+
+          if (profile.searchableName) {
+            const sName = profile.searchableName.trim().toUpperCase();
+            setDoc(doc(db, 'public_organizations', sName), {
+              accountId: uid,
+              searchableName: sName,
+              name: profile.name || 'Organization',
+              college_name: profile.college_name || 'Main Campus',
+              tagline: profile.tagline || '',
+              logo: profile.logo || '',
+              established_year: profile.established_year || '',
+              description: profile.description || '',
+              email: profile.email || data.email || user.email || '',
+              website: profile.website || '',
+              about: profile.about || '',
+              academic_year: profile.academic_year || '',
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            }, { merge: true }).catch(() => {});
+          }
         }
-      }
-      setOrgLoading(false);
-    }, (err) => {
-      setOrgLoading(false);
-      handleFirestoreError(err, OperationType.GET, `accounts/${uid}`);
+        setOrgLoading(false);
+      }, (err) => {
+        setOrgLoading(false);
+        handleFirestoreError(err, OperationType.GET, `accounts/${uid}`);
+      });
     });
 
     // 2. Organizers
-    const qOrganizers = query(collection(db, 'organizers'), where('accountId', '==', uid));
-    const unsubOrganizers = onSnapshot(qOrganizers, (snapshot) => {
-      const list: Organizer[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          name: d.name || '',
-          photo: d.photo || '',
-          position: d.position || '',
-          display_order: d.display_order ?? 0,
-          email: d.email || '',
-          phone: d.phone || '',
-          bio: d.bio || '',
-          academic_year: d.academic_year || '',
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+    attachAuthListener(`auth_organizers_${uid}`, () => {
+      const qOrganizers = query(collection(db, 'organizers'), where('accountId', '==', uid));
+      return onSnapshot(qOrganizers, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: Organizer[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            name: d.name || '',
+            photo: d.photo || '',
+            position: d.position || '',
+            display_order: d.display_order ?? 0,
+            email: d.email || '',
+            phone: d.phone || '',
+            bio: d.bio || '',
+            academic_year: d.academic_year || '',
+            created_at: d.created_at || '',
+            updated_at: d.updated_at || '',
+          });
         });
-      });
-      const sortedList = list.sort((a, b) => a.display_order - b.display_order);
-      setOrganizers(sortedList);
-      try {
-        localStorage.setItem('local_organizers', JSON.stringify(sortedList));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'organizers'));
+        const sortedList = list.sort((a, b) => a.display_order - b.display_order);
+        setOrganizers(sortedList);
+        try {
+          localStorage.setItem('local_organizers', JSON.stringify(sortedList));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'organizers'));
+    });
 
     // 2.5 Program Categories
-    const qCategories = query(collection(db, 'program_categories'), where('accountId', '==', uid));
-    const unsubCategories = onSnapshot(qCategories, (snapshot) => {
-      const list: ProgramCategory[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          name: d.name || '',
-          created_at: d.createdAt || d.created_at || '',
-          updated_at: d.updatedAt || d.updated_at || '',
+    attachAuthListener(`auth_categories_${uid}`, () => {
+      const qCategories = query(collection(db, 'program_categories'), where('accountId', '==', uid));
+      return onSnapshot(qCategories, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: ProgramCategory[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            name: d.name || '',
+            created_at: d.createdAt || d.created_at || '',
+            updated_at: d.updatedAt || d.updated_at || '',
+          });
         });
-      });
-      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-      setProgramCategories(list);
-      try {
-        localStorage.setItem('local_categories', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'program_categories'));
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+        setProgramCategories(list);
+        try {
+          localStorage.setItem('local_categories', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'program_categories'));
+    });
 
     // 3. Programs
-    const qPrograms = query(collection(db, 'programs'), where('accountId', '==', uid));
-    const unsubPrograms = onSnapshot(qPrograms, (snapshot) => {
-      const list: Program[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          name: d.name || '',
-          category_id: d.categoryId || d.category_id || '',
-          category: d.category || '',
-          subCategory: d.subCategory || d.sub_category || '',
-          date: d.date || '',
-          time: d.time || '',
-          place: d.place || '',
-          audience: d.audience || '',
-          description: d.description || '',
-          poster: d.poster || '',
-          media: d.media || [],
-          status: getProgramEffectiveStatus({ date: d.date, status: d.status, subWingId: d.subWingId, subWingStatus: d.subWingStatus }),
-          attendance_count: d.attendance_count || 0,
-          created_at: d.created_at || d.createdAt || '',
-          updated_at: d.updated_at || d.updatedAt || '',
-          subWingId: d.subWingId || undefined,
-          subWingName: d.subWingName || undefined,
-          subWingStatus: d.subWingStatus || undefined,
-          submittedByEmail: d.submittedByEmail || undefined,
-          submittedAt: d.submittedAt || d.submitted_at || undefined,
-          resourcePerson: d.resourcePerson || '',
-          permissionStatus: d.permissionStatus || 'not_requested',
-          permissionId: d.permissionId || undefined,
+    attachAuthListener(`auth_programs_${uid}`, () => {
+      const qPrograms = query(collection(db, 'programs'), where('accountId', '==', uid));
+      return onSnapshot(qPrograms, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: Program[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            name: d.name || '',
+            category_id: d.categoryId || d.category_id || '',
+            category: d.category || '',
+            subCategory: d.subCategory || d.sub_category || '',
+            date: d.date || '',
+            time: d.time || '',
+            place: d.place || '',
+            audience: d.audience || '',
+            description: d.description || '',
+            poster: d.poster || '',
+            media: d.media || [],
+            status: getProgramEffectiveStatus({ date: d.date, status: d.status, subWingId: d.subWingId, subWingStatus: d.subWingStatus }),
+            attendance_count: d.attendance_count || 0,
+            created_at: d.created_at || d.createdAt || '',
+            updated_at: d.updated_at || d.updatedAt || '',
+            subWingId: d.subWingId || undefined,
+            subWingName: d.subWingName || undefined,
+            subWingStatus: d.subWingStatus || undefined,
+            submittedByEmail: d.submittedByEmail || undefined,
+            submittedAt: d.submittedAt || d.submitted_at || undefined,
+            resourcePerson: d.resourcePerson || '',
+            permissionStatus: d.permissionStatus || 'not_requested',
+            permissionId: d.permissionId || undefined,
+          });
         });
-      });
-      list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
-      
-      const officialList = list.filter((p) => !p.subWingId || p.subWingStatus === 'approved');
-      const subWingList = list.filter((p) => p.subWingId);
-      
-      setPrograms(officialList);
-      setSubWingPrograms(subWingList);
-      try {
-        localStorage.setItem('local_programs', JSON.stringify(officialList));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'programs'));
+        list.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
+        
+        const officialList = list.filter((p) => !p.subWingId || p.subWingStatus === 'approved');
+        const subWingList = list.filter((p) => p.subWingId);
+        
+        setPrograms(officialList);
+        setSubWingPrograms(subWingList);
+        try {
+          localStorage.setItem('local_programs', JSON.stringify(officialList));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'programs'));
+    });
 
     // 4. Accounts
-    const qAccounts = query(collection(db, 'financial_accounts'), where('accountId', '==', uid));
-    const unsubAccounts = onSnapshot(qAccounts, (snapshot) => {
-      const list: FinancialAccount[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          name: d.name || '',
-          type: d.type || 'cash',
-          opening_balance: Number(d.opening_balance || 0),
-          description: d.description || '',
-          is_active: d.is_active !== false,
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+    attachAuthListener(`auth_accounts_${uid}`, () => {
+      const qAccounts = query(collection(db, 'financial_accounts'), where('accountId', '==', uid));
+      return onSnapshot(qAccounts, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: FinancialAccount[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            name: d.name || '',
+            type: d.type || 'cash',
+            opening_balance: Number(d.opening_balance || 0),
+            description: d.description || '',
+            is_active: d.is_active !== false,
+            created_at: d.created_at || '',
+            updated_at: d.updated_at || '',
+          });
         });
-      });
-      setAccounts(list);
-      try {
-        localStorage.setItem('local_accounts', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'financial_accounts'));
+        setAccounts(list);
+        try {
+          localStorage.setItem('local_accounts', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'financial_accounts'));
+    });
 
     // 5. Incomes
-    const qIncomes = query(collection(db, 'incomes'), where('accountId', '==', uid));
-    const unsubIncomes = onSnapshot(qIncomes, (snapshot) => {
-      const list: Income[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          account_id: d.account_id || '',
-          category: d.category || '',
-          program_id: d.program_id || '',
-          date: d.date || '',
-          amount: Number(d.amount || 0),
-          source: d.source || '',
-          description: d.description || '',
-          receipt: d.receipt || '',
-          reference_number: d.reference_number || '',
-          created_by: d.created_by || '',
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+    attachAuthListener(`auth_incomes_${uid}`, () => {
+      const qIncomes = query(collection(db, 'incomes'), where('accountId', '==', uid));
+      return onSnapshot(qIncomes, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: Income[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            account_id: d.account_id || '',
+            category: d.category || '',
+            program_id: d.program_id || '',
+            date: d.date || '',
+            amount: Number(d.amount || 0),
+            source: d.source || '',
+            description: d.description || '',
+            receipt: d.receipt || '',
+            reference_number: d.reference_number || '',
+            created_by: d.created_by || '',
+            created_at: d.created_at || '',
+            updated_at: d.updated_at || '',
+          });
         });
-      });
-      setIncomes(list);
-      try {
-        localStorage.setItem('local_incomes', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'incomes'));
+        setIncomes(list);
+        try {
+          localStorage.setItem('local_incomes', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'incomes'));
+    });
 
     // 6. Expenses
-    const qExpenses = query(collection(db, 'expenses'), where('accountId', '==', uid));
-    const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
-      const list: Expense[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          account_id: d.account_id || '',
-          category: d.category || '',
-          program_id: d.program_id || '',
-          date: d.date || '',
-          amount: Number(d.amount || 0),
-          paid_to: d.paid_to || '',
-          description: d.description || '',
-          receipt: d.receipt || '',
-          reference_number: d.reference_number || '',
-          created_by: d.created_by || '',
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+    attachAuthListener(`auth_expenses_${uid}`, () => {
+      const qExpenses = query(collection(db, 'expenses'), where('accountId', '==', uid));
+      return onSnapshot(qExpenses, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: Expense[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            account_id: d.account_id || '',
+            category: d.category || '',
+            program_id: d.program_id || '',
+            date: d.date || '',
+            amount: Number(d.amount || 0),
+            paid_to: d.paid_to || '',
+            description: d.description || '',
+            receipt: d.receipt || '',
+            reference_number: d.reference_number || '',
+            created_by: d.created_by || '',
+            created_at: d.created_at || '',
+            updated_at: d.updated_at || '',
+          });
         });
-      });
-      setExpenses(list);
-      try {
-        localStorage.setItem('local_expenses', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'expenses'));
+        setExpenses(list);
+        try {
+          localStorage.setItem('local_expenses', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'expenses'));
+    });
 
     // 7. Transfers
-    const qTransfers = query(collection(db, 'transfers'), where('accountId', '==', uid));
-    const unsubTransfers = onSnapshot(qTransfers, (snapshot) => {
-      const list: AccountTransfer[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          from_account_id: d.from_account_id || '',
-          to_account_id: d.to_account_id || '',
-          amount: Number(d.amount || 0),
-          date: d.date || '',
-          description: d.description || '',
-          reference_number: d.reference_number || '',
-          created_by: d.created_by || '',
-          created_at: d.created_at || '',
+    attachAuthListener(`auth_transfers_${uid}`, () => {
+      const qTransfers = query(collection(db, 'transfers'), where('accountId', '==', uid));
+      return onSnapshot(qTransfers, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: AccountTransfer[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            from_account_id: d.from_account_id || '',
+            to_account_id: d.to_account_id || '',
+            amount: Number(d.amount || 0),
+            date: d.date || '',
+            description: d.description || '',
+            reference_number: d.reference_number || '',
+            created_by: d.created_by || '',
+            created_at: d.created_at || '',
+          });
         });
-      });
-      setTransfers(list);
-      try {
-        localStorage.setItem('local_transfers', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'transfers'));
+        setTransfers(list);
+        try {
+          localStorage.setItem('local_transfers', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'transfers'));
+    });
 
     // 8. Loans
-    const qLoans = query(collection(db, 'loans'), where('accountId', '==', uid));
-    const unsubLoans = onSnapshot(qLoans, (snapshot) => {
-      const list: Loan[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          organization_id: uid,
-          type: d.type || 'BORROWED',
-          person_or_organization: d.person_or_organization || '',
-          original_amount: Number(d.original_amount || 0),
-          outstanding_amount: Number(d.outstanding_amount || 0),
-          date: d.date || '',
-          due_date: d.due_date || '',
-          purpose: d.purpose || '',
-          account_id: d.account_id || '',
-          description: d.description || '',
-          proof: d.proof || '',
-          status: d.status || 'OUTSTANDING',
-          created_by: d.created_by || '',
-          created_at: d.created_at || '',
-          updated_at: d.updated_at || '',
+    attachAuthListener(`auth_loans_${uid}`, () => {
+      const qLoans = query(collection(db, 'loans'), where('accountId', '==', uid));
+      return onSnapshot(qLoans, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: Loan[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            type: d.type || 'BORROWED',
+            person_or_organization: d.person_or_organization || '',
+            original_amount: Number(d.original_amount || 0),
+            outstanding_amount: Number(d.outstanding_amount || 0),
+            date: d.date || '',
+            due_date: d.due_date || '',
+            purpose: d.purpose || '',
+            account_id: d.account_id || '',
+            description: d.description || '',
+            proof: d.proof || '',
+            status: d.status || 'OUTSTANDING',
+            created_by: d.created_by || '',
+            created_at: d.created_at || '',
+            updated_at: d.updated_at || '',
+          });
         });
-      });
-      setLoans(list);
-      try {
-        localStorage.setItem('local_loans', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'loans'));
+        setLoans(list);
+        try {
+          localStorage.setItem('local_loans', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'loans'));
+    });
 
     // 9. Repayments
-    const qRepayments = query(collection(db, 'repayments'), where('accountId', '==', uid));
-    const unsubRepayments = onSnapshot(qRepayments, (snapshot) => {
-      const list: LoanRepayment[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          loan_id: d.loan_id || '',
-          organization_id: uid,
-          account_id: d.account_id || '',
-          date: d.date || '',
-          amount: Number(d.amount || 0),
-          type: d.type || 'REPAY',
-          description: d.description || '',
-          proof: d.proof || '',
-          created_by: d.created_by || '',
-          created_at: d.created_at || '',
+    attachAuthListener(`auth_repayments_${uid}`, () => {
+      const qRepayments = query(collection(db, 'repayments'), where('accountId', '==', uid));
+      return onSnapshot(qRepayments, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: LoanRepayment[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            loan_id: d.loan_id || '',
+            organization_id: uid,
+            account_id: d.account_id || '',
+            date: d.date || '',
+            amount: Number(d.amount || 0),
+            type: d.type || 'REPAY',
+            description: d.description || '',
+            proof: d.proof || '',
+            created_by: d.created_by || '',
+            created_at: d.created_at || '',
+          });
         });
-      });
-      setLoanRepayments(list);
-      try {
-        localStorage.setItem('local_repayments', JSON.stringify(list));
-      } catch {}
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'repayments'));
+        setLoanRepayments(list);
+        try {
+          localStorage.setItem('local_repayments', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'repayments'));
+    });
 
     // 10. Sub-Wings
-    const qSubWings = query(
-      collection(db, 'sub_wings'),
-      or(
-        where('portalId', '==', uid),
-        where('accountId', '==', uid)
-      )
-    );
-    const unsubSubWings = onSnapshot(qSubWings, (snapshot) => {
-      const list: SubWing[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          portalId: d.portalId || '',
-          name: d.name || '',
-          president: d.president || d.leader || '',
-          contactDetails: d.contactDetails || d.contact_details || '',
-          email: d.email || '',
-          passwordHash: d.passwordHash || d.password_hash || '',
-          description: d.description || '',
-          status: d.status || 'pending',
-          createdAt: d.createdAt || d.created_at || '',
+    attachAuthListener(`auth_subwings_${uid}`, () => {
+      const qSubWings = query(
+        collection(db, 'sub_wings'),
+        or(
+          where('portalId', '==', uid),
+          where('accountId', '==', uid)
+        )
+      );
+      return onSnapshot(qSubWings, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: SubWing[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            portalId: d.portalId || '',
+            name: d.name || '',
+            president: d.president || d.leader || '',
+            contactDetails: d.contactDetails || d.contact_details || '',
+            email: d.email || '',
+            passwordHash: d.passwordHash || d.password_hash || '',
+            description: d.description || '',
+            status: d.status || 'pending',
+            createdAt: d.createdAt || d.created_at || '',
+          });
         });
-      });
-      setSubWings(list);
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'sub_wings'));
+        setSubWings(list);
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'sub_wings'));
+    });
 
     // 11. Program Permissions
-    const qPermissions = query(
-      collection(db, 'program_permissions'),
-      or(
-        where('accountId', '==', uid),
-        where('organizationId', '==', uid)
-      )
-    );
-    const unsubProgramPermissions = onSnapshot(qPermissions, (snapshot) => {
-      const list: ProgramPermission[] = [];
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          programId: d.programId || '',
-          organizationId: d.organizationId || d.accountId || uid,
-          programName: d.programName || '',
-          conductedBy: d.conductedBy || '',
-          category: d.category || '',
-          subCategory: d.subCategory || '',
-          date: d.date || '',
-          timeFrom: d.timeFrom || '',
-          timeTill: d.timeTill || '',
-          venue: d.venue || '',
-          audience: d.audience || 'Students',
-          programInCharge: d.programInCharge || d.program_in_charge || d.inCharge || '',
-          resourcePerson: d.resourcePerson || '',
-          expectedAttendance: d.expectedAttendance ? Number(d.expectedAttendance) : undefined,
-          description: d.description || '',
-          permissionNotes: d.permissionNotes || '',
-          approvingAuthority: d.approvingAuthority || 'Principal',
-          status: d.status || 'pending',
-          submittedBy: d.submittedBy || undefined,
-          recommendedBy: d.recommendedBy || undefined,
-          approvedBy: d.approvedBy || undefined,
-          approvedAt: d.approvedAt || undefined,
-          approvalNotes: d.approvalNotes || undefined,
-          approvalMethod: d.approvalMethod || undefined,
-          approverDesignation: d.approverDesignation || undefined,
-          rejectedBy: d.rejectedBy || undefined,
-          rejectedAt: d.rejectedAt || undefined,
-          rejectionReason: d.rejectionReason || undefined,
-          changesRequestedBy: d.changesRequestedBy || undefined,
-          changesRequestedAt: d.changesRequestedAt || undefined,
-          changesRequiredNotes: d.changesRequiredNotes || undefined,
-          approvalToken: d.approvalToken || d.approval_token || undefined,
-          tokenCreatedAt: d.tokenCreatedAt || undefined,
-          tokenExpiresAt: d.tokenExpiresAt || undefined,
-          tokenRevoked: Boolean(d.tokenRevoked),
-          history: d.history || [],
-          createdAt: d.createdAt || d.created_at || new Date().toISOString(),
-          updatedAt: d.updatedAt || d.updated_at || new Date().toISOString(),
+    attachAuthListener(`auth_permissions_${uid}`, () => {
+      const qPermissions = query(
+        collection(db, 'program_permissions'),
+        or(
+          where('accountId', '==', uid),
+          where('organizationId', '==', uid)
+        )
+      );
+      return onSnapshot(qPermissions, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: ProgramPermission[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            programId: d.programId || '',
+            organizationId: d.organizationId || d.accountId || uid,
+            programName: d.programName || '',
+            conductedBy: d.conductedBy || '',
+            category: d.category || '',
+            subCategory: d.subCategory || '',
+            date: d.date || '',
+            timeFrom: d.timeFrom || '',
+            timeTill: d.timeTill || '',
+            venue: d.venue || '',
+            audience: d.audience || 'Students',
+            programInCharge: d.programInCharge || d.program_in_charge || d.inCharge || '',
+            resourcePerson: d.resourcePerson || '',
+            expectedAttendance: d.expectedAttendance ? Number(d.expectedAttendance) : undefined,
+            description: d.description || '',
+            permissionNotes: d.permissionNotes || '',
+            approvingAuthority: d.approvingAuthority || 'Principal',
+            status: d.status || 'pending',
+            submittedBy: d.submittedBy || undefined,
+            recommendedBy: d.recommendedBy || undefined,
+            approvedBy: d.approvedBy || undefined,
+            approvedAt: d.approvedAt || undefined,
+            approvalNotes: d.approvalNotes || undefined,
+            approvalMethod: d.approvalMethod || undefined,
+            approverDesignation: d.approverDesignation || undefined,
+            rejectedBy: d.rejectedBy || undefined,
+            rejectedAt: d.rejectedAt || undefined,
+            rejectionReason: d.rejectionReason || undefined,
+            changesRequestedBy: d.changesRequestedBy || undefined,
+            changesRequestedAt: d.changesRequestedAt || undefined,
+            changesRequiredNotes: d.changesRequiredNotes || undefined,
+            approvalToken: d.approvalToken || d.approval_token || undefined,
+            tokenCreatedAt: d.tokenCreatedAt || undefined,
+            tokenExpiresAt: d.tokenExpiresAt || undefined,
+            tokenRevoked: Boolean(d.tokenRevoked),
+            history: d.history || [],
+            createdAt: d.createdAt || d.created_at || new Date().toISOString(),
+            updatedAt: d.updatedAt || d.updated_at || new Date().toISOString(),
+          });
         });
-      });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setProgramPermissions(list);
-      try {
-        localStorage.setItem('local_permissions', JSON.stringify(list));
-      } catch {}
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setProgramPermissions(list);
+        try {
+          localStorage.setItem('local_permissions', JSON.stringify(list));
+        } catch {}
 
-      // Keep server public permission cache in sync for high reliability
-      if (list.length > 0) {
-        fetch('/api/public/college-permission/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ permissions: list }),
-        }).catch(() => {});
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'program_permissions'));
+        // Keep server public permission cache in sync for high reliability
+        if (list.length > 0) {
+          fetch('/api/public/college-permission/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissions: list }),
+          }).catch(() => {});
+        }
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'program_permissions'));
+    });
 
     // 12. Notifications (isolated to current authenticated organization / UID)
-    const qNotifications = query(
-      collection(db, 'notifications'),
-      where('organizationId', '==', uid),
-      limit(50)
-    );
-    let isInitialLoad = true;
-    const unsubNotifications = onSnapshot(qNotifications, (snapshot) => {
-      const list: AppNotification[] = [];
-      const incomingNewList: AppNotification[] = [];
+    attachAuthListener(`auth_notifications_${uid}`, () => {
+      const qNotifications = query(
+        collection(db, 'notifications'),
+        where('organizationId', '==', uid),
+        limit(50)
+      );
+      let isInitialLoad = true;
+      return onSnapshot(qNotifications, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: AppNotification[] = [];
+        const incomingNewList: AppNotification[] = [];
 
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added' && !isInitialLoad) {
-          const d = change.doc.data();
-          incomingNewList.push({
-            id: change.doc.id,
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' && !isInitialLoad) {
+            const d = change.doc.data();
+            incomingNewList.push({
+              id: change.doc.id,
+              recipientUserId: d.recipientUserId,
+              organizationId: d.organizationId || uid,
+              subOrganizationId: d.subOrganizationId,
+              subWingId: d.subWingId,
+              type: d.type || 'system_update',
+              category: d.category || 'system',
+              title: d.title || 'Notification',
+              message: d.message || '',
+              createdAt: d.createdAt || new Date().toISOString(),
+              isRead: Boolean(d.isRead),
+              readAt: d.readAt,
+              entityType: d.entityType,
+              entityId: d.entityId,
+              route: d.route,
+              priority: d.priority || 'normal',
+              metadata: d.metadata || {},
+              idempotencyKey: d.idempotencyKey,
+            });
+          }
+        });
+
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
             recipientUserId: d.recipientUserId,
             organizationId: d.organizationId || uid,
             subOrganizationId: d.subOrganizationId,
@@ -1383,64 +1552,36 @@ export const AppProvider: React.FC<{
             metadata: d.metadata || {},
             idempotencyKey: d.idempotencyKey,
           });
-        }
-      });
-
-      snapshot.forEach((docSnap) => {
-        const d = docSnap.data();
-        list.push({
-          id: docSnap.id,
-          recipientUserId: d.recipientUserId,
-          organizationId: d.organizationId || uid,
-          subOrganizationId: d.subOrganizationId,
-          subWingId: d.subWingId,
-          type: d.type || 'system_update',
-          category: d.category || 'system',
-          title: d.title || 'Notification',
-          message: d.message || '',
-          createdAt: d.createdAt || new Date().toISOString(),
-          isRead: Boolean(d.isRead),
-          readAt: d.readAt,
-          entityType: d.entityType,
-          entityId: d.entityId,
-          route: d.route,
-          priority: d.priority || 'normal',
-          metadata: d.metadata || {},
-          idempotencyKey: d.idempotencyKey,
         });
-      });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setNotifications(list);
-      setNotificationsLoading(false);
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setNotifications(list);
+        setNotificationsLoading(false);
 
-      if (!isInitialLoad && incomingNewList.length > 0) {
-        for (const item of incomingNewList) {
-          triggerSystemNotification(item.title, {
-            body: item.message,
-            route: item.route,
-            entityType: item.entityType,
-            entityId: item.entityId,
-            tag: item.idempotencyKey || item.id,
-          }).catch(() => {});
+        if (!isInitialLoad && incomingNewList.length > 0) {
+          for (const item of incomingNewList) {
+            triggerSystemNotification(item.title, {
+              body: item.message,
+              route: item.route,
+              entityType: item.entityType,
+              entityId: item.entityId,
+              tag: item.idempotencyKey || item.id,
+            }).catch(() => {});
+          }
         }
-      }
-      isInitialLoad = false;
-    }, (err) => handleFirestoreError(err, OperationType.GET, 'notifications'));
+        isInitialLoad = false;
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'notifications'));
+    });
 
     return () => {
-      unsubOrg();
-      unsubOrganizers();
-      unsubCategories();
-      unsubPrograms();
-      unsubAccounts();
-      unsubIncomes();
-      unsubExpenses();
-      unsubTransfers();
-      unsubLoans();
-      unsubRepayments();
-      unsubSubWings();
-      unsubProgramPermissions();
-      unsubNotifications();
+      // Guard against churn on transient auth state re-runs:
+      // Only unsubscribe if the session has actually ended (user logged out or unauthenticated)
+      if (!auth.currentUser || !isAuthenticated) {
+        activeSessionListeners.forEach((unsub) => {
+          try { unsub(); } catch {}
+        });
+        activeSessionListeners.clear();
+        currentActiveSessionUid = null;
+      }
     };
   }, [user?.id, isAuthenticated]);
 
@@ -1777,14 +1918,46 @@ export const AppProvider: React.FC<{
 
   const addProgramCategory = async (name: string): Promise<ProgramCategory> => {
     const trimmed = (name || '').trim();
-    if (!trimmed) {
-      throw new Error('Category name cannot be empty.');
-    }
+    if (!trimmed) throw new Error('Category name cannot be empty.');
     const result = await ensureCategoryExists(trimmed);
-    if (!result) {
-      throw new Error('Failed to create category.');
-    }
+    if (!result) throw new Error('Failed to create category.');
     return result;
+  };
+
+  const updateProgramCategory = async (id: string, name: string): Promise<void> => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('Category name cannot be empty.');
+    await updateDoc(doc(db, 'program_categories', id), { name: trimmed, updatedAt: new Date().toISOString() });
+  };
+
+  const deleteProgramCategory = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'program_categories', id));
+  };
+
+  const addProgramSubCategory = async (name: string, categoryId: string): Promise<ProgramSubCategory> => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('Subcategory name cannot be empty.');
+    if (!categoryId) throw new Error('Category ID is required.');
+    
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'program_subcategories'), {
+      accountId: user?.id,
+      categoryId,
+      name: trimmed,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { id: docRef.id, organization_id: user?.id || '', category_id: categoryId, name: trimmed, created_at: now, updated_at: now };
+  };
+
+  const updateProgramSubCategory = async (id: string, name: string): Promise<void> => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('Subcategory name cannot be empty.');
+    await updateDoc(doc(db, 'program_subcategories', id), { name: trimmed, updatedAt: new Date().toISOString() });
+  };
+
+  const deleteProgramSubCategory = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'program_subcategories', id));
   };
 
   // Program Mutations
@@ -2953,13 +3126,19 @@ export const AppProvider: React.FC<{
         programs,
         allPrograms: programs,
         programCategories,
+        programSubCategories,
         addProgram,
         updateProgram,
         deleteProgram,
         addProgramMedia,
         deleteProgramMedia,
         addProgramCategory,
+        updateProgramCategory,
+        deleteProgramCategory,
         ensureCategoryExists,
+        addProgramSubCategory,
+        updateProgramSubCategory,
+        deleteProgramSubCategory,
         subWings,
         subWingPrograms,
         setSubWings,
@@ -3036,6 +3215,7 @@ export const AppProvider: React.FC<{
         notificationsLoading,
 
         isQuotaExceeded,
+        setIsQuotaExceeded,
         isPublicView,
         exitPublicView,
       }}

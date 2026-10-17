@@ -30,7 +30,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({ onOpenAddTransfer 
         {isAdmin && (
           <button
             onClick={onOpenAddTransfer}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-colors"
+            className="px-4 py-2.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New Transfer</span>

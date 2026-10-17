@@ -421,7 +421,7 @@ export const SubOrgDashboard: React.FC = () => {
   const getStatusBadge = (status: SP_Achievement['status']) => {
     switch (status) {
       case 'Approved':
-        return <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-md">Approved</span>;
+        return <span className="px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-md">Approved</span>;
       case 'Rejected':
         return <span className="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold rounded-md">Rejected</span>;
       case 'Under Review':
@@ -438,7 +438,7 @@ export const SubOrgDashboard: React.FC = () => {
       {/* 2. Organization Header */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-2xs">
         <div className="flex items-center gap-3.5 text-center sm:text-left w-full sm:w-auto">
-          <div className="w-11 h-11 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
+          <div className="w-11 h-11 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl flex items-center justify-center font-black text-sm shrink-0">
             {activeOrg?.logo ? (
               <img src={activeOrg.logo} alt={activeOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
             ) : (
@@ -450,7 +450,7 @@ export const SubOrgDashboard: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 font-heading truncate">
                 {activeOrg?.name || portalUser?.name || 'Class Sub-Organization'}
               </h2>
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold rounded-md">
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/80 text-[10px] font-bold rounded-md">
                 Class Sub-Org Admin
               </span>
             </div>
@@ -463,7 +463,7 @@ export const SubOrgDashboard: React.FC = () => {
         {/* 9. Student Points Management Footer Card / Logout Action */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700">
-            <Trophy className="w-3.5 h-3.5 text-emerald-700" />
+            <Trophy className="w-3.5 h-3.5 text-blue-700" />
             <span>Student Points Management</span>
           </div>
           <button
@@ -481,16 +481,16 @@ export const SubOrgDashboard: React.FC = () => {
       </div>
 
       {/* 3. Student Points Leaderboard Banner */}
-      <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-2xs relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-950 via-blue-800 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-2xs relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
           <Trophy className="w-56 h-56 rotate-12 text-white" />
         </div>
         <div className="max-w-2xl space-y-1.5 relative z-10">
-          <span className="px-2.5 py-0.5 bg-white/10 backdrop-blur-md rounded-md text-[9px] uppercase font-bold tracking-widest text-emerald-300 border border-white/10">
+          <span className="px-2.5 py-0.5 bg-white/10 backdrop-blur-md rounded-md text-[9px] uppercase font-bold tracking-widest text-sky-300 border border-white/10">
             PUBLIC DASHBOARD
           </span>
           <h1 className="text-lg sm:text-2xl font-extrabold font-heading tracking-tight leading-tight">Student Points Leaderboard</h1>
-          <p className="text-emerald-100/90 text-xs sm:text-sm leading-relaxed max-w-lg font-medium">
+          <p className="text-blue-100/90 text-xs sm:text-sm leading-relaxed max-w-lg font-medium">
             Monitor student achievers, class sub-organization standings, and approved achievements in real time.
           </p>
         </div>
@@ -503,7 +503,7 @@ export const SubOrgDashboard: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('leaderboard')}
             className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'leaderboard' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+              activeTab === 'leaderboard' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Leaderboard & Standings
@@ -512,7 +512,7 @@ export const SubOrgDashboard: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('awards')}
             className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'awards' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+              activeTab === 'awards' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Conferred Awards
@@ -521,7 +521,7 @@ export const SubOrgDashboard: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('overview')}
             className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'overview' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+              activeTab === 'overview' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Overview & Submissions
@@ -533,7 +533,7 @@ export const SubOrgDashboard: React.FC = () => {
               markNotificationsAsRead();
             }}
             className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'notifications' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+              activeTab === 'notifications' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <span>Alert Notifications</span>
@@ -548,16 +548,16 @@ export const SubOrgDashboard: React.FC = () => {
       {activeTab === 'leaderboard' && (
         <div className="space-y-6">
           {/* 6. Evaluation Period Status — Complete Redesign */}
-          <div className="bg-white rounded-2xl border-l-4 border-emerald-600 border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white rounded-2xl border-l-4 border-blue-600 border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-800 shrink-0">
                 <Calendar className="w-4 h-4" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Evaluation Period Status</h3>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
                     ACTIVE PERIOD
                   </span>
                 </div>
@@ -573,8 +573,8 @@ export const SubOrgDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
                 Live Standings Active
               </span>
             </div>
@@ -584,7 +584,7 @@ export const SubOrgDashboard: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-2xs space-y-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-800">
                   <Trophy className="w-4 h-4" />
                 </div>
                 <div>
@@ -600,7 +600,7 @@ export const SubOrgDashboard: React.FC = () => {
                   onClick={() => setLeaderboardScope('achievers')}
                   className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     leaderboardScope === 'achievers'
-                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs'
+                      ? 'bg-blue-50 text-blue-950 border border-blue-200 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -611,7 +611,7 @@ export const SubOrgDashboard: React.FC = () => {
                   onClick={() => setLeaderboardScope('organizations')}
                   className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     leaderboardScope === 'organizations'
-                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs'
+                      ? 'bg-blue-50 text-blue-950 border border-blue-200 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -644,7 +644,7 @@ export const SubOrgDashboard: React.FC = () => {
                   <select
                     value={selectedOrgFilter}
                     onChange={(e) => setSelectedOrgFilter(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all appearance-none cursor-pointer"
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all appearance-none cursor-pointer"
                   >
                     <option value="all">All Organizations ({activeOrganizations.length})</option>
                     {activeOrganizations.map(org => (
@@ -667,7 +667,7 @@ export const SubOrgDashboard: React.FC = () => {
                     placeholder="Search by student name or ID…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
                   />
                 </div>
               </div>
@@ -694,7 +694,7 @@ export const SubOrgDashboard: React.FC = () => {
                             #{idx + 1}
                           </div>
 
-                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-center font-bold text-xs shrink-0">
                             {member.name.substring(0, 2).toUpperCase()}
                           </div>
 
@@ -707,13 +707,13 @@ export const SubOrgDashboard: React.FC = () => {
                               <span>•</span>
                               <span className="truncate">{getOrgName(member.organizationId)}</span>
                               <span>•</span>
-                              <span className="text-emerald-700 font-semibold">{member.periodApprovedCount} approved achievement{member.periodApprovedCount === 1 ? '' : 's'}</span>
+                              <span className="text-blue-700 font-semibold">{member.periodApprovedCount} approved achievement{member.periodApprovedCount === 1 ? '' : 's'}</span>
                             </div>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="text-sm sm:text-base font-black text-emerald-800">
+                          <span className="text-sm sm:text-base font-black text-blue-800">
                             +{member.periodPoints}
                           </span>
                           <span className="text-[10px] font-bold text-slate-400 block uppercase">PTS</span>
@@ -741,7 +741,7 @@ export const SubOrgDashboard: React.FC = () => {
                             #{idx + 1}
                           </div>
 
-                          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
                             {org.logo ? (
                               <img src={org.logo} alt={org.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
@@ -758,13 +758,13 @@ export const SubOrgDashboard: React.FC = () => {
                               <span>•</span>
                               <span>President: {org.leader || 'N/A'}</span>
                               <span>•</span>
-                              <span className="text-emerald-700 font-semibold">{org.periodApprovedCount} submissions</span>
+                              <span className="text-blue-700 font-semibold">{org.periodApprovedCount} submissions</span>
                             </div>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="text-sm sm:text-base font-black text-emerald-800">
+                          <span className="text-sm sm:text-base font-black text-blue-800">
                             +{org.periodPoints}
                           </span>
                           <span className="text-[10px] font-bold text-slate-400 block uppercase">PTS</span>
@@ -813,7 +813,7 @@ export const SubOrgDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Award className="w-5 h-5 text-emerald-700" />
+              <Award className="w-5 h-5 text-blue-700" />
               Conferred Awards & Honors
             </h2>
             <EvaluationPeriodSelector
@@ -856,7 +856,7 @@ export const SubOrgDashboard: React.FC = () => {
               {activeOrg?.logo ? (
                 <img src={activeOrg.logo} alt={activeOrg?.name || 'Class Logo'} className="w-12 h-12 rounded-xl object-cover border border-slate-200" referrerPolicy="no-referrer" />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex items-center justify-center font-bold text-sm shrink-0">
                   {((activeOrg?.name || portalUser?.name || 'SP').trim().slice(0, 2)).toUpperCase()}
                 </div>
               )}
@@ -867,7 +867,7 @@ export const SubOrgDashboard: React.FC = () => {
                 <p className="text-xs text-slate-500 truncate">
                   {activeOrg?.className || 'Class Account'} • Admin: {portalUser?.name || portalUser?.email}
                 </p>
-                <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200">
+                <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-800 rounded border border-blue-200">
                   Active Organization
                 </span>
               </div>
@@ -876,7 +876,7 @@ export const SubOrgDashboard: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col justify-between shadow-2xs">
               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate">Total Earned</p>
               <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-2xl font-black text-emerald-800">
+                <span className="text-2xl font-black text-blue-800">
                   {orgAchievements.filter(a => a.status === 'Approved').reduce((sum, a) => sum + (Number(a.awardedPoints) || 0), 0)}
                 </span>
                 <span className="text-[10px] font-semibold text-slate-500">POINTS</span>
@@ -897,7 +897,7 @@ export const SubOrgDashboard: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <History className="w-4 h-4 text-emerald-700" />
+                  <History className="w-4 h-4 text-blue-700" />
                   Submissions Registry
                 </h2>
                 <p className="text-xs text-slate-500">Manage program submissions and evaluation proofs</p>
@@ -907,7 +907,7 @@ export const SubOrgDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => { resetForm(); setActiveTab('submit'); }}
-                  className="py-2 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
+                  className="py-2 px-4 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ Add Achievement</span>
@@ -975,7 +975,7 @@ export const SubOrgDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleEdit(ach)}
-                              className="py-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-emerald-800 font-semibold cursor-pointer"
+                              className="py-1 px-2.5 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-800 font-semibold cursor-pointer"
                             >
                               Edit
                             </button>
@@ -1016,7 +1016,7 @@ export const SubOrgDashboard: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Overview</span>
             </button>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+            <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
               {isEditing ? 'Edit Submission' : 'New Submission'}
             </span>
           </div>
@@ -1030,7 +1030,7 @@ export const SubOrgDashboard: React.FC = () => {
             )}
 
             {formSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{formSuccess}</span>
               </div>
@@ -1045,7 +1045,7 @@ export const SubOrgDashboard: React.FC = () => {
                   placeholder="e.g. Annual Tech Symposium Winner"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 />
               </div>
 
@@ -1057,7 +1057,7 @@ export const SubOrgDashboard: React.FC = () => {
                   placeholder="e.g. National Programming Fest"
                   value={programName}
                   onChange={(e) => setProgramName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 />
               </div>
 
@@ -1066,7 +1066,7 @@ export const SubOrgDashboard: React.FC = () => {
                 <select
                   value={categoryId}
                   onChange={(e) => handleCategoryChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 >
                   <option value="">Select category...</option>
                   {categories.map(cat => (
@@ -1097,7 +1097,7 @@ export const SubOrgDashboard: React.FC = () => {
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 />
               </div>
 
@@ -1108,7 +1108,7 @@ export const SubOrgDashboard: React.FC = () => {
                   placeholder="Optional Student Name"
                   value={achieverName}
                   onChange={(e) => setAchieverName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 />
               </div>
 
@@ -1119,7 +1119,7 @@ export const SubOrgDashboard: React.FC = () => {
                   min="1"
                   value={requestedPoints}
                   onChange={(e) => setRequestedPoints(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
                 />
               </div>
             </div>
@@ -1132,7 +1132,7 @@ export const SubOrgDashboard: React.FC = () => {
                 placeholder="Provide detailed description of the achievement..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-800"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800"
               />
             </div>
 
@@ -1147,7 +1147,7 @@ export const SubOrgDashboard: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>{isEditing ? 'Save Changes' : 'Submit Achievement'}</span>
@@ -1161,7 +1161,7 @@ export const SubOrgDashboard: React.FC = () => {
       {activeTab === 'notifications' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xs">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Bell className="w-4 h-4 text-emerald-700" />
+            <Bell className="w-4 h-4 text-blue-700" />
             Class Alerts & Feedback
           </h2>
 
@@ -1189,7 +1189,7 @@ export const SubOrgDashboard: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-start gap-4 pb-3 border-b border-slate-100">
               <div>
-                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-md">
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-800 text-[10px] font-bold rounded-md">
                   {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-1">{selectedAchievement.title}</h3>

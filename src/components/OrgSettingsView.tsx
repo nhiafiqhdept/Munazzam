@@ -222,184 +222,187 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Profile Settings Form */}
-        <div className="lg:col-span-8 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 pb-3 border-b border-slate-100">
-            Institutional Identity & Information
-          </h2>
-
-          <form onSubmit={handleSave} className="space-y-4">
-            {/* Logo */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                ORGANIZATION LOGO / CREST
-              </label>
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80">
-                {/* Preview */}
-                <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
-                  {logo ? (
-                    <img
-                      src={logo}
-                      alt="Logo Preview"
-                      className="w-full h-full object-contain rounded-xl"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center text-center text-slate-400">
-                      <ImageIcon className="w-8 h-8 mb-1 text-slate-300" />
-                      <span className="text-[10px] font-medium text-slate-400">No Logo</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions & Description */}
-                <div className="flex-1 w-full space-y-3 text-center sm:text-left">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                    <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-all shadow-xs active:scale-[0.98]">
-                      <Upload className="w-4 h-4" />
-                      <span>{isUploading ? 'Uploading Logo...' : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                        disabled={isUploading}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 pb-3 border-b border-slate-100">
+              Institutional Identity & Information
+            </h2>
+            <form onSubmit={handleSave} className="space-y-4">
+              {/* Logo */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  ORGANIZATION LOGO / CREST
+                </label>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80">
+                  {/* Preview */}
+                  <div className="w-24 h-24 rounded-2xl bg-white p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-center overflow-hidden shrink-0 relative group">
+                    {logo ? (
+                      <img
+                        src={logo}
+                        alt="Logo Preview"
+                        className="w-full h-full object-contain rounded-xl"
                       />
-                    </label>
-
-                    {logo && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLogo('');
-                          if (currentOrg) {
-                            updateOrganization({
-                              id: currentOrg.id,
-                              name: currentOrg.name,
-                              college_name: currentOrg.college_name,
-                              tagline: currentOrg.tagline,
-                              about: currentOrg.about,
-                              academic_year: currentOrg.academic_year,
-                              logo: '',
-                            });
-                          }
-                        }}
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                        <span>Remove Logo</span>
-                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center text-center text-slate-400">
+                        <ImageIcon className="w-8 h-8 mb-1 text-slate-300" />
+                        <span className="text-[10px] font-medium text-slate-400">No Logo</span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
-                  </p>
+
+                  {/* Actions & Description */}
+                  <div className="flex-1 w-full space-y-3 text-center sm:text-left">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                      <label className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl cursor-pointer text-xs font-bold transition-all shadow-xs active:scale-[0.98]">
+                        <Upload className="w-4 h-4" />
+                        <span>{isUploading ? 'Uploading Logo...' : logo ? 'Replace Logo' : 'Upload Organization Logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                      </label>
+
+                      {logo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogo('');
+                            if (currentOrg) {
+                              updateOrganization({
+                                id: currentOrg.id,
+                                name: currentOrg.name,
+                                college_name: currentOrg.college_name,
+                                tagline: currentOrg.tagline,
+                                about: currentOrg.about,
+                                academic_year: currentOrg.academic_year,
+                                logo: '',
+                                searchableName: searchableName,
+                              });
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Remove Logo</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Upload a custom crest or logo from your device. Supports JPG, PNG, and WebP images.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Organization Name */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Organization Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white"
-              />
-            </div>
+              {/* Organization Name */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Organization Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white"
+                />
+              </div>
 
-            {/* College / Institution */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                College / Institution Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={collegeName}
-                onChange={(e) => setCollegeName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white"
-              />
-            </div>
+              {/* College / Institution */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  College / Institution Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={collegeName}
+                  onChange={(e) => setCollegeName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:bg-white"
+                />
+              </div>
 
-            {/* Searchable Name */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Searchable Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={searchableName}
-                onChange={(e) => setSearchableName(e.target.value.toUpperCase())}
-                placeholder="e.g. NSU or DEPT"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white uppercase tracking-wider"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Used by the public to find this organization in Public View. Must be unique.
-              </p>
-              {!searchableName.trim() && (
-                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-medium">
-                  Set your Searchable Name to make this organization discoverable in Public View.
+              {/* Searchable Name */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Searchable Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={searchableName}
+                  onChange={(e) => setSearchableName(e.target.value.toUpperCase())}
+                  placeholder="e.g. NSU or DEPT"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white uppercase tracking-wider"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Used by the public to find this organization in Public View. Must be unique.
+                </p>
+                {!searchableName.trim() && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-medium">
+                    Set your Searchable Name to make this organization discoverable in Public View.
+                  </div>
+                )}
+              </div>
+
+              {/* Tagline & Academic Session */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Motto / Tagline
+                  </label>
+                  <input
+                    type="text"
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value)}
+                    placeholder="e.g. Advancing Academic Excellence..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white"
+                  />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Academic Year / Term
+                  </label>
+                  <input
+                    type="text"
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(e.target.value)}
+                    placeholder="e.g. 2026–2027"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* About */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  About / Mission Description
+                </label>
+                <textarea
+                  rows={4}
+                  value={about}
+                  onChange={(e) => setAbout(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-xs sm:text-sm text-slate-900 focus:bg-white resize-y"
+                />
+              </div>
+
+              {isAdmin && (
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
+                  <span>{isSaving ? 'Saving...' : 'Save Profile Changes'}</span>
+                </button>
               )}
-            </div>
+            </form>
+        </div>
 
-            {/* Tagline & Academic Session */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Motto / Tagline
-                </label>
-                <input
-                  type="text"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  placeholder="e.g. Advancing Academic Excellence..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Academic Year / Term
-                </label>
-                <input
-                  type="text"
-                  value={academicYear}
-                  onChange={(e) => setAcademicYear(e.target.value)}
-                  placeholder="e.g. 2026–2027"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            {/* About */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                About / Mission Description
-              </label>
-              <textarea
-                rows={4}
-                value={about}
-                onChange={(e) => setAbout(e.target.value)}
-                className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-xs sm:text-sm text-slate-900 focus:bg-white resize-y"
-              />
-            </div>
-
-            {isAdmin && (
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-xs flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
-                <span>{isSaving ? 'Saving...' : 'Save Profile Changes'}</span>
-              </button>
-            )}
-          </form>
         </div>
 
         {/* Right Sidebar: Backup Tools */}
@@ -576,4 +579,3 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
     </div>
   );
 };
-

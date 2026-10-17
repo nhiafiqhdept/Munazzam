@@ -6,6 +6,7 @@ import { fileToDataUrl, optimizeImageFile, isImageFile } from '../utils/helpers'
 import { ImageCropModal } from './ImageCropModal';
 import { CustomOptionField } from './common/CustomOptionField';
 import { DEFAULT_ORGANIZER_POSITIONS_WITH_OTHER, resolveCustomSelectState } from '../utils/customOptionUtils';
+import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
 
 interface OrganizerModalProps {
   isOpen: boolean;
@@ -23,9 +24,7 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
   const [name, setName] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>(DEFAULT_ORGANIZER_POSITIONS_WITH_OTHER[0]);
   const [customPosition, setCustomPosition] = useState('');
-  const [photo, setPhoto] = useState(
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'
-  );
+  const [photo, setPhoto] = useState('');
   const [photoTab, setPhotoTab] = useState<'upload' | 'url'>('upload');
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
   const [email, setEmail] = useState('');
@@ -53,7 +52,7 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
       setSelectedPosition(resolved.selected);
       setCustomPosition(resolved.custom);
 
-      setPhoto(organizerToEdit.photo);
+      setPhoto(organizerToEdit.photo || '');
       setEmail(organizerToEdit.email || '');
       setPhone(organizerToEdit.phone || '');
       setBio(organizerToEdit.bio || '');
@@ -63,7 +62,7 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
       setName('');
       setSelectedPosition(DEFAULT_ORGANIZER_POSITIONS_WITH_OTHER[0]);
       setCustomPosition('');
-      setPhoto('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80');
+      setPhoto('');
       setEmail('');
       setPhone('');
       setBio('');
@@ -225,20 +224,23 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
             </label>
             <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
               <div className="relative group shrink-0">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-600 shadow-xs bg-white">
-                  <img
-                    src={
-                      (photoTab === 'url' && customPhotoUrl)
-                        ? customPhotoUrl
-                        : (photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80')
-                    }
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
-                    }}
-                  />
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-600 shadow-xs bg-white flex items-center justify-center">
+                  {((photoTab === 'url' && customPhotoUrl) || photo) ? (
+                    <img
+                      src={
+                        (photoTab === 'url' && customPhotoUrl)
+                          ? customPhotoUrl
+                          : photo
+                      }
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <MaleSilhouetteAvatar />
+                  )}
                 </div>
                 <button
                   type="button"

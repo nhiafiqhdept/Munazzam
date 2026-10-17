@@ -23,6 +23,7 @@ import { useApp } from '../context/AppContext';
 import { ActiveTab } from '../types';
 import { UpcomingProgramsCarousel } from './UpcomingProgramsCarousel';
 import { getProgramEffectiveStatus, getRoleBadgeStyle } from '../utils/helpers';
+import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
 
 interface DashboardProps {
   onOpenAddProgram: () => void;
@@ -609,18 +610,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
                   className="bg-white rounded-2xl p-4 lg:p-5 text-center border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-400 transition-all duration-200 hover:-translate-y-1 cursor-pointer flex flex-col items-center justify-between group min-h-[190px] sm:min-h-[210px]"
                 >
                   <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-full p-0.5 bg-gradient-to-tr from-[#0f1f4b] via-[#1d4ed8] to-indigo-400 group-hover:scale-105 transition-transform duration-200 mb-2.5 overflow-hidden shrink-0 shadow-sm">
-                    <img
-                      src={
-                        orgzr.photo ||
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'
-                      }
-                      alt={orgzr.name}
-                      className="w-full h-full object-cover rounded-full"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
-                      }}
-                    />
+                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                      {orgzr.photo && orgzr.photo.trim() !== '' && !orgzr.photo.includes('unsplash.com') && !orgzr.photo.includes('photo-1534528741775') ? (
+                        <img
+                          src={orgzr.photo}
+                          alt={orgzr.name}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <MaleSilhouetteAvatar />
+                      )}
+                    </div>
                   </div>
 
                   <div className="w-full flex-1 flex flex-col items-center justify-between">

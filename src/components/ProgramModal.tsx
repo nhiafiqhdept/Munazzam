@@ -655,7 +655,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
               <ProgramSubCategoryCombobox
                 value={subCategory}
                 onChange={(subCat) => setSubCategory(subCat)}
-                categoryContext={category}
+                categoryId={categoryId}
                 placeholder="Select or enter..."
               />
             </div>

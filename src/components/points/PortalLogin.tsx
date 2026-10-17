@@ -66,7 +66,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
       >
         {/* Header Branding */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+          <div className="mx-auto w-14 h-14 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center shadow-xs">
             <Award className="w-8 h-8 stroke-[2]" />
           </div>
           <div className="space-y-1">
@@ -83,7 +83,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
             onClick={() => handleRoleChange('sub_org')}
             className={`py-2 px-1 font-semibold rounded-xl text-center transition-all cursor-pointer ${
               roleMode === 'sub_org'
-                ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/40 font-bold'
+                ? 'bg-white text-blue-800 shadow-xs border border-slate-200/40 font-bold'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -95,7 +95,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
             onClick={() => handleRoleChange('nsu_admin')}
             className={`py-2 px-1 font-semibold rounded-xl text-center transition-all cursor-pointer ${
               roleMode === 'nsu_admin'
-                ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/40 font-bold'
+                ? 'bg-white text-blue-800 shadow-xs border border-slate-200/40 font-bold'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -113,8 +113,8 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
           )}
 
           {success && (
-            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-blue-600" />
               <span>Login successful! Entering portal...</span>
             </div>
           )}
@@ -133,7 +133,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading || success}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
               />
             </div>
           </div>
@@ -152,7 +152,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading || success}
-                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-800"
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800"
               />
               <button
                 type="button"
@@ -174,7 +174,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onJoinAsViewer }) => {
           <button
             type="submit"
             disabled={loading || success}
-            className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-2xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

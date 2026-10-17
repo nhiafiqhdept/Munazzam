@@ -82,7 +82,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         {isAdmin && (
           <button
             onClick={onOpenAddLoan}
-            className="w-full sm:w-auto px-4 py-2.5 bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Loan</span>
@@ -102,7 +102,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         <button
           onClick={() => setActiveTab('BORROWED')}
           className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'BORROWED' ? 'bg-amber-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            activeTab === 'BORROWED' ? 'bg-[#0f1f4b] text-white shadow-xs' : 'bg-white hover:bg-blue-50/70 text-slate-700 border border-slate-200 hover:border-blue-200'
           }`}
         >
           Borrowed (Payables) ({borrowedCount})
@@ -110,7 +110,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         <button
           onClick={() => setActiveTab('LENT')}
           className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'LENT' ? 'bg-blue-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            activeTab === 'LENT' ? 'bg-[#1e3a8a] text-white shadow-xs' : 'bg-white hover:bg-blue-50/70 text-slate-700 border border-slate-200 hover:border-blue-200'
           }`}
         >
           Lent (Receivables) ({lentCount})
@@ -118,7 +118,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
         <button
           onClick={() => setActiveTab('REPAYMENTS')}
           className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === 'REPAYMENTS' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            activeTab === 'REPAYMENTS' ? 'bg-[#1d4ed8] text-white shadow-xs' : 'bg-white hover:bg-blue-50/70 text-slate-700 border border-slate-200 hover:border-blue-200'
           }`}
         >
           Repayments ({sortedRepayments.length})
@@ -309,7 +309,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                       <span
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 ${
                           isComplete
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-blue-100 text-blue-900'
                             : loan.status === 'PARTIALLY_PAID' || loan.status === 'PARTIALLY_RECOVERED'
                             ? 'bg-amber-100 text-amber-800'
                             : 'bg-rose-100 text-rose-800'
@@ -339,7 +339,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                         {!isComplete && isAdmin && (
                           <button
                             onClick={() => onOpenRepayment(loan)}
-                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer shadow-2xs"
+                            className="px-3 py-1.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer shadow-2xs"
                           >
                             <RefreshCw className="w-3 h-3" />
                             <span>{activeTab === 'BORROWED' ? 'Repay' : 'Recover'}</span>
@@ -419,7 +419,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                             <span
                               className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                                 isComplete
-                                  ? 'bg-emerald-100 text-emerald-800'
+                                  ? 'bg-blue-100 text-blue-900'
                                   : loan.status === 'PARTIALLY_PAID' || loan.status === 'PARTIALLY_RECOVERED'
                                   ? 'bg-amber-100 text-amber-800'
                                   : 'bg-rose-100 text-rose-800'
@@ -433,7 +433,7 @@ export const LoansView: React.FC<LoansViewProps> = ({ onOpenAddLoan, onOpenRepay
                               {!isComplete && isAdmin && (
                                 <button
                                   onClick={() => onOpenRepayment(loan)}
-                                  className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-[11px] flex items-center gap-1 cursor-pointer"
+                                  className="px-2.5 py-1.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold rounded-lg text-[11px] flex items-center gap-1 cursor-pointer"
                                 >
                                   <RefreshCw className="w-3 h-3" />
                                   <span>{activeTab === 'BORROWED' ? 'Repay' : 'Recover'}</span>

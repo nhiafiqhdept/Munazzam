@@ -50,10 +50,10 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
     switch (type) {
       case 'cash':
         return {
-          bgIcon: 'bg-emerald-100 text-emerald-800',
-          badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          cardAccent: 'hover:border-emerald-400 bg-gradient-to-br from-white via-white to-emerald-50/30',
-          balanceColor: 'text-emerald-700',
+          bgIcon: 'bg-blue-100 text-[#0f1f4b]',
+          badge: 'bg-blue-50 text-blue-800 border-blue-200',
+          cardAccent: 'hover:border-blue-400 bg-gradient-to-br from-white via-white to-blue-50/30',
+          balanceColor: 'text-blue-800',
         };
       case 'bank':
         return {
@@ -110,7 +110,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
         {isAdmin && (
           <button
             onClick={onOpenAddModal}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            className="px-3.5 py-2 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Account</span>
@@ -141,7 +141,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
                     </span>
                     <span
                       className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        acc.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                        acc.is_active ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
                       }`}
                     >
                       {acc.is_active ? 'Active' : 'Inactive'}
@@ -171,7 +171,7 @@ export const AccountsView: React.FC<AccountsViewProps> = ({ onOpenAddModal, onOp
                   <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-50/80">
                     <button
                       onClick={() => onOpenEditModal(acc)}
-                      className="px-2.5 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                     >
                       <Edit className="w-3 h-3" />
                       <span>Edit</span>

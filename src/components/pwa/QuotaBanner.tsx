@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const QuotaBanner: React.FC = () => {
   let isQuotaExceeded = false;
+  let setIsQuotaExceeded: ((val: boolean) => void) | undefined;
   try {
     const app = useApp();
     isQuotaExceeded = Boolean(app?.isQuotaExceeded);
+    setIsQuotaExceeded = app?.setIsQuotaExceeded;
   } catch {
     // Gracefully ignore if used outside AppProvider (e.g. public portal routes)
     return null;
   }
   const [dismissed, setDismissed] = useState(false);
 
+  // When quota state recovers to false, reset dismissed so banner can notify again if quota is exceeded in the future
+  useEffect(() => {
+    if (!isQuotaExceeded) {
+      setDismissed(false);
+    }
+  }, [isQuotaExceeded]);
+
   if (!isQuotaExceeded || dismissed) {
     return null;
   }
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    if (setIsQuotaExceeded) {
+      setIsQuotaExceeded(false);
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('firestore-quota-reset'));
+    } catch {}
+  };
 
   return (
     <div 
@@ -35,7 +54,7 @@ export const QuotaBanner: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
           className="p-1 hover:bg-amber-900/40 text-amber-400 hover:text-white rounded-lg transition-colors shrink-0"
           aria-label="Dismiss message"
         >

@@ -488,7 +488,7 @@ export const AdminDashboard: React.FC = () => {
                     setOrgActionSuccess('');
                     setOrgToApprove(pendingOrg);
                   }}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Approve</span>
@@ -516,7 +516,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('review')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'review' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'review' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Review Submissions ({pendingAchievements.length})
@@ -524,7 +524,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('organizations')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'organizations' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'organizations' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span>Class Organizations</span>
@@ -537,7 +537,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('categories')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'categories' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'categories' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Point Categories
@@ -545,7 +545,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('competitions')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'competitions' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'competitions' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Evaluation Periods
@@ -553,7 +553,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('awards')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'awards' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'awards' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Awards Manager
@@ -561,7 +561,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('announcements')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'announcements' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'announcements' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Announcements
@@ -569,7 +569,7 @@ export const AdminDashboard: React.FC = () => {
         <button
           onClick={() => setActiveTab('audit')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 whitespace-nowrap transition-all cursor-pointer ${
-            activeTab === 'audit' ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-800'
+            activeTab === 'audit' ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           Audit History Trail
@@ -578,7 +578,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* No Active Evaluation Period Callout Banner */}
       {!activeEvaluationPeriod && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 border border-amber-300/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+        <div className="bg-gradient-to-r from-amber-500/10 via-blue-500/10 to-teal-500/10 border border-amber-300/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5 text-amber-700" />
@@ -600,9 +600,9 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsWizardOpen(true)}
-            className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shrink-0 shadow-xs cursor-pointer transition-colors"
+            className="px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shrink-0 shadow-xs cursor-pointer transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-200" />
             <span>Launch Setup Wizard</span>
           </button>
         </div>
@@ -619,15 +619,15 @@ export const AdminDashboard: React.FC = () => {
               <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-3">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-800 shrink-0">
                       <Trophy className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading">Achievements Review</h2>
                         {activeEvaluationPeriod && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200/80">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                             Active Period: {activeEvaluationPeriod.name}
                           </span>
                         )}
@@ -662,12 +662,12 @@ export const AdminDashboard: React.FC = () => {
                     <div
                       key={org.id}
                       onClick={() => setSelectedOrgId(org.id)}
-                      className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4 group"
+                      className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-blue-600 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-4 group"
                     >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm flex-shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-blue-800 text-sm flex-shrink-0">
                               {org.logo ? (
                                 <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
                               ) : (
@@ -675,7 +675,7 @@ export const AdminDashboard: React.FC = () => {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors truncate">
+                              <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-800 transition-colors truncate">
                                 {org.name}
                               </h3>
                               {org.className && (
@@ -700,16 +700,16 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                           <div className="border-x border-slate-200/60">
                             <span className="text-[9px] text-slate-400 font-bold uppercase block">Approved</span>
-                            <span className="font-bold text-emerald-600">{approvedCount}</span>
+                            <span className="font-bold text-blue-600">{approvedCount}</span>
                           </div>
                           <div>
                             <span className="text-[9px] text-slate-400 font-bold uppercase block">Points</span>
-                            <span className="font-bold text-emerald-800">+{pointsAwarded}</span>
+                            <span className="font-bold text-blue-800">+{pointsAwarded}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700 group-hover:text-blue-800">
                         <span>Review Submissions</span>
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                       </div>
@@ -770,19 +770,19 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                     <button 
                       onClick={() => setSelectedOrgId(null)} 
-                      className="hover:text-emerald-800 transition-colors cursor-pointer font-bold text-slate-600 hover:underline"
+                      className="hover:text-blue-800 transition-colors cursor-pointer font-bold text-slate-600 hover:underline"
                     >
                       Achievements Review
                     </button>
                     <span className="text-slate-400">/</span>
-                    <span className="text-emerald-800 font-extrabold truncate">{selectedOrg.name}</span>
+                    <span className="text-blue-800 font-extrabold truncate">{selectedOrg.name}</span>
                   </div>
 
                   {/* Compact Organization Summary Card */}
                   <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
                     {/* Org Identity */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-sm shadow-2xs flex-shrink-0">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-blue-800 text-sm shadow-2xs flex-shrink-0">
                         {selectedOrg.logo ? (
                           <img src={selectedOrg.logo} alt={selectedOrg.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -793,7 +793,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="flex flex-wrap items-baseline gap-2">
                           <h2 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight truncate">{selectedOrg.name}</h2>
                           {selectedOrg.className && (
-                            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                            <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/60">
                               {selectedOrg.className}
                             </span>
                           )}
@@ -810,7 +810,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="grid grid-cols-4 gap-1 sm:gap-2 bg-slate-50/80 p-2 sm:p-2.5 rounded-xl border border-slate-100/90 text-center flex-shrink-0">
                       <div className="px-2">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Awarded</p>
-                        <p className="text-xs sm:text-sm font-black text-emerald-800">+{pointsAwarded} pts</p>
+                        <p className="text-xs sm:text-sm font-black text-blue-800">+{pointsAwarded} pts</p>
                       </div>
                       <div className="px-2 border-l border-slate-200/60">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Pending</p>
@@ -818,7 +818,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div className="px-2 border-l border-slate-200/60">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Approved</p>
-                        <p className="text-xs sm:text-sm font-black text-emerald-600">{approvedCount}</p>
+                        <p className="text-xs sm:text-sm font-black text-blue-600">{approvedCount}</p>
                       </div>
                       <div className="px-2 border-l border-slate-200/60">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Rejected</p>
@@ -838,7 +838,7 @@ export const AdminDashboard: React.FC = () => {
                           placeholder="Search programs or achievements..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-600 transition-all font-medium"
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-600 transition-all font-medium"
                         />
                       </div>
 
@@ -878,13 +878,13 @@ export const AdminDashboard: React.FC = () => {
                           <div
                             key={ach.id}
                             id={`program-card-${ach.id}`}
-                            className="bg-white rounded-2xl border-2 border-emerald-600 p-3.5 sm:p-4 hover:border-emerald-700 hover:shadow-sm transition-all shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                            className="bg-white rounded-2xl border-2 border-blue-600 p-3.5 sm:p-4 hover:border-blue-700 hover:shadow-sm transition-all shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                           >
                             {/* Left Info: Meta row, Program/Achievement Name, Achiever Name */}
                             <div className="space-y-1.5 min-w-0 flex-1">
                               {/* Meta Row: Category, Status, Submitted Date */}
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-extrabold rounded-lg">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/80 text-[10px] font-extrabold rounded-lg">
                                   {getCategoryName(ach.categoryId, ach.customCategory)}
                                 </span>
 
@@ -892,7 +892,7 @@ export const AdminDashboard: React.FC = () => {
                                   switch (ach.status) {
                                     case 'Approved':
                                       return (
-                                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
+                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-lg inline-flex items-center gap-1">
                                           🟢 Approved
                                         </span>
                                       );
@@ -942,7 +942,7 @@ export const AdminDashboard: React.FC = () => {
 
                               {/* Achiever Name */}
                               <div className="flex items-center gap-1.5 text-xs">
-                                <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                <User className="w-3.5 h-3.5 text-blue-700 shrink-0" />
                                 <span className="text-[11px] font-bold text-slate-400">Achiever:</span>
                                 <span className="font-extrabold text-slate-900 text-xs truncate">
                                   {ach.achieverName || 'Group / Class Achievement'}
@@ -959,7 +959,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="flex items-center sm:self-center shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                               <button
                                 onClick={() => openEvaluationModal(ach)}
-                                className="w-full sm:w-auto px-5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-extrabold rounded-xl shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                className="w-full sm:w-auto px-5 py-2 bg-blue-700 hover:bg-blue-800 active:bg-blue-950 text-white text-xs font-extrabold rounded-xl shadow-2xs hover:shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>Evaluate</span>
@@ -986,8 +986,8 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h2 className="text-base font-bold text-slate-900 font-heading">Account Points Portal</h2>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     Active
                   </span>
                 </div>
@@ -996,7 +996,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {portalActionMessage && (
-              <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${portalActionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+              <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${portalActionMessage.type === 'success' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
                 {portalActionMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
                 <span>{portalActionMessage.text}</span>
               </div>
@@ -1029,7 +1029,7 @@ export const AdminDashboard: React.FC = () => {
                     }
                   }}
                   disabled={portalLinkLoading}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 whitespace-nowrap"
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs disabled:opacity-50 whitespace-nowrap"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Copy Portal Link</span>
@@ -1040,7 +1040,7 @@ export const AdminDashboard: React.FC = () => {
                   type="button"
                   onClick={handleGeneratePortalLink}
                   disabled={portalActionLoading}
-                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer mt-1 inline-block"
+                  className="text-xs font-bold text-blue-700 hover:text-blue-800 underline cursor-pointer mt-1 inline-block"
                 >
                   Generate Portal Link now
                 </button>
@@ -1067,7 +1067,7 @@ export const AdminDashboard: React.FC = () => {
                 )}
 
                 {orgActionSuccess && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                     <span>{orgActionSuccess}</span>
                   </div>
@@ -1082,7 +1082,7 @@ export const AdminDashboard: React.FC = () => {
                     (organizations || []).filter(org => org.status !== 'rejected').map((org) => (
                       <div key={org.id} className="flex items-center justify-between py-3.5 group hover:bg-slate-50/60 px-2.5 rounded-2xl transition-colors gap-3">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className={`w-10 h-10 ${org.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-100'} border rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs`}>
+                          <div className={`w-10 h-10 ${org.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-800 border-blue-100'} border rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs`}>
                             {org.logo ? (
                               <img src={org.logo} alt={org.name} className="w-full h-full rounded-xl object-cover" referrerPolicy="no-referrer" />
                             ) : (
@@ -1114,7 +1114,7 @@ export const AdminDashboard: React.FC = () => {
                                   setOrgActionSuccess('');
                                   setOrgToApprove(org);
                                 }}
-                                className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-700 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                                className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
                               >
                                 <Check className="w-3 h-3" />
                                 <span>Approve</span>
@@ -1134,7 +1134,7 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           )}
 
-                          <span className="text-xs sm:text-sm font-extrabold text-emerald-800 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-100 shrink-0">
+                          <span className="text-xs sm:text-sm font-extrabold text-blue-800 bg-blue-50/80 px-2.5 py-1 rounded-lg border border-blue-100 shrink-0">
                             {org.totalPoints || 0} pts
                           </span>
 
@@ -1196,7 +1196,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 )}
                 {orgSuccess && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                     <span>{orgSuccess}</span>
                   </div>
@@ -1211,7 +1211,7 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="e.g. Science Club or Class 10A"
                       value={orgName}
                       onChange={(e) => setOrgName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
 
@@ -1223,7 +1223,7 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="e.g. Grade 11 - Section B"
                       value={orgClass}
                       onChange={(e) => setOrgClass(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
 
@@ -1235,7 +1235,7 @@ export const AdminDashboard: React.FC = () => {
                         placeholder="e.g. Alex Johnson"
                         value={orgLeader}
                         onChange={(e) => setOrgLeader(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1245,7 +1245,7 @@ export const AdminDashboard: React.FC = () => {
                         placeholder="e.g. +1 555-0199"
                         value={orgContact}
                         onChange={(e) => setOrgContact(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                       />
                     </div>
                   </div>
@@ -1258,7 +1258,7 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="leader@school.org"
                       value={orgEmail}
                       onChange={(e) => setOrgEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
 
@@ -1270,7 +1270,7 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="••••••••"
                       value={orgPass}
                       onChange={(e) => setOrgPass(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
 
@@ -1281,14 +1281,14 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="Optional notes or details about this organization..."
                       value={orgDesc}
                       onChange={(e) => setOrgDesc(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={orgLoading}
-                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                    className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
                   >
                     {orgLoading ? (
                       <>
@@ -1315,7 +1315,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 space-y-5 shadow-2xl animate-scale-up">
             <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -1326,7 +1326,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-xs text-slate-600 space-y-2">
+            <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 text-xs text-slate-600 space-y-2">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-slate-500 font-semibold">Class / Section:</span>
                 <span className="font-bold text-slate-800">{orgToApprove.className || 'General'}</span>
@@ -1335,7 +1335,7 @@ export const AdminDashboard: React.FC = () => {
                 <span className="text-slate-500 font-semibold">President:</span>
                 <span className="font-bold text-slate-800">{orgToApprove.leader || 'N/A'}</span>
               </div>
-              <p className="text-[11px] text-emerald-800 pt-1 border-t border-emerald-100/60">
+              <p className="text-[11px] text-blue-800 pt-1 border-t border-blue-100/60">
                 Approving will mark this organization as active and confirm its participation. All existing submissions and points remain intact.
               </p>
             </div>
@@ -1371,7 +1371,7 @@ export const AdminDashboard: React.FC = () => {
                     setIsApprovingOrg(false);
                   }
                 }}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
               >
                 {isApprovingOrg ? (
                   <>
@@ -1413,7 +1413,7 @@ export const AdminDashboard: React.FC = () => {
             {/* Impact Details Box */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-xs text-slate-600">
               <p className="font-bold text-slate-800">
-                Organization: <span className="text-emerald-800">{orgToDelete.name}</span>
+                Organization: <span className="text-blue-800">{orgToDelete.name}</span>
               </p>
               <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">This action will remove:</p>
               <ul className="space-y-1 text-slate-600 list-disc list-inside text-[11px] pl-1">
@@ -1505,7 +1505,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
           {catSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               <span>{catSuccess}</span>
             </div>
@@ -1526,7 +1526,7 @@ export const AdminDashboard: React.FC = () => {
                         Rank-Based: 1st ({cat.rank1Points} pts), 2nd ({cat.rank2Points} pts), 3rd ({cat.rank3Points} pts)
                       </span>
                     ) : (
-                      <span className="font-extrabold text-sm text-emerald-800">+{cat.defaultPoints} pts</span>
+                      <span className="font-extrabold text-sm text-blue-800">+{cat.defaultPoints} pts</span>
                     )}
                     <button
                       type="button"
@@ -1606,7 +1606,7 @@ export const AdminDashboard: React.FC = () => {
                   id="rank-based-toggle"
                   checked={isRankBased}
                   onChange={(e) => setIsRankBased(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                 />
                 <label htmlFor="rank-based-toggle" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                   Enable Rank-Based Points (1st, 2nd, 3rd)
@@ -1707,7 +1707,7 @@ export const AdminDashboard: React.FC = () => {
                       setTimeout(() => setCatError(''), 5000);
                     }
                   }}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
                 >
                   Create Category
                 </button>
@@ -1788,11 +1788,11 @@ export const AdminDashboard: React.FC = () => {
             {submissionsFeedback && (
               <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 border transition-all ${
                 submissionsFeedback.type === 'success' 
-                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200' 
+                  ? 'bg-blue-50 text-blue-950 border-blue-200' 
                   : 'bg-rose-50 text-rose-900 border-rose-200'
               }`}>
                 {submissionsFeedback.type === 'success' ? (
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <Check className="w-4 h-4 text-blue-600 shrink-0" />
                 ) : (
                   <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 )}
@@ -1818,7 +1818,7 @@ export const AdminDashboard: React.FC = () => {
                     Submission Access
                   </span>
                   <span className={`text-xs font-semibold ${
-                    portal?.submissionsAllowed !== false ? 'text-emerald-700' : 'text-slate-600'
+                    portal?.submissionsAllowed !== false ? 'text-blue-700' : 'text-slate-600'
                   }`}>
                     {portal?.submissionsAllowed !== false ? 'Open' : 'Closed'}
                   </span>
@@ -1831,7 +1831,7 @@ export const AdminDashboard: React.FC = () => {
                   disabled={togglingSubmissions}
                   className={`relative inline-flex items-center h-7 w-14 rounded-full p-1 transition-colors duration-200 ease-in-out cursor-pointer focus:outline-none shrink-0 ${
                     portal?.submissionsAllowed !== false
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      ? 'bg-blue-600 hover:bg-blue-700'
                       : 'bg-slate-300 hover:bg-slate-400'
                   } disabled:opacity-50`}
                   role="switch"
@@ -1846,7 +1846,7 @@ export const AdminDashboard: React.FC = () => {
                     {togglingSubmissions ? (
                       <Loader2 className="w-3 h-3 text-slate-500 animate-spin" />
                     ) : portal?.submissionsAllowed !== false ? (
-                      <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
+                      <Check className="w-3 h-3 text-blue-600 stroke-[2.5]" />
                     ) : (
                       <Lock className="w-3 h-3 text-slate-400" />
                     )}
@@ -1859,11 +1859,11 @@ export const AdminDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
                 portal?.submissionsAllowed !== false
-                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 ring-1 ring-emerald-500/20'
+                  ? 'bg-blue-50/70 border-sky-300 text-slate-900 ring-1 ring-blue-500/20'
                   : 'bg-white border-slate-200 text-slate-600'
               }`}>
                 <div className={`p-2 rounded-lg shrink-0 ${
-                  portal?.submissionsAllowed !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                  portal?.submissionsAllowed !== false ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'
                 }`}>
                   <Check className="w-4 h-4" />
                 </div>
@@ -1875,11 +1875,11 @@ export const AdminDashboard: React.FC = () => {
 
               <div className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
                 portal?.submissionsAllowed === false
-                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 ring-1 ring-emerald-500/20'
+                  ? 'bg-blue-50/70 border-sky-300 text-slate-900 ring-1 ring-blue-500/20'
                   : 'bg-white border-slate-200 text-slate-600'
               }`}>
                 <div className={`p-2 rounded-lg shrink-0 ${
-                  portal?.submissionsAllowed === false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                  portal?.submissionsAllowed === false ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'
                 }`}>
                   <Lock className="w-4 h-4" />
                 </div>
@@ -1917,18 +1917,18 @@ export const AdminDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsWizardOpen(true)}
-                      className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                      <Sparkles className="w-3.5 h-3.5 text-blue-200" />
                       <span>Points Setup Wizard</span>
                     </button>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${
                       portal?.submissionsAllowed !== false
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        ? 'bg-blue-50 text-blue-800 border border-blue-200'
                         : 'bg-slate-100 text-slate-700 border border-slate-200'
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${
-                        portal?.submissionsAllowed !== false ? 'bg-emerald-600' : 'bg-slate-400'
+                        portal?.submissionsAllowed !== false ? 'bg-blue-600' : 'bg-slate-400'
                       }`} />
                       {portal?.submissionsAllowed !== false ? 'Submissions Open' : 'Submissions Closed'}
                     </span>
@@ -1945,9 +1945,9 @@ export const AdminDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsWizardOpen(true)}
-                className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="px-3 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <Sparkles className="w-3 h-3 text-emerald-600" />
+                <Sparkles className="w-3 h-3 text-blue-600" />
                 <span>Launch Setup Wizard</span>
               </button>
             </div>
@@ -1958,7 +1958,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
             {compActionSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-2">
+              <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <span>{compActionSuccess}</span>
               </div>
@@ -1971,7 +1971,7 @@ export const AdminDashboard: React.FC = () => {
                     <p className="text-xs text-slate-400">{formatDate(comp.startDate)} to {formatDate(comp.endDate)}</p>
                     <p className="text-[10px] font-bold mt-1">
                       {comp.status === 'active' ? (
-                        <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">🟢 Active Period</span>
+                        <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">🟢 Active Period</span>
                       ) : (
                         <div className="space-y-1">
                           <span className="text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">⚪ Concluded</span>
@@ -1999,7 +1999,7 @@ export const AdminDashboard: React.FC = () => {
                         onClick={() => {
                           setCompToConclude(comp);
                         }}
-                        className="py-1 px-3 bg-emerald-50 text-emerald-800 font-bold rounded-lg text-[10px] cursor-pointer hover:bg-emerald-100"
+                        className="py-1 px-3 bg-blue-50 text-blue-800 font-bold rounded-lg text-[10px] cursor-pointer hover:bg-blue-100"
                       >
                         Conclude
                       </button>
@@ -2049,7 +2049,7 @@ export const AdminDashboard: React.FC = () => {
                   setCompStart('');
                   setCompEnd('');
                 }}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer"
+                className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs cursor-pointer"
               >
                 Start Period
               </button>
@@ -2097,7 +2097,7 @@ export const AdminDashboard: React.FC = () => {
                           <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                             isInd 
                               ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-blue-50 text-blue-800 border-blue-200'
                           }`}>
                             {isInd ? 'Individual Achievers' : 'Class Organization'}
                           </span>
@@ -2153,7 +2153,7 @@ export const AdminDashboard: React.FC = () => {
                               setEditAwOrgId3('');
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Edit Award"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -2226,7 +2226,7 @@ export const AdminDashboard: React.FC = () => {
                     onClick={() => setAwRecipientType('class_organization')}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       awRecipientType === 'class_organization'
-                        ? 'bg-white text-emerald-800 shadow-xs'
+                        ? 'bg-white text-blue-800 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -2256,7 +2256,7 @@ export const AdminDashboard: React.FC = () => {
                   placeholder={awRecipientType === 'individual' ? "e.g. Best Orator Award" : "e.g. NSU Best Class Award"}
                   value={awName}
                   onChange={(e) => setAwName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -2268,7 +2268,7 @@ export const AdminDashboard: React.FC = () => {
                   placeholder="e.g. Conferred for outstanding performance"
                   value={awDesc}
                   onChange={(e) => setAwDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -2280,7 +2280,7 @@ export const AdminDashboard: React.FC = () => {
                 <select
                   value={awPeriod}
                   onChange={(e) => setAwPeriod(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
                   <option value="">Auto-Link to Current Active Period</option>
                   {competitions.map((c) => (
@@ -2295,7 +2295,7 @@ export const AdminDashboard: React.FC = () => {
               {awRecipientType === 'class_organization' ? (
                 <>
                   <div className="space-y-1 pt-1 border-t border-slate-100">
-                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥇 1st Winner</span>
                       <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
                     </label>
@@ -2358,7 +2358,7 @@ export const AdminDashboard: React.FC = () => {
                 /* INDIVIDUAL ACHIEVER WINNERS */
                 <>
                   <div className="space-y-1 pt-1 border-t border-slate-100">
-                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center justify-between">
                       <span>🥇 1st Winner</span>
                       <span className="text-rose-500 text-[9px] font-bold">REQUIRED</span>
                     </label>
@@ -2580,7 +2580,7 @@ export const AdminDashboard: React.FC = () => {
                     onClick={() => setEditAwRecipientType('class_organization')}
                     className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       editAwRecipientType === 'class_organization'
-                        ? 'bg-white text-emerald-800 shadow-xs'
+                        ? 'bg-white text-blue-800 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -2609,7 +2609,7 @@ export const AdminDashboard: React.FC = () => {
                   type="text"
                   value={editAwName}
                   onChange={(e) => setEditAwName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
@@ -2622,7 +2622,7 @@ export const AdminDashboard: React.FC = () => {
                   type="text"
                   value={editAwDesc}
                   onChange={(e) => setEditAwDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
@@ -2630,7 +2630,7 @@ export const AdminDashboard: React.FC = () => {
               {editAwRecipientType === 'class_organization' ? (
                 <>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">🥇 1st Winner *</label>
+                    <label className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">🥇 1st Winner *</label>
                     <select
                       value={editAwOrgId1}
                       onChange={(e) => setEditAwOrgId1(e.target.value)}
@@ -2841,7 +2841,7 @@ export const AdminDashboard: React.FC = () => {
 
                     setEditingAward(null);
                   }}
-                  className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl"
+                  className="flex-1 py-2 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl"
                 >
                   Save Changes
                 </button>
@@ -2899,7 +2899,7 @@ export const AdminDashboard: React.FC = () => {
                   setAnnTitle('');
                   setAnnContent('');
                 }}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs cursor-pointer"
+                className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs cursor-pointer"
               >
                 Publish Announcement
               </button>
@@ -2912,7 +2912,7 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'audit' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <History className="w-5 h-5 text-emerald-600" />
+            <History className="w-5 h-5 text-blue-600" />
             Audit History logs (Auditing actions)
           </h2>
           <div className="overflow-y-auto max-h-96 text-[11px] divide-y divide-slate-100">
@@ -2971,11 +2971,11 @@ export const AdminDashboard: React.FC = () => {
                 <div className="p-6 border-b border-slate-150 flex justify-between items-start gap-4 bg-slate-50/50 flex-shrink-0">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-lg border border-emerald-200/50">
+                      <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-lg border border-blue-200/50">
                         {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                       </span>
                       {selectedAchievement.status === 'Approved' ? (
-                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-lg">🟢 Approved</span>
+                        <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg">🟢 Approved</span>
                       ) : selectedAchievement.status === 'Rejected' ? (
                         <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-lg">🔴 Rejected</span>
                       ) : selectedAchievement.status === 'Returned for Correction' ? (
@@ -3026,7 +3026,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="space-y-2 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
                           <div className="flex items-center justify-between">
                             <p className="text-slate-500 font-bold text-[10px] uppercase flex items-center gap-1">
-                              <User className="w-3 h-3 text-emerald-700" />
+                              <User className="w-3 h-3 text-blue-700" />
                               <span>Whose Achievement (Achiever)</span>
                             </p>
                             {!isEditingAchiever && (
@@ -3038,7 +3038,7 @@ export const AdminDashboard: React.FC = () => {
                                   setTargetAchieverName(selectedAchievement.achieverName || '');
                                   setTargetAchieverStudentId(selectedAchievement.achieverStudentId || '');
                                 }}
-                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+                                className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
                               >
                                 <Edit3 className="w-3 h-3" />
                                 {selectedAchievement.achieverName === 'Achiever Not Assigned' || !selectedAchievement.achieverName ? 'Assign Achiever' : 'Edit'}
@@ -3060,7 +3060,7 @@ export const AdminDashboard: React.FC = () => {
                                   ⚠️ Achiever Not Assigned
                                 </span>
                               ) : null}
-                              <p className="text-[9px] text-emerald-700 mt-1 font-semibold">
+                              <p className="text-[9px] text-blue-700 mt-1 font-semibold">
                                 Points will be credited to this individual upon approval.
                               </p>
                             </div>
@@ -3138,7 +3138,7 @@ export const AdminDashboard: React.FC = () => {
                                       setSavingAchiever(false);
                                     }
                                   }}
-                                  className="py-1 px-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
+                                  className="py-1 px-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-[10px] font-bold cursor-pointer disabled:opacity-50"
                                 >
                                   {savingAchiever ? 'Saving...' : 'Save Achiever'}
                                 </button>
@@ -3166,7 +3166,7 @@ export const AdminDashboard: React.FC = () => {
                     {/* CATEGORIZED PROOFS SECTIONS */}
                     <div className="space-y-4">
                       <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-emerald-600" />
+                        <Award className="w-4 h-4 text-blue-600" />
                         PROGRAM ATTACHED PROOFS
                       </h4>
 
@@ -3213,7 +3213,7 @@ export const AdminDashboard: React.FC = () => {
                                   <div key={video.id} className="space-y-2 bg-slate-50 border border-slate-200 rounded-2xl p-4">
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0">
                                           <Film className="w-5 h-5" />
                                         </div>
                                         <div className="min-w-0">
@@ -3292,19 +3292,19 @@ export const AdminDashboard: React.FC = () => {
                   <div className="space-y-6">
                     {/* Previous Transactions Summary */}
                     {previousTxs.length > 0 && (
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2 text-xs">
-                        <p className="font-extrabold text-emerald-800 flex items-center gap-1">
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2 text-xs">
+                        <p className="font-extrabold text-blue-800 flex items-center gap-1">
                           <CheckCircle2 className="w-4 h-4" />
                           Previous Evaluation Records
                         </p>
-                        <div className="divide-y divide-emerald-100/50">
+                        <div className="divide-y divide-blue-100/50">
                           {previousTxs.map(tx => (
-                            <div key={tx.id} className="py-2 flex justify-between items-center text-emerald-950 font-medium">
+                            <div key={tx.id} className="py-2 flex justify-between items-center text-slate-900 font-medium">
                               <div>
                                 <p className="font-bold">Approved Points: +{tx.points} pts</p>
-                                <p className="text-[10px] text-emerald-700">Reason: {tx.reason}</p>
+                                <p className="text-[10px] text-blue-700">Reason: {tx.reason}</p>
                               </div>
-                              <span className="text-[10px] text-emerald-600">{formatDate(tx.createdAt)}</span>
+                              <span className="text-[10px] text-blue-600">{formatDate(tx.createdAt)}</span>
                             </div>
                           ))}
                         </div>
@@ -3351,7 +3351,7 @@ export const AdminDashboard: React.FC = () => {
                             min="0"
                             value={baseAwardedPoints}
                             onChange={(e) => setBaseAwardedPoints(Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
 
@@ -3362,7 +3362,7 @@ export const AdminDashboard: React.FC = () => {
                             min="0"
                             value={bonusPoints}
                             onChange={(e) => setBonusPoints(Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-emerald-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
 
@@ -3373,20 +3373,20 @@ export const AdminDashboard: React.FC = () => {
                             min="0"
                             value={deductionPoints}
                             onChange={(e) => setDeductionPoints(Number(e.target.value))}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-rose-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-rose-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
                       </div>
 
                       {/* Final Awarded Preview Box */}
-                      <div className="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-4 flex justify-between items-center text-xs">
+                      <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex justify-between items-center text-xs">
                         <div>
-                          <p className="font-extrabold text-emerald-950 text-sm">Final Awarded Points</p>
+                          <p className="font-extrabold text-slate-900 text-sm">Final Awarded Points</p>
                           <p className="text-[10px] text-slate-500 mt-0.5">Calculated dynamically: Base + Bonus - Deduction</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-2xl font-black text-emerald-800">+{finalAwardedTotal}</span>
-                          <span className="text-[10px] text-emerald-700 block font-bold">POINTS</span>
+                          <span className="text-2xl font-black text-blue-800">+{finalAwardedTotal}</span>
+                          <span className="text-[10px] text-blue-700 block font-bold">POINTS</span>
                         </div>
                       </div>
 
@@ -3398,7 +3398,7 @@ export const AdminDashboard: React.FC = () => {
                           placeholder="Provide details about point calculation, specifying bonus reasons or deduction causes..."
                           value={reviewNotes}
                           onChange={(e) => setReviewNotes(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
 
@@ -3408,7 +3408,7 @@ export const AdminDashboard: React.FC = () => {
                           type="button"
                           disabled={reviewLoading}
                           onClick={() => handleReviewAction('Approved')}
-                          className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                          className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
                         >
                           {reviewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                           Approve & Award {finalAwardedTotal} Points
@@ -3543,7 +3543,7 @@ export const AdminDashboard: React.FC = () => {
                     await updateCompetition(editingComp.id, editCompName, editCompStart, editCompEnd);
                     setEditingComp(null);
                   }}
-                  className="flex-1 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs cursor-pointer hover:bg-emerald-700"
+                  className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs cursor-pointer hover:bg-blue-700"
                 >
                   Save Changes
                 </button>
@@ -3611,7 +3611,7 @@ export const AdminDashboard: React.FC = () => {
                     setIsConcludingComp(false);
                   }
                 }}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
               >
                 {isConcludingComp ? (
                   <>

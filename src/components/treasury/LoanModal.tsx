@@ -134,8 +134,8 @@ export const LoanModal: React.FC<LoanModalProps> = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">{error}</div>}
           {successMessage && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-xl font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-blue-600" />
               <span>{successMessage}</span>
             </div>
           )}

@@ -1,6 +1,12 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  getFirestore,
+  Firestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize or reuse Firebase App instance singleton
@@ -8,31 +14,27 @@ const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebas
 
 // Initialize Firestore safely with custom database ID from configuration
 function createFirestoreInstance(): Firestore {
+  const dbId = (firebaseConfig as any)?.firestoreDatabaseId;
+  const isCustomDb = dbId && typeof dbId === 'string' && dbId.trim().length > 0 && dbId !== '(default)';
+  const targetDbId = isCustomDb ? dbId.trim() : undefined;
+
+  const settings = {
+    experimentalAutoDetectLongPolling: true,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  };
+
   try {
-    const dbId = (firebaseConfig as any)?.firestoreDatabaseId;
-    if (dbId && typeof dbId === 'string' && dbId.trim().length > 0 && dbId !== '(default)') {
-      const db = getFirestore(app, dbId);
-      enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code === 'failed-precondition') {
-            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-        } else if (err.code === 'unimplemented') {
-            console.warn('The current browser does not support persistence.');
-        }
-      });
-      return db;
-    }
+    return targetDbId ? initializeFirestore(app, settings, targetDbId) : initializeFirestore(app, settings);
   } catch (err) {
-    console.warn('Could not initialize custom firestoreDatabaseId, falling back to default:', err);
-  }
-  const db = getFirestore(app);
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-    } else if (err.code === 'unimplemented') {
-        console.warn('The current browser does not support persistence.');
+    try {
+      return targetDbId ? getFirestore(app, targetDbId) : getFirestore(app);
+    } catch (fallbackErr) {
+      console.warn('Fallback getFirestore failed, defaulting:', fallbackErr);
+      return getFirestore(app);
     }
-  });
-  return db;
+  }
 }
 
 export const db: Firestore = createFirestoreInstance();

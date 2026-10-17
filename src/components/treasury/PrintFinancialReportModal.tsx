@@ -100,14 +100,14 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
         {/* Top Bar Controls (Hidden during print) */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-emerald-400" />
+            <FileText className="w-5 h-5 text-sky-400" />
             <span className="font-bold text-sm">Program Financial Report Preview</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handlePrint}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer pointer-events-auto"
+              className="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer pointer-events-auto"
             >
               <Printer className="w-4 h-4" />
               <span>Save as PDF / Print</span>
@@ -139,7 +139,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
                 <h2 className="text-xl font-bold font-heading text-slate-900 tracking-tight">
                   {organization?.name || 'MUNAZZAM'}
                 </h2>
-                <p className="text-xs font-semibold text-emerald-800">{organization?.college_name || 'Institutional Reporting & Analytics'}</p>
+                <p className="text-xs font-semibold text-blue-800">{organization?.college_name || 'Institutional Reporting & Analytics'}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Academic Year: {organization?.academic_year || '2026-27'}</p>
               </div>
             </div>
@@ -151,7 +151,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
 
           {/* Program Details Banner */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 financial-report-section">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-md">
               Official Audit Report
             </span>
             <h1 className="text-xl font-bold text-slate-900 font-heading">{program.name}</h1>
@@ -181,17 +181,17 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
               Financial Summary
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-[10px] font-bold text-emerald-800 uppercase">Total Income</span>
-                <p className="text-lg font-extrabold text-emerald-700 mt-0.5">₹{totalIncome.toLocaleString()}</p>
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <span className="text-[10px] font-bold text-blue-800 uppercase">Total Income</span>
+                <p className="text-lg font-extrabold text-blue-700 mt-0.5">₹{totalIncome.toLocaleString()}</p>
               </div>
               <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
                 <span className="text-[10px] font-bold text-rose-800 uppercase">Total Expenses</span>
                 <p className="text-lg font-extrabold text-rose-700 mt-0.5">₹{totalExpenses.toLocaleString()}</p>
               </div>
-              <div className={`p-3 rounded-xl border ${isProfit ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
-                <span className={`text-[10px] font-bold uppercase ${isProfit ? 'text-emerald-800' : 'text-rose-800'}`}>Net Result</span>
-                <p className={`text-lg font-extrabold mt-0.5 ${isProfit ? 'text-emerald-800' : 'text-rose-800'}`}>
+              <div className={`p-3 rounded-xl border ${isProfit ? 'bg-blue-50 border-blue-200' : 'bg-rose-50 border-rose-200'}`}>
+                <span className={`text-[10px] font-bold uppercase ${isProfit ? 'text-blue-800' : 'text-rose-800'}`}>Net Result</span>
+                <p className={`text-lg font-extrabold mt-0.5 ${isProfit ? 'text-blue-800' : 'text-rose-800'}`}>
                   {isProfit ? '+' : ''}₹{net.toLocaleString()}
                 </p>
               </div>
@@ -222,7 +222,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
                       <tr key={inc.id}>
                         <td className="py-2 px-3 font-semibold text-slate-900">{inc.source}</td>
                         <td className="py-2 px-3 text-slate-700">{inc.category}</td>
-                        <td className="py-2 px-3 text-right font-bold text-emerald-700">+₹{inc.amount.toLocaleString()}</td>
+                        <td className="py-2 px-3 text-right font-bold text-blue-700">+₹{inc.amount.toLocaleString()}</td>
                       </tr>
                     ))
                   ) : (
@@ -235,7 +235,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
             </div>
             <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg font-bold text-xs">
               <span>TOTAL INCOME:</span>
-              <span className="text-emerald-700">₹{totalIncome.toLocaleString()}</span>
+              <span className="text-blue-700">₹{totalIncome.toLocaleString()}</span>
             </div>
           </div>
 
@@ -283,7 +283,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
             </h4>
             <div className="flex justify-between">
               <span>Total Income</span>
-              <span className="font-bold text-emerald-400">₹{totalIncome.toLocaleString()}</span>
+              <span className="font-bold text-sky-400">₹{totalIncome.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span>− Total Expenses</span>
@@ -291,7 +291,7 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
             </div>
             <div className="border-t border-slate-800 pt-2 flex justify-between font-extrabold text-sm">
               <span>= Net Result ({isProfit ? 'Surplus' : 'Deficit'})</span>
-              <span className={isProfit ? 'text-emerald-400' : 'text-rose-400'}>
+              <span className={isProfit ? 'text-sky-400' : 'text-rose-400'}>
                 {isProfit ? '+' : ''}₹{net.toLocaleString()}
               </span>
             </div>

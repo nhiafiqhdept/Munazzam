@@ -86,7 +86,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
         {isAdmin && (
           <button
             onClick={onOpenAddModal}
-            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Record New Income</span>
@@ -110,7 +110,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
             placeholder="Search source, description, ref..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-800"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-800"
           />
         </div>
 
@@ -141,9 +141,9 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
             ))}
           </select>
 
-          <div className="w-full sm:w-auto text-xs font-semibold text-slate-600 bg-emerald-50/80 border border-emerald-100 px-3 py-2 rounded-xl flex items-center justify-between sm:justify-start gap-2">
+          <div className="w-full sm:w-auto text-xs font-semibold text-slate-600 bg-blue-50/80 border border-blue-100 px-3 py-2 rounded-xl flex items-center justify-between sm:justify-start gap-2">
             <span>Total:</span>
-            <span className="text-emerald-700 font-bold text-sm">₹{totalFilteredIncome.toLocaleString()}</span>
+            <span className="text-blue-800 font-bold text-sm">₹{totalFilteredIncome.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
                       <span className="text-[10px] text-slate-400 font-normal">Ref: {inc.reference_number}</span>
                     )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-semibold text-[10px] shrink-0">
+                  <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 font-semibold text-[10px] shrink-0">
                     {getEffectiveCategory(inc)}
                   </span>
                 </div>
@@ -186,12 +186,12 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
                 <div className="flex items-center justify-between pt-1">
                   <div>
                     <span className="text-[10px] uppercase font-semibold text-slate-400 block">Amount</span>
-                    <span className="text-base font-bold text-emerald-700">+₹{inc.amount.toLocaleString()}</span>
+                    <span className="text-base font-bold text-blue-700">+₹{inc.amount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => onOpenEditModal(inc)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       <span>Edit</span>
@@ -212,7 +212,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
           })
         ) : (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs space-y-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center mx-auto">
               <Calendar className="w-5 h-5" />
             </div>
             <p className="font-bold text-slate-800 text-sm">No Income Records Found</p>
@@ -265,13 +265,13 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-semibold text-[10px]">
+                        <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 font-semibold text-[10px]">
                           {getEffectiveCategory(inc)}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 font-medium">{acc?.name || 'Unknown Account'}</td>
                       <td className="py-3.5 px-4 text-slate-500">{prog?.name || '—'}</td>
-                      <td className="py-3.5 px-4 text-right font-bold text-emerald-700 text-sm">
+                      <td className="py-3.5 px-4 text-right font-bold text-blue-700 text-sm">
                         +₹{inc.amount.toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -280,7 +280,7 @@ export const IncomeView: React.FC<IncomeViewProps> = ({ onOpenAddModal, onOpenEd
                             <>
                               <button
                                 onClick={() => onOpenEditModal(inc)}
-                                className="px-2.5 py-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
                                 title="Edit"
                               >
                                 <Edit className="w-3.5 h-3.5" />

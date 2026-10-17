@@ -21,7 +21,7 @@ export const ReportsView: React.FC = () => {
 
         <button
           onClick={() => window.print()}
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-colors no-print"
+          className="px-4 py-2.5 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-colors no-print"
         >
           <Printer className="w-4 h-4" />
           <span>Print / Export PDF</span>
@@ -36,7 +36,7 @@ export const ReportsView: React.FC = () => {
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-600 font-medium">Total Inflows / Revenue:</span>
-              <span className="font-bold text-emerald-700">₹{totalIncome.toLocaleString()}</span>
+              <span className="font-bold text-blue-800">₹{totalIncome.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-600 font-medium">Total Income Transactions:</span>
@@ -85,9 +85,9 @@ export const ReportsView: React.FC = () => {
                     <tr key={prog.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900">{prog.name}</td>
                       <td className="py-3 px-4 text-slate-600">{prog.date}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-700">₹{progIncome.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-blue-800">₹{progIncome.toLocaleString()}</td>
                       <td className="py-3 px-4 text-right font-semibold text-rose-700">₹{progExpense.toLocaleString()}</td>
-                      <td className={`py-3 px-4 text-right font-bold ${net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      <td className={`py-3 px-4 text-right font-bold ${net >= 0 ? 'text-blue-800' : 'text-rose-700'}`}>
                         ₹{net.toLocaleString()}
                       </td>
                     </tr>

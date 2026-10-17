@@ -153,7 +153,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
               <ArrowDownLeft className="w-5 h-5" />
             </div>
             <div>
@@ -312,7 +312,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({ isOpen, onClose, prese
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSubmitting ? 'Saving...' : incomeToEdit ? 'Save Changes' : 'Save Income'}
             </button>

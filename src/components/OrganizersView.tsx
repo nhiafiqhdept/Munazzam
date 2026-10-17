@@ -5,6 +5,7 @@ import { Organizer } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { OrganizerDetailsModal } from './OrganizerDetailsModal';
 import { getRoleBadgeStyle } from '../utils/helpers';
+import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
 
 interface OrganizersViewProps {
   onOpenAddModal: () => void;
@@ -98,7 +99,7 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
           data-purpose="members-grid"
         >
           {organizers.map((orgzr) => {
-            const hasPhoto = Boolean(orgzr.photo && orgzr.photo.trim().length > 0);
+            const hasPhoto = Boolean(orgzr.photo && orgzr.photo.trim().length > 0 && !orgzr.photo.includes('unsplash.com') && !orgzr.photo.includes('photo-1534528741775'));
             const roleStyle = getRoleBadgeStyle(orgzr.position);
 
             return (
@@ -120,19 +121,10 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
-                            const parent = target.parentElement;
-                            if (parent) {
-                              const initialsSpan = document.createElement('span');
-                              initialsSpan.className = 'text-xs sm:text-base font-black text-[#0f1f4b] font-heading';
-                              initialsSpan.innerText = getInitials(orgzr.name);
-                              parent.appendChild(initialsSpan);
-                            }
                           }}
                         />
                       ) : (
-                        <span className="text-xs sm:text-base font-black text-[#0f1f4b] font-heading">
-                          {getInitials(orgzr.name)}
-                        </span>
+                        <MaleSilhouetteAvatar />
                       )}
                     </div>
                   </div>

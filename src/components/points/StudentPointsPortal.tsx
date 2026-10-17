@@ -119,7 +119,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   if (loadingLink) {
     return (
       <div className="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         <p className="text-sm text-slate-500">Verifying registration invite...</p>
       </div>
     );
@@ -144,14 +144,14 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
   if (success) {
     return (
       <div className="max-w-md mx-auto my-12 bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4">
-        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-8 h-8" />
         </div>
         <h3 className="text-lg font-bold text-slate-900">Registration Complete!</h3>
         <p className="text-xs text-slate-500">Your class sub-organization <strong>{orgName}</strong> was registered successfully. You can now log into the Student Points Portal with your email and password.</p>
         <button
           onClick={onBackToLogin}
-          className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+          className="w-full py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
         >
           Sign In Now
         </button>
@@ -169,7 +169,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
           className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-5 sm:p-8 space-y-5 sm:space-y-6"
         >
           <div className="text-center space-y-2">
-            <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+            <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center shadow-xs">
               <Award className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -187,13 +187,13 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             {/* Option 1 Option Card */}
             <button
               onClick={() => setViewMode('register')}
-              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
+              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-blue-600 hover:bg-blue-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
             >
-              <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-xl group-hover:bg-emerald-100 transition-colors flex-shrink-0">
+              <div className="p-2.5 sm:p-3 bg-blue-50 text-blue-700 rounded-xl group-hover:bg-blue-100 transition-colors flex-shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">Create New Sub-Organization</h3>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-800 transition-colors">Create New Sub-Organization</h3>
                 <p className="text-xs text-slate-500">Register a new class or grade level account to track points and achievements.</p>
               </div>
             </button>
@@ -201,13 +201,13 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             {/* Option 2 Option Card */}
             <button
               onClick={() => setViewMode('login')}
-              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
+              className="text-left p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-blue-600 hover:bg-blue-50/20 transition-all cursor-pointer group flex gap-3 sm:gap-4 items-start"
             >
-              <div className="p-2.5 sm:p-3 bg-slate-100 text-slate-700 rounded-xl group-hover:bg-emerald-100 group-hover:text-emerald-700 transition-colors flex-shrink-0">
+              <div className="p-2.5 sm:p-3 bg-slate-100 text-slate-700 rounded-xl group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors flex-shrink-0">
                 <Lock className="w-5 h-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">Already Have a Sub-Organization? Login</h3>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-800 transition-colors">Already Have a Sub-Organization? Login</h3>
                 <p className="text-xs text-slate-500">Access your dashboard using your existing credentials without duplicate registrations.</p>
               </div>
             </button>
@@ -237,7 +237,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={() => setViewMode('login')}
-                className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Already Have an Account? Login
               </button>
@@ -261,7 +261,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
           className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-5 sm:p-8 space-y-5 sm:space-y-6"
         >
           <div className="text-center space-y-2">
-            <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+            <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center shadow-xs">
               <Award className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -292,7 +292,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                   placeholder="e.g. Fida Organization"
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
@@ -304,7 +304,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                   placeholder="e.g. Class 3"
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
             </div>
@@ -317,7 +317,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                   placeholder="e.g. Ahmad Hasan"
                   value={leader}
                   onChange={(e) => setLeader(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
@@ -328,7 +328,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                   placeholder="e.g. +966 50 123 4567"
                   value={contactDetails}
                   onChange={(e) => setContactDetails(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
             </div>
@@ -348,7 +348,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                     placeholder="name@nsu.edu"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                   />
                 </div>
               </div>
@@ -365,7 +365,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                     placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                   />
                   <button
                     type="button"
@@ -381,7 +381,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
               <span>Create Class Account</span>
@@ -409,7 +409,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
         className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-8 space-y-6"
       >
         <div className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+          <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center shadow-xs">
             <Lock className="w-6 h-6" />
           </div>
           <div className="space-y-1">
@@ -443,7 +443,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                 placeholder="name@nsu.edu"
                 value={loginFormEmail}
                 onChange={(e) => setLoginFormEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
               />
             </div>
           </div>
@@ -460,7 +460,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
                 placeholder="••••••••"
                 value={loginFormPassword}
                 onChange={(e) => setLoginFormPassword(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
               />
               <button
                 type="button"
@@ -475,7 +475,7 @@ const SubOrgRegistrationForm: React.FC<{ regCode: string; onBackToLogin: () => v
           <button
             type="submit"
             disabled={loggingIn}
-            className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {loggingIn ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -721,7 +721,7 @@ const StudentPointsInner: React.FC = () => {
     if (portalStatus === 'loading' || (portalStatus === 'active' && loading)) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3" id="points-portal-loading-view">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <p className="text-xs font-semibold text-slate-500 tracking-wide">Connecting to Points Portal...</p>
         </div>
       );
@@ -743,8 +743,8 @@ const StudentPointsInner: React.FC = () => {
     }
     if (portalUser?.role === 'sub_org_admin') {
       return (
-        <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-full flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5 text-emerald-600" />
+        <span className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold rounded-full flex items-center gap-1.5">
+          <Users className="w-3.5 h-3.5 text-blue-600" />
           Class Sub-Org Admin
         </span>
       );
@@ -779,7 +779,7 @@ const StudentPointsInner: React.FC = () => {
           >
             {/* Direct Header Branding */}
             <div className="text-center space-y-2">
-              <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+              <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center shadow-xs">
                 <Award className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -814,7 +814,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="name@nsu.edu"
                       value={loginFormEmail}
                       onChange={(e) => setLoginFormEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                     />
                   </div>
                 </div>
@@ -831,7 +831,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="••••••••"
                       value={loginFormPassword}
                       onChange={(e) => setLoginFormPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                     />
                     <button
                       type="button"
@@ -846,7 +846,7 @@ const StudentPointsInner: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loggingIn}
-                  className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {loggingIn ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -864,7 +864,7 @@ const StudentPointsInner: React.FC = () => {
                         setSuborgViewMode('register');
                         setRegError('');
                       }}
-                      className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-emerald-800 text-xs font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                      className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 text-blue-800 text-xs font-bold rounded-xl border border-slate-200 transition-colors cursor-pointer"
                     >
                       Create New Sub-Organization
                     </button>
@@ -898,7 +898,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="e.g. Fida Organization"
                       value={regOrgName}
                       onChange={(e) => setRegOrgName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
 
@@ -910,7 +910,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="e.g. Class 3"
                       value={regClassName}
                       onChange={(e) => setRegClassName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
                 </div>
@@ -923,7 +923,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="e.g. Ahmad Hasan"
                       value={regLeader}
                       onChange={(e) => setRegLeader(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
 
@@ -934,7 +934,7 @@ const StudentPointsInner: React.FC = () => {
                       placeholder="e.g. +966 50 123 4567"
                       value={regContactDetails}
                       onChange={(e) => setRegContactDetails(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
                 </div>
@@ -954,7 +954,7 @@ const StudentPointsInner: React.FC = () => {
                         placeholder="name@nsu.edu"
                         value={regLoginEmail}
                         onChange={(e) => setRegLoginEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                       />
                     </div>
                   </div>
@@ -971,7 +971,7 @@ const StudentPointsInner: React.FC = () => {
                         placeholder="••••••••"
                         value={regLoginPassword}
                         onChange={(e) => setRegLoginPassword(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 transition-all"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
                       />
                       <button
                         type="button"
@@ -987,7 +987,7 @@ const StudentPointsInner: React.FC = () => {
                 <button
                   type="submit"
                   disabled={regSubmitting}
-                  className="w-full py-3 px-6 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-2xl shadow-md transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {regSubmitting && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
                   <span>Create Class Account</span>
@@ -1023,7 +1023,7 @@ const StudentPointsInner: React.FC = () => {
       {/* Public Header with Login Button */}
       <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xs">
         <div className="flex items-center gap-3 text-center sm:text-left">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+          <div className="w-10 h-10 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center font-bold">
             <Trophy className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
@@ -1047,7 +1047,7 @@ const StudentPointsInner: React.FC = () => {
               setSuborgViewMode('login');
               setShowLogin(true);
             }}
-            className="py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+            className="py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
           >
             <Lock className="w-3.5 h-3.5" />
             <span>Login as Sub-Org</span>
@@ -1070,9 +1070,9 @@ const StudentPointsInner: React.FC = () => {
           </div>
           <button
             onClick={() => setIsWizardOpen(true)}
-            className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+            className="px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
           >
-            <Sparkles className="w-3 h-3 text-emerald-200" />
+            <Sparkles className="w-3 h-3 text-blue-200" />
             <span>Launch Points Wizard</span>
           </button>
         </div>
@@ -1097,7 +1097,7 @@ const StudentPointsInner: React.FC = () => {
       {/* Portal workspace footer control */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xs">
         <div className="flex items-center gap-3 text-center sm:text-left">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+          <div className="w-10 h-10 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center font-bold">
             <Trophy className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
@@ -1126,7 +1126,7 @@ export const StudentPointsPortal: React.FC = () => {
     <PortalProvider>
       <div className="space-y-4 sm:space-y-6" id="student-points-portal-root">
         {/* Main Heading */}
-        <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-2xl sm:rounded-3xl px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-center sm:justify-start">
+        <div className="bg-blue-50/40 border border-blue-100/60 rounded-2xl sm:rounded-3xl px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-center sm:justify-start">
           <h1 className="text-lg sm:text-2xl font-black text-slate-900 font-heading tracking-tight">
             Student Points Management
           </h1>

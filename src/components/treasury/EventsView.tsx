@@ -128,7 +128,7 @@ export const EventsView: React.FC = () => {
         {/* Header Summary */}
         <div className="flex items-center justify-between bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 shrink-0">
+            <div className="p-2 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 shrink-0">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
@@ -151,7 +151,7 @@ export const EventsView: React.FC = () => {
               placeholder="Search program..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 h-10 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-9 pr-3 h-10 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -159,7 +159,7 @@ export const EventsView: React.FC = () => {
         {/* List of Compact Program Cards */}
         {filteredEvents.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 text-center max-w-md mx-auto my-6 space-y-3 shadow-xs">
-            <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center mx-auto text-emerald-600">
+            <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center mx-auto text-blue-700">
               <Calendar className="w-6 h-6" />
             </div>
             <h2 className="text-base sm:text-lg font-bold font-heading text-slate-900">No Financial Activity Yet</h2>
@@ -176,14 +176,14 @@ export const EventsView: React.FC = () => {
                 className="bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-2xs flex items-center justify-between transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-800 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
                     <FileText className="w-4 h-4" />
                   </div>
                   <h2 className="font-bold text-xs sm:text-sm font-heading text-slate-900 truncate">
                     {prog.name}
                   </h2>
                 </div>
-                <div className="w-7 h-7 rounded-xl bg-slate-100 group-hover:bg-emerald-700 group-hover:text-white text-slate-600 flex items-center justify-center font-bold text-sm transition-all shrink-0 ml-3">
+                <div className="w-7 h-7 rounded-xl bg-slate-100 group-hover:bg-[#0f1f4b] group-hover:text-white text-slate-600 flex items-center justify-center font-bold text-sm transition-all shrink-0 ml-3">
                   ›
                 </div>
               </div>
@@ -220,10 +220,10 @@ export const EventsView: React.FC = () => {
 
           <button
             onClick={() => setShowPrintReportModal(true)}
-            className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+            className="px-3 py-2 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
             title="Generate Official Program Financial Report PDF"
           >
-            <FileText className="w-4 h-4 text-emerald-100" />
+            <FileText className="w-4 h-4 text-blue-200" />
             <span className="hidden sm:inline">Save as PDF</span>
             <span className="sm:hidden">PDF</span>
           </button>
@@ -256,7 +256,7 @@ export const EventsView: React.FC = () => {
                 )}
                 {currentEvent.resourcePerson && (
                   <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                     <span className="truncate"><strong>Resource Person:</strong> {currentEvent.resourcePerson}</span>
                   </span>
                 )}
@@ -271,12 +271,12 @@ export const EventsView: React.FC = () => {
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Income</span>
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-50 text-blue-800 flex items-center justify-center">
                 <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-base sm:text-xl font-extrabold text-emerald-700">₹{stats.totalIncome.toLocaleString()}</span>
+              <span className="text-base sm:text-xl font-extrabold text-blue-700">₹{stats.totalIncome.toLocaleString()}</span>
               <p className="text-[10px] text-slate-400 mt-0.5">{stats.incomeCount} transaction(s)</p>
             </div>
           </div>
@@ -296,20 +296,20 @@ export const EventsView: React.FC = () => {
           </div>
 
           {/* Net Result */}
-          <div className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xs flex flex-col justify-between ${isProfit ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' : 'bg-rose-50/50 border-rose-200 text-rose-900'}`}>
+          <div className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xs flex flex-col justify-between ${isProfit ? 'bg-blue-50/70 border-blue-200 text-blue-950' : 'bg-rose-50/50 border-rose-200 text-rose-900'}`}>
             <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${isProfit ? 'text-emerald-800' : 'text-rose-800'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isProfit ? 'text-blue-900' : 'text-rose-800'}`}>
                 {isProfit ? 'Net Surplus' : 'Net Deficit'}
               </span>
-              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center ${isProfit ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center ${isProfit ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'}`}>
                 {isProfit ? <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
               </div>
             </div>
             <div className="mt-2">
-              <span className={`text-base sm:text-xl font-extrabold ${isProfit ? 'text-emerald-800' : 'text-rose-800'}`}>
+              <span className={`text-base sm:text-xl font-extrabold ${isProfit ? 'text-blue-900' : 'text-rose-800'}`}>
                 {isProfit ? '+' : ''}₹{stats.net.toLocaleString()}
               </span>
-              <p className={`text-[10px] font-bold mt-0.5 ${isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <p className={`text-[10px] font-bold mt-0.5 ${isProfit ? 'text-blue-700' : 'text-rose-600'}`}>
                 {isProfit ? 'SURPLUS' : 'DEFICIT'}
               </p>
             </div>
@@ -340,7 +340,7 @@ export const EventsView: React.FC = () => {
             {isAdmin && (
               <button
                 onClick={() => setIsIncomeModalOpen(true)}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Income</span>
@@ -357,7 +357,7 @@ export const EventsView: React.FC = () => {
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] text-slate-500 font-mono">{inc.date}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-semibold text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-semibold text-[10px]">
                           {inc.category}
                         </span>
                         {acc && (
@@ -375,7 +375,7 @@ export const EventsView: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-right">
                       <div>
-                        <span className="text-xs sm:text-sm font-extrabold text-emerald-700 block">
+                        <span className="text-xs sm:text-sm font-extrabold text-blue-700 block">
                           +₹{inc.amount.toLocaleString()}
                         </span>
                       </div>
@@ -401,7 +401,7 @@ export const EventsView: React.FC = () => {
 
           <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
             <span>Total Income Stream:</span>
-            <span className="text-emerald-700 text-sm font-extrabold">₹{stats.totalIncome.toLocaleString()}</span>
+            <span className="text-blue-700 text-sm font-extrabold">₹{stats.totalIncome.toLocaleString()}</span>
           </div>
         </div>
 
@@ -415,7 +415,7 @@ export const EventsView: React.FC = () => {
             {isAdmin && (
               <button
                 onClick={() => setIsExpenseModalOpen(true)}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0f1f4b] hover:bg-[#1e3a8a] text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Expense</span>

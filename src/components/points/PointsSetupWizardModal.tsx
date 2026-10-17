@@ -185,7 +185,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-scale-up flex flex-col max-h-[92vh]">
         
         {/* Wizard Header */}
-        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-5 sm:p-6 relative shrink-0">
+        <div className="bg-gradient-to-r from-[#0f1f4b] via-[#1e3a8a] to-slate-900 text-white p-5 sm:p-6 relative shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
@@ -195,11 +195,11 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
           </button>
           
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-emerald-300">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-sky-300">
               <Trophy className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-300 block">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-sky-300 block">
                 Quick Setup Wizard
               </span>
               <h2 className="text-lg sm:text-xl font-bold font-heading text-white">
@@ -207,7 +207,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
               </h2>
             </div>
           </div>
-          <p className="text-xs text-emerald-100/90 leading-relaxed max-w-lg">
+          <p className="text-xs text-blue-100/90 leading-relaxed max-w-lg">
             Configure an active evaluation period and point categories to enable student standings, leaderboard calculations, and achievement submissions.
           </p>
 
@@ -215,36 +215,36 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
           <div className="grid grid-cols-3 gap-2 mt-5">
             <div className="flex items-center gap-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
-                currentStep >= 1 ? 'bg-emerald-400 text-emerald-950' : 'bg-white/20 text-white'
+                currentStep >= 1 ? 'bg-sky-400 text-[#0f1f4b]' : 'bg-white/20 text-white'
               }`}>
                 1
               </div>
               <span className={`text-[11px] font-bold truncate ${
-                currentStep === 1 ? 'text-white' : 'text-emerald-200/80'
+                currentStep === 1 ? 'text-white' : 'text-blue-200/80'
               }`}>
                 1. Period Details
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
-                currentStep >= 2 ? 'bg-emerald-400 text-emerald-950' : 'bg-white/20 text-white'
+                currentStep >= 2 ? 'bg-sky-400 text-[#0f1f4b]' : 'bg-white/20 text-white'
               }`}>
                 2
               </div>
               <span className={`text-[11px] font-bold truncate ${
-                currentStep === 2 ? 'text-white' : 'text-emerald-200/80'
+                currentStep === 2 ? 'text-white' : 'text-blue-200/80'
               }`}>
                 2. Categories
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
-                currentStep === 3 ? 'bg-emerald-400 text-emerald-950' : 'bg-white/20 text-white'
+                currentStep === 3 ? 'bg-sky-400 text-[#0f1f4b]' : 'bg-white/20 text-white'
               }`}>
                 3
               </div>
               <span className={`text-[11px] font-bold truncate ${
-                currentStep === 3 ? 'text-white' : 'text-emerald-200/80'
+                currentStep === 3 ? 'text-white' : 'text-blue-200/80'
               }`}>
                 3. Review & Finish
               </span>
@@ -262,8 +262,8 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
           )}
 
           {successMsg && (
-            <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2.5">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+            <div className="p-3.5 bg-blue-500/10 border border-blue-200 text-blue-800 text-xs font-bold rounded-xl flex items-center gap-2.5">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-blue-600" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -273,7 +273,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-700" />
+                  <Calendar className="w-4 h-4 text-blue-700" />
                   <span>Step 1: Create Evaluation Period</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -304,7 +304,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                     placeholder="e.g. Academic Year 2026–2027 or Odd Semester 2026"
                     value={periodName}
                     onChange={(e) => setPeriodName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600 font-medium"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600 font-medium"
                   />
                   <span className="text-[10px] text-slate-400">
                     This name will appear on student transcripts, portal leaderboards, and certificates.
@@ -321,7 +321,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                       required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
 
@@ -334,18 +334,18 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                       required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <label className="flex items-start gap-3 p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50 transition-colors">
+                  <label className="flex items-start gap-3 p-3 bg-blue-500/10/60 border border-blue-200 rounded-xl cursor-pointer hover:bg-blue-500/10 transition-colors">
                     <input
                       type="checkbox"
                       checked={enableSubmissionsImmediately}
                       onChange={(e) => setEnableSubmissionsImmediately(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                      className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                     />
                     <div className="text-xs">
                       <span className="font-bold text-slate-900 block">Open Achievement Submissions Immediately</span>
@@ -365,7 +365,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
               <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Tags className="w-4 h-4 text-emerald-700" />
+                    <Tags className="w-4 h-4 text-blue-700" />
                     <span>Step 2: Add or Confirm Point Categories</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -375,9 +375,9 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAddCatForm(!showAddCatForm)}
-                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                  className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-100 border border-blue-200 text-blue-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5 text-emerald-700" />
+                  <Plus className="w-3.5 h-3.5 text-blue-700" />
                   <span>{showAddCatForm ? 'Hide Form' : 'Add Custom Category'}</span>
                 </button>
               </div>
@@ -404,7 +404,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                       placeholder="e.g. Science Exhibition / Sports Tournament"
                       value={newCatName}
                       onChange={(e) => setNewCatName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
                   </div>
 
@@ -414,7 +414,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                       id="rankBasedCheck"
                       checked={newCatIsRankBased}
                       onChange={(e) => setNewCatIsRankBased(e.target.checked)}
-                      className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                      className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                     />
                     <label htmlFor="rankBasedCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
                       Position/Rank-based Points (1st, 2nd, 3rd place)
@@ -471,7 +471,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                     <button
                       type="submit"
                       disabled={addingCategory}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                     >
                       {addingCategory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                       <span>Save Category</span>
@@ -498,9 +498,9 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                           type="button"
                           onClick={() => handleAddQuickPreset(preset)}
                           disabled={addingCategory}
-                          className="px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-[11px] font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+                          className="px-3 py-1.5 bg-white hover:bg-blue-500/10 border border-slate-200 hover:border-sky-300 rounded-xl text-[11px] font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
                         >
-                          <Sparkles className="w-3 h-3 text-emerald-600" />
+                          <Sparkles className="w-3 h-3 text-blue-600" />
                           <span>+ {preset.name}</span>
                         </button>
                       ))}
@@ -518,7 +518,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                                 Rank-based: 1st ({cat.rank1Points} pts) • 2nd ({cat.rank2Points} pts) • 3rd ({cat.rank3Points} pts)
                               </span>
                             ) : (
-                              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-100">
+                              <span className="text-blue-700 bg-blue-500/10 px-2 py-0.5 rounded font-bold border border-blue-100">
                                 Fixed: +{cat.defaultPoints} pts
                               </span>
                             )}
@@ -555,9 +555,9 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                           type="button"
                           onClick={() => handleAddQuickPreset(preset)}
                           disabled={addingCategory}
-                          className="px-2.5 py-1 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg text-[10px] font-medium text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
+                          className="px-2.5 py-1 bg-slate-50 hover:bg-blue-500/10 border border-slate-200 hover:border-sky-300 rounded-lg text-[10px] font-medium text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
                         >
-                          <Plus className="w-2.5 h-2.5 text-emerald-600" />
+                          <Plus className="w-2.5 h-2.5 text-blue-600" />
                           <span>{preset.name}</span>
                         </button>
                       ))}
@@ -572,7 +572,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                  <CheckCircle2 className="w-4 h-4 text-blue-700" />
                   <span>Step 3: Review & Finish Setup</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -581,12 +581,12 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
               </div>
 
               {/* Period Summary Card */}
-              <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-2">
+              <div className="p-4 bg-blue-500/10/50 border border-blue-200 rounded-2xl space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800">
                     Evaluation Period to Activate
                   </span>
-                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-emerald-100 text-emerald-900 rounded-full border border-emerald-300">
+                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-blue-100 text-blue-950 rounded-full border border-sky-300">
                     Will Be Active
                   </span>
                 </div>
@@ -594,10 +594,10 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                   {periodName}
                 </h4>
                 <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                  <Calendar className="w-3.5 h-3.5 text-blue-700" />
                   <span>{formatDate(startDate)} to {formatDate(endDate)}</span>
                 </div>
-                <p className="text-[11px] text-emerald-800/90 pt-1">
+                <p className="text-[11px] text-blue-800/90 pt-1">
                   Status: <strong>Submissions {enableSubmissionsImmediately ? 'OPEN' : 'CLOSED'}</strong> on start. Sub-organizations can immediately log achievements.
                 </p>
               </div>
@@ -617,7 +617,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                         className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 flex items-center gap-1.5"
                       >
                         <span>{cat.name}</span>
-                        <span className="text-[10px] text-emerald-700 font-black">
+                        <span className="text-[10px] text-blue-700 font-black">
                           {cat.isRankBased ? 'Rank-Based' : `+${cat.defaultPoints}`}
                         </span>
                       </span>
@@ -676,7 +676,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                   if (currentStep === 1) handleStep1Next();
                   else if (currentStep === 2) setCurrentStep(3);
                 }}
-                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
               >
                 <span>Continue</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -686,7 +686,7 @@ export const PointsSetupWizardModal: React.FC<PointsSetupWizardModalProps> = ({
                 type="button"
                 disabled={submitting}
                 onClick={handleFinishWizard}
-                className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md transition-all disabled:opacity-50"
+                className="px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md transition-all disabled:opacity-50"
               >
                 {submitting ? (
                   <>

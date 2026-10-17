@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 interface ProgramSubCategoryComboboxProps {
   value: string;
   onChange: (subCategory: string) => void;
-  categoryContext?: string;
+  categoryId?: string; // Add categoryId
   disabled?: boolean;
   placeholder?: string;
   id?: string;
@@ -14,12 +14,12 @@ interface ProgramSubCategoryComboboxProps {
 export const ProgramSubCategoryCombobox: React.FC<ProgramSubCategoryComboboxProps> = ({
   value,
   onChange,
-  categoryContext,
+  categoryId, // Add categoryId
   disabled = false,
   placeholder = 'Select or enter sub category...',
   id = 'program-subcategory-combobox-input',
 }) => {
-  const { programs } = useApp();
+  const { programSubCategories } = useApp(); // Get from context
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,17 +44,13 @@ export const ProgramSubCategoryCombobox: React.FC<ProgramSubCategoryComboboxProp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [searchTerm, value, onChange]);
 
-  // Extract unique subcategories from existing programs in this account
+  // Extract unique subcategories from existing subcategories in this account, filtered by categoryId
   const availableSubCategories = useMemo(() => {
-    const set = new Set<string>();
-    programs.forEach((prog) => {
-      const sub = (prog.subCategory || '').trim();
-      if (sub) {
-        set.add(sub);
-      }
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [programs]);
+    return programSubCategories
+      .filter((sub) => !categoryId || sub.category_id === categoryId)
+      .map((sub) => sub.name)
+      .sort((a, b) => a.localeCompare(b));
+  }, [programSubCategories, categoryId]);
 
   const trimmedQuery = searchTerm.trim().toLowerCase();
 

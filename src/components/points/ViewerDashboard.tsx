@@ -230,16 +230,16 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
   return (
     <div className="space-y-4 sm:space-y-6" id="viewer-portal-dashboard">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-950 via-blue-800 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xs relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none flex items-center justify-center">
           <Trophy className="w-64 h-64 rotate-12 text-white" />
         </div>
         <div className="max-w-2xl space-y-2 relative z-10">
-          <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] uppercase font-extrabold tracking-widest text-emerald-300 border border-white/10">
+          <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] uppercase font-extrabold tracking-widest text-sky-300 border border-white/10">
             Institutional Portal
           </span>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-black font-heading tracking-tight leading-tight">Student Points Leaderboard</h1>
-          <p className="text-emerald-100/90 text-xs sm:text-sm leading-relaxed max-w-lg font-medium">
+          <p className="text-blue-100/90 text-xs sm:text-sm leading-relaxed max-w-lg font-medium">
             Track individual student achiever points, honors, and class sub-organization standings in real time.
           </p>
         </div>
@@ -255,7 +255,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             }}
             className={`py-2.5 sm:py-3.5 px-4 sm:px-6 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               viewTab === 'leaderboard'
-                ? 'border-emerald-700 text-emerald-800'
+                ? 'border-blue-700 text-blue-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -268,7 +268,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             }}
             className={`py-2.5 sm:py-3.5 px-4 sm:px-6 font-bold text-xs sm:text-sm border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               viewTab === 'awards'
-                ? 'border-emerald-700 text-emerald-800'
+                ? 'border-blue-700 text-blue-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -290,7 +290,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   <button
                     type="button"
                     onClick={() => setSelectedMemberForDetails(null)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-blue-800 bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     <span>Back to Student Achievers</span>
@@ -304,8 +304,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                 <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-100/70 border border-emerald-200 flex items-center justify-center font-black text-emerald-800 text-lg shadow-2xs shrink-0">
-                        <User className="w-6 h-6 text-emerald-700" />
+                      <div className="w-12 h-12 rounded-2xl bg-blue-100/70 border border-blue-200 flex items-center justify-center font-black text-blue-800 text-lg shadow-2xs shrink-0">
+                        <User className="w-6 h-6 text-blue-700" />
                       </div>
                       <div className="min-w-0">
                         <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 font-heading leading-tight truncate">
@@ -335,7 +335,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       </div>
                       <div className="px-2 border-l border-slate-100">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Awarded Points</p>
-                        <p className="text-base font-black text-emerald-800">+{studentAwardedPoints} pts</p>
+                        <p className="text-base font-black text-blue-800">+{studentAwardedPoints} pts</p>
                       </div>
                     </div>
                   </div>
@@ -344,7 +344,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                 {/* Section Title */}
                 <div className="flex items-center justify-between pt-1">
                   <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-emerald-600" />
+                    <Award className="w-4 h-4 text-blue-600" />
                     <span>Achievements ({studentAchievements.length})</span>
                   </h3>
                   <span className="text-[11px] text-slate-500 hidden sm:inline">
@@ -386,12 +386,12 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                           tabIndex={0}
                           role="button"
                           aria-label={`View details for ${ach.title}`}
-                          className="bg-white hover:bg-slate-50/80 border border-slate-200 hover:border-emerald-300 rounded-2xl p-4 sm:p-5 transition-all cursor-pointer shadow-2xs hover:shadow-xs space-y-3 group"
+                          className="bg-white hover:bg-slate-50/80 border border-slate-200 hover:border-sky-300 rounded-2xl p-4 sm:p-5 transition-all cursor-pointer shadow-2xs hover:shadow-xs space-y-3 group"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
                             <div className="space-y-1.5 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-100">
+                                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-blue-50 text-blue-800 rounded-md border border-blue-100">
                                   {catName}
                                 </span>
                                 {ach.programName && (
@@ -400,7 +400,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                                   </span>
                                 )}
                               </div>
-                              <h4 className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-emerald-900 transition-colors leading-snug">
+                              <h4 className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-blue-950 transition-colors leading-snug">
                                 {ach.title}
                               </h4>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
@@ -420,8 +420,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                             {/* Status & Points Information */}
                             <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1.5 shrink-0 pt-1 sm:pt-0">
                               {isApproved && (
-                                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-900 font-bold text-[10px] rounded-full border border-emerald-200 flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-950 font-bold text-[10px] rounded-full border border-blue-200 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                                   Approved
                                 </span>
                               )}
@@ -446,7 +446,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                               <div className="text-right">
                                 {isApproved ? (
-                                  <p className="text-xs sm:text-sm font-black text-emerald-800">
+                                  <p className="text-xs sm:text-sm font-black text-blue-800">
                                     Awarded Points: {ach.awardedPoints}
                                   </p>
                                 ) : isRejected ? (
@@ -475,7 +475,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                                 e.stopPropagation();
                                 setSelectedAchievement(ach);
                               }}
-                              className="px-3 py-1 bg-slate-50 hover:bg-emerald-50 text-emerald-800 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              className="px-3 py-1 bg-slate-50 hover:bg-blue-50 text-blue-800 hover:text-blue-950 border border-slate-200 hover:border-sky-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>View Achievement</span>
@@ -504,7 +504,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       onClick={() => setLeaderboardScope('achievers')}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         leaderboardScope === 'achievers'
-                          ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/50'
+                          ? 'bg-white text-blue-950 shadow-xs border border-slate-200/50'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -516,7 +516,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       onClick={() => setLeaderboardScope('organizations')}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         leaderboardScope === 'organizations'
-                          ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/50'
+                          ? 'bg-white text-blue-950 shadow-xs border border-slate-200/50'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -544,7 +544,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       id="live-standings-org-filter"
                       value={selectedOrgFilter}
                       onChange={(e) => setSelectedOrgFilter(e.target.value)}
-                      className="w-full appearance-none pl-10 pr-9 py-2.5 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors cursor-pointer shadow-2xs"
+                      className="w-full appearance-none pl-10 pr-9 py-2.5 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors cursor-pointer shadow-2xs"
                       aria-label="Filter leaderboard by organization"
                     >
                       <option value="all">All Organizations</option>
@@ -571,7 +571,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       }
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-9 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 shadow-2xs"
+                      className="w-full pl-10 pr-9 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 shadow-2xs"
                     />
                     {searchQuery && (
                       <button
@@ -638,7 +638,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                                 {/* Achiever Info */}
                                 <div className="min-w-0">
-                                  <p className="font-extrabold text-slate-900 text-sm truncate group-hover:text-emerald-900 transition-colors">
+                                  <p className="font-extrabold text-slate-900 text-sm truncate group-hover:text-blue-950 transition-colors">
                                     {member.name}
                                   </p>
                                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
@@ -655,7 +655,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                               {/* Score */}
                               <div className="text-right shrink-0 pl-2">
-                                <span className="text-base font-black text-emerald-800">{member.periodPoints || 0}</span>
+                                <span className="text-base font-black text-blue-800">{member.periodPoints || 0}</span>
                                 <span className="text-[10px] text-slate-500 block font-semibold">
                                   {selectedPeriodFilter === 'all' ? 'LIFETIME PTS' : 'PERIOD PTS'}
                                 </span>
@@ -723,7 +723,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
                               {/* Score */}
                               <div className="text-right">
-                                <span className="text-base font-black text-emerald-800">{org.periodPoints || 0}</span>
+                                <span className="text-base font-black text-blue-800">{org.periodPoints || 0}</span>
                                 <span className="text-[10px] text-slate-500 block font-semibold">
                                   {selectedPeriodFilter === 'all' ? 'LIFETIME PTS' : 'PERIOD PTS'}
                                 </span>
@@ -743,25 +743,25 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
           <div className="space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Star className="w-4 h-4 text-emerald-600" />
+                <Star className="w-4 h-4 text-blue-600" />
                 <span>Evaluation Period Status</span>
               </h3>
               
               {/* Active Period Card */}
               {activeCompetition ? (
-                <div className="bg-gradient-to-br from-emerald-50/90 via-emerald-50/40 to-white border border-emerald-200/90 p-4 rounded-2xl space-y-2 shadow-2xs">
+                <div className="bg-gradient-to-br from-blue-50/90 via-blue-50/40 to-white border border-blue-200/90 p-4 rounded-2xl space-y-2 shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md uppercase tracking-wider border border-emerald-300">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md uppercase tracking-wider border border-sky-300">
                       ACTIVE PERIOD
                     </span>
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                      <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                       Live
                     </span>
                   </div>
-                  <p className="font-black text-emerald-950 text-base">{activeCompetition.name}</p>
+                  <p className="font-black text-slate-900 text-base">{activeCompetition.name}</p>
                   <p className="text-xs text-slate-600 flex items-center gap-1.5 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <Calendar className="w-3.5 h-3.5 text-blue-700 shrink-0" />
                     <span>{formatDate(activeCompetition.startDate)} – {formatDate(activeCompetition.endDate)}</span>
                   </p>
                 </div>
@@ -798,13 +798,13 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   <span className="text-3xl">🏅</span>
                   <p className="font-bold text-slate-900 text-xs">{awards[0].name}</p>
                   {awards[0].evaluationPeriod && (
-                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
                       {awards[0].evaluationPeriod}
                     </span>
                   )}
                   <div className="space-y-1 text-left pt-1 border-t border-slate-200/50">
                     {getAwardWinners(awards[0]).map((w, idx) => (
-                      <p key={w.achieverId || w.organizationId || idx} className="text-[11px] text-emerald-900 font-bold truncate flex items-center gap-1">
+                      <p key={w.achieverId || w.organizationId || idx} className="text-[11px] text-blue-950 font-bold truncate flex items-center gap-1">
                         <span>{w.position === 1 ? '🥇' : w.position === 2 ? '🥈' : '🥉'}</span>
                         <span className="text-[10px] text-slate-500 font-semibold uppercase">{w.position === 1 ? '1st:' : w.position === 2 ? '2nd:' : '3rd:'}</span>
                         <span className="truncate">{getWinnerDisplayName(w)}</span>
@@ -851,14 +851,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                     onClick={() => setAwardsRecipientFilter('all')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                       awardsRecipientFilter === 'all'
-                        ? 'bg-white text-emerald-900 shadow-xs border border-slate-200/60'
+                        ? 'bg-white text-blue-950 shadow-xs border border-slate-200/60'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <span>All</span>
                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
                       awardsRecipientFilter === 'all'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-blue-100 text-blue-800'
                         : 'bg-slate-200/80 text-slate-600'
                     }`}>
                       {filteredAwards.length}
@@ -871,14 +871,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                     onClick={() => setAwardsRecipientFilter('class_organization')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                       awardsRecipientFilter === 'class_organization'
-                        ? 'bg-emerald-800 text-white shadow-xs'
+                        ? 'bg-blue-800 text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <span>Class Orgs</span>
                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
                       awardsRecipientFilter === 'class_organization'
-                        ? 'bg-emerald-950/60 text-emerald-100'
+                        ? 'bg-slate-900/60 text-blue-100'
                         : 'bg-slate-200/80 text-slate-600'
                     }`}>
                       {classOrgsCount}
@@ -922,7 +922,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   <button
                     type="button"
                     onClick={() => setAwardsRecipientFilter('all')}
-                    className="mt-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                    className="mt-2 text-xs font-bold text-blue-700 hover:text-blue-800 underline cursor-pointer"
                   >
                     View all awards ({awards.length})
                   </button>
@@ -936,14 +936,14 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                   return (
                     <div key={award.id} className="bg-white rounded-3xl border border-slate-100 p-6 text-center space-y-5 shadow-sm relative overflow-hidden flex flex-col items-center hover:shadow-md transition-all duration-300">
                       {/* Subtle Decorative Background Element */}
-                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl" />
+                      <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-50/50 rounded-full blur-2xl" />
                       
                       {/* Recipient Type Badge */}
                       <div className="w-full flex justify-end">
                         <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
                           isIndividual 
                             ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
                         }`}>
                           {isIndividual ? 'Individual Achievers' : 'Class Organization'}
                         </span>
@@ -959,7 +959,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       
                       {/* Award Name */}
                       <div className="space-y-1 w-full">
-                        <h3 className="font-black text-slate-900 text-lg tracking-tight font-heading leading-tight uppercase text-emerald-950">
+                        <h3 className="font-black text-slate-900 text-lg tracking-tight font-heading leading-tight uppercase text-slate-900">
                           {award.name}
                         </h3>
                         <div className="h-0.5 w-16 bg-amber-400 mx-auto rounded-full" />
@@ -968,15 +968,15 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       {/* Dynamic Winner(s) Display */}
                       {winners.length <= 1 ? (
                         /* 1 Winner Layout */
-                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 w-full text-center shadow-inner-sm">
-                          <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
+                        <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 w-full text-center shadow-inner-sm">
+                          <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
                             <span>🥇</span> 1st Place Winner
                           </p>
-                          <p className="text-sm font-black text-emerald-950 truncate" title={getWinnerDisplayName(winners[0])}>
+                          <p className="text-sm font-black text-slate-900 truncate" title={getWinnerDisplayName(winners[0])}>
                             {getWinnerDisplayName(winners[0])}
                           </p>
                           {getWinnerSubtext(winners[0]) && (
-                            <p className="text-[10px] font-semibold text-emerald-700/80 truncate mt-0.5" title={getWinnerSubtext(winners[0])}>
+                            <p className="text-[10px] font-semibold text-blue-700/80 truncate mt-0.5" title={getWinnerSubtext(winners[0])}>
                               {getWinnerSubtext(winners[0])}
                             </p>
                           )}
@@ -984,7 +984,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       ) : winners.length === 2 ? (
                         /* 2 Winners Side-by-Side */
                         <div className="w-full space-y-2">
-                          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
+                          <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">
                             Award Winners (2)
                           </p>
                           <div className="grid grid-cols-2 gap-2 w-full">
@@ -1019,7 +1019,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       ) : (
                         /* 3 Winners Podium Layout */
                         <div className="w-full space-y-2">
-                          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center">
+                          <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest text-center">
                             Award Winners (3)
                           </p>
                           {/* 1st Place Top Featured */}
@@ -1075,7 +1075,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       {/* Evaluation Period and Date */}
                       <div className="mt-auto pt-4 border-t border-slate-100 w-full flex flex-col items-center gap-1.5 text-[10px] text-slate-500 font-medium">
                         {award.evaluationPeriod && (
-                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full font-bold text-[10px]">
+                          <span className="px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/60 rounded-full font-bold text-[10px]">
                             Period: {award.evaluationPeriod}
                           </span>
                         )}
@@ -1099,7 +1099,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
           <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto space-y-6">
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1">
-                <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-[10px] rounded-lg">
+                <span className="px-2.5 py-0.5 bg-blue-50 text-blue-800 font-bold text-[10px] rounded-lg">
                   {getCategoryName(selectedAchievement.categoryId, selectedAchievement.customCategory)}
                 </span>
                 <h3 className="text-xl font-bold text-slate-900 font-heading">{selectedAchievement.title}</h3>
@@ -1129,7 +1129,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
                 <p className="text-slate-400 font-semibold">WHOSE ACHIEVEMENT (ACHIEVER)</p>
                 <p className="font-extrabold text-slate-900 flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-emerald-700" />
+                  <User className="w-3.5 h-3.5 text-blue-700" />
                   {selectedAchievement.achieverName || 'Achiever Not Assigned'}
                 </p>
                 {selectedAchievement.achieverStudentId && (
@@ -1141,8 +1141,8 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
 
               <div className="bg-slate-50 p-3.5 rounded-2xl space-y-1">
                 <p className="text-slate-400 font-semibold">EVALUATION</p>
-                <p className="font-bold text-emerald-700 flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 text-emerald-600" />
+                <p className="font-bold text-blue-700 flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-blue-600" />
                   Awarded: {selectedAchievement.awardedPoints} points
                 </p>
                 <p className="text-slate-500">Status: {selectedAchievement.status}</p>
@@ -1166,7 +1166,7 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
                       {med.proofType === 'photo' ? (
                         <img src={med.fileUrl} alt="Thumbnail" className="w-12 h-12 rounded-lg object-cover border border-slate-200" referrerPolicy="no-referrer" />
                       ) : med.proofType === 'video' ? (
-                        <div className="w-12 h-12 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+                        <div className="w-12 h-12 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
                           <Film className="w-5 h-5" />
                         </div>
                       ) : (
@@ -1194,9 +1194,9 @@ export const ViewerDashboard: React.FC<ViewerDashboardProps> = ({ currentTab, hi
             </div>
 
             {selectedAchievement.reviewNotes && (
-              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-1">
-                <h4 className="text-xs font-bold text-emerald-900">ADMIN REVIEWER FEEDBACK</h4>
-                <p className="text-xs text-emerald-800 italic leading-relaxed">"{selectedAchievement.reviewNotes}"</p>
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl space-y-1">
+                <h4 className="text-xs font-bold text-blue-950">ADMIN REVIEWER FEEDBACK</h4>
+                <p className="text-xs text-blue-800 italic leading-relaxed">"{selectedAchievement.reviewNotes}"</p>
               </div>
             )}
           </div>

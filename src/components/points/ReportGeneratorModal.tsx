@@ -488,7 +488,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
               </div>
               <div>
                 <h2 className="text-sm md:text-base font-bold tracking-wide">Automatic Professional Report</h2>
-                <p className="text-[10px] md:text-xs text-emerald-100/80">Munazzam Institutional Reporting & Analytics Suite</p>
+                <p className="text-[10px] md:text-xs text-blue-100/80">Munazzam Institutional Reporting & Analytics Suite</p>
               </div>
             </div>
 
@@ -538,7 +538,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   <select
                     value={selectedPeriodId}
                     onChange={(e) => setSelectedPeriodId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   >
                     <option value="">[ Select Evaluation Period ]</option>
                     <option value="all">All Evaluation Periods (Cumulative)</option>
@@ -558,7 +558,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     value={academicYear}
                     onChange={(e) => setAcademicYear(e.target.value)}
                     placeholder="e.g. 2026–27"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
 
@@ -568,7 +568,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                   <select
                     value={selectedOrgId}
                     onChange={(e) => setSelectedOrgId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   >
                     <option value="">[ Select Organization / Batch ]</option>
                     <option value="all">All Organizations & Batches</option>
@@ -586,7 +586,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     value={reportTitle}
                     onChange={(e) => setReportTitle(e.target.value)}
                     placeholder="Enter Report Title"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
 
@@ -599,10 +599,10 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                       value={reportVersion}
                       onChange={(e) => setReportVersion(e.target.value)}
                       placeholder="e.g. 1"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 animate-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 animate-none"
                     />
                     {reportVersion.trim() && (
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-3 rounded-2xl border border-emerald-200 whitespace-nowrap">
+                      <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-3 rounded-2xl border border-blue-200 whitespace-nowrap">
                         v{reportVersion} Revised
                       </span>
                     )}
@@ -617,7 +617,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     value={preparedBy}
                     onChange={(e) => setPreparedBy(e.target.value)}
                     placeholder="Enter name / designation"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
@@ -643,8 +643,8 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-2xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                    <span>Ready for Export • Ref: <strong className="font-mono text-emerald-800">{reportRefNo}</strong></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    <span>Ready for Export • Ref: <strong className="font-mono text-blue-800">{reportRefNo}</strong></span>
                   </div>
                   <button
                     onClick={() => setActiveTab('snapshots')}
@@ -693,7 +693,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                       <p className="text-xs font-bold text-slate-600">Noorul Huda Islamic Academy, Madannoor</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-900 border border-emerald-200 px-3 py-1 rounded-lg inline-block">
+                      <p className="text-[10px] font-mono font-bold bg-blue-50 text-blue-950 border border-blue-200 px-3 py-1 rounded-lg inline-block">
                         {reportRefNo}
                       </p>
                       <p className="text-[10px] text-slate-400 font-medium mt-1">Generated: {formatDate(new Date().toISOString())}</p>
@@ -722,7 +722,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Dataset Scope</p>
-                      <p className="font-extrabold text-emerald-800 mt-0.5">
+                      <p className="font-extrabold text-blue-800 mt-0.5">
                         {selectedOrgId === 'all' ? 'All Batches (Verified)' : `${organizations.find(o => o.id === selectedOrgId)?.name || 'Batch'} (Verified)`}
                       </p>
                     </div>
@@ -747,15 +747,15 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     </div>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
                       <p className="text-[10px] font-bold text-slate-500 uppercase">Students With Points</p>
-                      <p className="text-lg font-black text-emerald-800">{summaryStats.studentsWithPoints} <span className="text-xs font-normal text-slate-500">/ {summaryStats.totalStudents}</span></p>
+                      <p className="text-lg font-black text-blue-800">{summaryStats.studentsWithPoints} <span className="text-xs font-normal text-slate-500">/ {summaryStats.totalStudents}</span></p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
                       <p className="text-[10px] font-bold text-slate-500 uppercase">Approved Submissions</p>
                       <p className="text-lg font-black text-blue-900">{summaryStats.approvedCount} <span className="text-xs font-normal text-slate-500">({summaryStats.totalSubmitted} total)</span></p>
                     </div>
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 space-y-1">
-                      <p className="text-[10px] font-bold text-emerald-900 uppercase">Grand Total Points</p>
-                      <p className="text-lg font-black text-emerald-900">{summaryStats.grandTotalPoints} pts</p>
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200 space-y-1">
+                      <p className="text-[10px] font-bold text-blue-950 uppercase">Grand Total Points</p>
+                      <p className="text-lg font-black text-blue-950">{summaryStats.grandTotalPoints} pts</p>
                     </div>
                   </div>
                 </div>
@@ -786,7 +786,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                             <td className="p-3 font-bold text-slate-900">{row.org.name}</td>
                             <td className="p-3 text-center">
                               <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                                row.status === 'SUBMITTED' ? 'bg-emerald-100 text-emerald-800' :
+                                row.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
                                 row.status === 'CLASS ONLY' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'
                               }`}>
                                 {row.status}
@@ -794,7 +794,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                             </td>
                             <td className="p-3 text-center font-medium">{row.submittedCount}</td>
                             <td className="p-3 text-center font-medium text-amber-600">{row.pendingCount}</td>
-                            <td className="p-3 text-center font-bold text-emerald-700">{row.approvedCount}</td>
+                            <td className="p-3 text-center font-bold text-blue-700">{row.approvedCount}</td>
                             <td className="p-3 text-center font-medium text-rose-600">{row.rejectedCount}</td>
                             <td className="p-3 text-right font-black text-slate-900">+{row.totalPoints} pts</td>
                           </tr>
@@ -820,7 +820,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                         <div key={orgData.org.id} className="border border-slate-200 rounded-2xl p-5 space-y-3 bg-slate-50/50">
                           <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                             <h4 className="font-black text-slate-900 text-sm">{orgData.org.name}</h4>
-                            <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                            <span className="text-xs font-black text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
                               Batch Total: +{orgData.totalPoints} pts
                             </span>
                           </div>
@@ -852,7 +852,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                                           </span>
                                         ) : '—'}
                                       </td>
-                                      <td className="p-2.5 text-right font-black text-emerald-800">
+                                      <td className="p-2.5 text-right font-black text-blue-800">
                                         +{ach.awardedPoints ?? ach.requestedPoints ?? 0} pts
                                       </td>
                                     </tr>
@@ -905,7 +905,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                               <td className="p-3 font-bold text-slate-900">{student.name}</td>
                               <td className="p-3 text-slate-600">{student.orgName}</td>
                               <td className="p-3 text-center font-medium">{student.achievementCount}</td>
-                              <td className="p-3 text-right font-black text-emerald-800">+{student.totalPoints} pts</td>
+                              <td className="p-3 text-right font-black text-blue-800">+{student.totalPoints} pts</td>
                             </tr>
                           ))
                         )}
@@ -941,7 +941,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                             <td className="p-3 text-center font-medium">{cls.active}</td>
                             <td className="p-3 text-center font-medium text-slate-700">+{cls.indPts}</td>
                             <td className="p-3 text-center font-medium text-blue-700">+{cls.classPub}</td>
-                            <td className="p-3 text-right font-black text-emerald-900">+{cls.total} pts</td>
+                            <td className="p-3 text-right font-black text-blue-950">+{cls.total} pts</td>
                           </tr>
                         ))}
                       </tbody>
@@ -961,7 +961,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                       <div key={item.category.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
                         <div className="flex justify-between items-start">
                           <p className="font-bold text-slate-900 text-xs">{item.category.name}</p>
-                          <span className="font-black text-emerald-800 text-xs">+{item.totalPoints} pts</span>
+                          <span className="font-black text-blue-800 text-xs">+{item.totalPoints} pts</span>
                         </div>
                         {item.category.isRankBased ? (
                           <div className="text-[10px] text-amber-900 bg-amber-50 border border-amber-200 p-2 rounded-xl">
@@ -1022,7 +1022,7 @@ export const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-black text-emerald-800 text-xs bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                        <span className="font-black text-blue-800 text-xs bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
                           {snap.summary.totalPoints} pts
                         </span>
                       </div>

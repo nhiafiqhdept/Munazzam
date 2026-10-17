@@ -137,18 +137,18 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
                 onClick={handlePrevMonth}
                 disabled={filter.selectedMonth === 'ALL'}
                 title="Previous Month"
-                className="p-1.5 sm:p-2 text-slate-600 hover:text-emerald-700 hover:bg-white rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 text-slate-600 hover:text-blue-700 hover:bg-white rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label="Previous Month"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
               <div className="relative inline-flex items-center px-2">
-                <Calendar className="w-3.5 h-3.5 text-emerald-700 mr-2 shrink-0" />
+                <Calendar className="w-3.5 h-3.5 text-blue-700 mr-2 shrink-0" />
                 <select
                   value={filter.selectedMonth}
                   onChange={(e) => handleSelectMonth(e.target.value)}
-                  className="bg-transparent text-xs sm:text-sm font-bold text-slate-900 border-none outline-none cursor-pointer pr-4 appearance-none hover:text-emerald-800 transition-colors"
+                  className="bg-transparent text-xs sm:text-sm font-bold text-slate-900 border-none outline-none cursor-pointer pr-4 appearance-none hover:text-blue-900 transition-colors"
                   aria-label="Select Evaluation or Financial Month"
                 >
                   <option value="ALL">All Months (Lifetime)</option>
@@ -170,7 +170,7 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
                 onClick={handleNextMonth}
                 disabled={filter.selectedMonth === 'ALL'}
                 title="Next Month"
-                className="p-1.5 sm:p-2 text-slate-600 hover:text-emerald-700 hover:bg-white rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 text-slate-600 hover:text-blue-700 hover:bg-white rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label="Next Month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -182,7 +182,7 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
               <button
                 type="button"
                 onClick={() => handleSelectMonth(currentMonthKey)}
-                className="px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors cursor-pointer"
+                className="px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors cursor-pointer"
                 title="Jump to Current Month"
               >
                 Go to Current Month
@@ -197,11 +197,11 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
               onClick={() => setShowDatePicker(!showDatePicker)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
                 showDatePicker || isDateFiltered
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-1 ring-emerald-400/20'
+                  ? 'bg-blue-50 text-blue-900 border-blue-300 ring-1 ring-blue-400/20'
                   : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Filter className="w-3.5 h-3.5 text-emerald-700" />
+              <Filter className="w-3.5 h-3.5 text-blue-700" />
               <span>{isDateFiltered ? 'Date Filtered' : 'Filter by Date'}</span>
             </button>
 
@@ -266,7 +266,7 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
                   type="date"
                   value={filter.specificDate}
                   onChange={(e) => onChangeFilter({ ...filter, specificDate: e.target.value })}
-                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {filter.specificDate && (
                   <button
@@ -289,7 +289,7 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
                     type="date"
                     value={filter.startDate}
                     onChange={(e) => onChangeFilter({ ...filter, startDate: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -298,7 +298,7 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
                     type="date"
                     value={filter.endDate}
                     onChange={(e) => onChangeFilter({ ...filter, endDate: e.target.value })}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 {(filter.startDate || filter.endDate) && (
@@ -323,20 +323,20 @@ export const TreasuryMonthFilter: React.FC<TreasuryMonthFilterProps> = ({
         <div 
           className={`p-3 sm:p-3.5 rounded-2xl border transition-all ${
             highlightSection === 'income' 
-              ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs' 
-              : 'bg-white border-slate-200 shadow-2xs hover:border-emerald-200'
+              ? 'bg-blue-50/90 border-blue-300 ring-2 ring-blue-500/20 shadow-xs' 
+              : 'bg-white border-slate-200 shadow-2xs hover:border-blue-200'
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
               Total Income
             </span>
-            <div className="w-6 h-6 rounded-lg bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0">
+            <div className="w-6 h-6 rounded-lg bg-blue-100/80 border border-blue-200 flex items-center justify-center text-blue-800 shrink-0">
               <ArrowDownLeft className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-1.5">
-            <span className="text-base sm:text-lg font-black text-emerald-700 tracking-tight block truncate">
+            <span className="text-base sm:text-lg font-black text-blue-700 tracking-tight block truncate">
               +₹{summary.totalIncome.toLocaleString()}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">
