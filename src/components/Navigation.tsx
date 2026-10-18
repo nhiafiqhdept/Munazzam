@@ -62,13 +62,13 @@ export const Navigation: React.FC = () => {
     >
       <div className="max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto px-2 pt-1.5">
         <div className="grid grid-cols-5 gap-1 items-center justify-between text-center">
-          {navItems.map((item) => {
+          {navItems.map((item, idx) => {
             const Icon = item.icon;
             const active = item.isActive(activeTab);
 
             return (
               <button
-                key={item.id}
+                key={`${item.id}_${idx}`}
                 id={`bottom-nav-${item.id}`}
                 onClick={() => handleTabClick(item.id)}
                 className={`flex flex-col items-center justify-center py-1 px-1 rounded-2xl transition-all duration-200 cursor-pointer select-none group touch-manipulation ${

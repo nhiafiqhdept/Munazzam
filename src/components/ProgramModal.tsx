@@ -50,7 +50,7 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
   onClose,
   programToEdit,
 }) => {
-  const { addProgram, updateProgram, addProgramMedia, deleteProgramMedia, programCategories, ensureCategoryExists } = useApp();
+  const { addProgram, updateProgram, addProgramMedia, deleteProgramMedia, programCategories, programSubCategories, ensureCategoryExists } = useApp();
 
   // Core required fields
   const [name, setName] = useState('');
@@ -629,34 +629,43 @@ export const ProgramModal: React.FC<ProgramModalProps> = ({
             />
           </div>
 
-          {/* ROW 1: PROGRAM CATEGORY | SUB CATEGORY (2x2 Grid) */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* ROW 1: CATEGORY | SUBCATEGORY (Side by Side) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <div>
               <div className="mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Program Category
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 truncate">
+                  Category
                 </label>
               </div>
               <ProgramCategoryCombobox
                 value={category}
                 onChange={(catName, catId) => {
                   setCategory(catName);
-                  setCategoryId(catId || '');
+                  if (catId !== categoryId) {
+                    setCategoryId(catId || '');
+                    if (catId && subCategory) {
+                      const validSubs = programSubCategories.filter((s) => s.category_id === catId);
+                      const isValid = validSubs.some((s) => s.name.toLowerCase() === subCategory.toLowerCase());
+                      if (!isValid) {
+                        setSubCategory('');
+                      }
+                    }
+                  }
                 }}
               />
             </div>
 
             <div>
               <div className="mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  SUB CATEGORY
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 truncate">
+                  Subcategory
                 </label>
               </div>
               <ProgramSubCategoryCombobox
                 value={subCategory}
                 onChange={(subCat) => setSubCategory(subCat)}
                 categoryId={categoryId}
-                placeholder="Select or enter..."
+                placeholder="Select subcategory..."
               />
             </div>
           </div>

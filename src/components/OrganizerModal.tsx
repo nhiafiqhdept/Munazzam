@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Shield, Mail, Phone, Upload, X, Check, Image as ImageIcon, Crop } from 'lucide-react';
 import { Organizer } from '../types';
 import { useApp } from '../context/AppContext';
-import { fileToDataUrl, optimizeImageFile, isImageFile } from '../utils/helpers';
+import { fileToDataUrl, optimizeImageFile, isImageFile, isGirlOrPlaceholderPhoto } from '../utils/helpers';
 import { ImageCropModal } from './ImageCropModal';
 import { CustomOptionField } from './common/CustomOptionField';
 import { DEFAULT_ORGANIZER_POSITIONS_WITH_OTHER, resolveCustomSelectState } from '../utils/customOptionUtils';
-import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
+import { OrganizerAvatar } from './common/OrganizerAvatar';
 
 interface OrganizerModalProps {
   isOpen: boolean;
@@ -52,7 +52,7 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
       setSelectedPosition(resolved.selected);
       setCustomPosition(resolved.custom);
 
-      setPhoto(organizerToEdit.photo || '');
+      setPhoto(isGirlOrPlaceholderPhoto(organizerToEdit.photo) ? '' : organizerToEdit.photo);
       setEmail(organizerToEdit.email || '');
       setPhone(organizerToEdit.phone || '');
       setBio(organizerToEdit.bio || '');
@@ -148,7 +148,8 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
       return;
     }
 
-    const finalPhoto = photoTab === 'url' && customPhotoUrl ? customPhotoUrl : photo;
+    const rawPhoto = photoTab === 'url' && customPhotoUrl ? customPhotoUrl : photo;
+    const finalPhoto = isGirlOrPlaceholderPhoto(rawPhoto) ? '' : rawPhoto.trim();
 
     if (organizerToEdit) {
       updateOrganizer({
@@ -225,22 +226,12 @@ export const OrganizerModal: React.FC<OrganizerModalProps> = ({
             <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
               <div className="relative group shrink-0">
                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-600 shadow-xs bg-white flex items-center justify-center">
-                  {((photoTab === 'url' && customPhotoUrl) || photo) ? (
-                    <img
-                      src={
-                        (photoTab === 'url' && customPhotoUrl)
-                          ? customPhotoUrl
-                          : photo
-                      }
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <MaleSilhouetteAvatar />
-                  )}
+                  <OrganizerAvatar
+                    photo={photoTab === 'url' && customPhotoUrl ? customPhotoUrl : photo}
+                    name="Preview"
+                    className="w-full h-full"
+                    imgClassName="w-full h-full object-cover"
+                  />
                 </div>
                 <button
                   type="button"

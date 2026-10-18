@@ -18,12 +18,13 @@ import {
   Plus,
   Shield,
   Layers,
+  FolderTree,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ActiveTab } from '../types';
 import { UpcomingProgramsCarousel } from './UpcomingProgramsCarousel';
 import { getProgramEffectiveStatus, getRoleBadgeStyle } from '../utils/helpers';
-import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
+import { OrganizerAvatar } from './common/OrganizerAvatar';
 
 interface DashboardProps {
   onOpenAddProgram: () => void;
@@ -39,6 +40,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
     incomes,
     expenses,
     loans,
+    programCategories,
+    programSubCategories,
     setActiveTab,
     viewProgramDetails,
     isPublicView,
@@ -121,6 +124,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
       iconBg: 'bg-[#0f1f4b] text-white',
       badgeText: 'text-[#1e3a8a]',
       arrowBg: 'text-[#1e3a8a] bg-sky-50',
+    },
+    {
+      id: 'program-categories' as ActiveTab,
+      title: 'Categories & Subcategories',
+      subtitle: `${programCategories.length} categories, ${programSubCategories.length} sub`,
+      icon: FolderTree,
+      tone: 'emerald',
+      cardBg: 'bg-white hover:bg-emerald-50/40 border-emerald-100 hover:border-emerald-400',
+      iconBg: 'bg-emerald-600 text-white',
+      badgeText: 'text-emerald-700',
+      arrowBg: 'text-emerald-700 bg-emerald-50',
     },
     isPublicView
       ? {
@@ -243,7 +257,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
           </span>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 lg:gap-6">
           {quickModules.map((mod) => {
             const Icon = mod.icon;
             return (
@@ -611,18 +625,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
                 >
                   <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-full p-0.5 bg-gradient-to-tr from-[#0f1f4b] via-[#1d4ed8] to-indigo-400 group-hover:scale-105 transition-transform duration-200 mb-2.5 overflow-hidden shrink-0 shadow-sm">
                     <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
-                      {orgzr.photo && orgzr.photo.trim() !== '' && !orgzr.photo.includes('unsplash.com') && !orgzr.photo.includes('photo-1534528741775') ? (
-                        <img
-                          src={orgzr.photo}
-                          alt={orgzr.name}
-                          className="w-full h-full object-cover rounded-full"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <MaleSilhouetteAvatar />
-                      )}
+                      <OrganizerAvatar
+                        photo={orgzr.photo}
+                        name={orgzr.name}
+                        className="w-full h-full"
+                        imgClassName="w-full h-full object-cover rounded-full"
+                      />
                     </div>
                   </div>
 

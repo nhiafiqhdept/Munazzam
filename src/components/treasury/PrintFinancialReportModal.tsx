@@ -1,7 +1,7 @@
 import React from 'react';
 import { Printer, X, FileText } from 'lucide-react';
 import { Program, Income, Expense, Account, Organization } from '../../types';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, DEFAULT_ORG_LOGO } from '../../utils/helpers';
 import { useApp } from '../../context/AppContext';
 
 interface PrintFinancialReportModalProps {
@@ -128,11 +128,11 @@ export const PrintFinancialReportModal: React.FC<PrintFinancialReportModalProps>
           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 financial-report-section">
             <div className="flex items-center gap-4">
               <img
-                src={organization?.logo || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80'}
+                src={organization?.logo || DEFAULT_ORG_LOGO}
                 alt="Org Logo"
                 className="w-16 h-16 object-contain rounded-xl border border-slate-300 p-1"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&auto=format&fit=crop&q=80';
+                  (e.target as HTMLImageElement).src = DEFAULT_ORG_LOGO;
                 }}
               />
               <div>

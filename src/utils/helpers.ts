@@ -462,3 +462,50 @@ export function getRoleBadgeStyle(position?: string): {
   };
 }
 
+/**
+ * Checks whether an organizer photo URL is a placeholder or legacy stock photo of a girl
+ * (including Unsplash girl placeholder photo-1534528741775, generic placeholders, etc.)
+ */
+export function isGirlOrPlaceholderPhoto(photo?: string | null): boolean {
+  if (!photo || typeof photo !== 'string') return true;
+  const trimmed = photo.trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+
+  // Explicit strings meaning "no photo"
+  if (
+    lower === 'no photo' ||
+    lower === 'null' ||
+    lower === 'undefined' ||
+    lower === 'none' ||
+    lower === 'false' ||
+    lower === ''
+  ) {
+    return true;
+  }
+
+  // Stock photo URLs, especially the legacy Unsplash girl photo
+  if (
+    lower.includes('1534528741775') || // specific Unsplash ID of the girl
+    lower.includes('unsplash.com') ||
+    lower.includes('images.unsplash.com') ||
+    lower.includes('placeholder') ||
+    lower.includes('dummyimage') ||
+    lower.includes('via.placeholder') ||
+    lower.includes('placehold.co') ||
+    lower.includes('randomuser.me') ||
+    lower.includes('pravatar.cc')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns true only if the organizer has a genuine custom uploaded photo
+ */
+export function isRealOrganizerPhoto(photo?: string | null): boolean {
+  return !isGirlOrPlaceholderPhoto(photo);
+}
+

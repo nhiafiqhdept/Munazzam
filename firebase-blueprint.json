@@ -69,6 +69,20 @@
       },
       "required": ["id", "accountId", "name"]
     },
+    "ProgramSubCategory": {
+      "title": "ProgramSubCategory",
+      "description": "Program subcategory entity linked to a category and belonging to account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "accountId", "categoryId", "name"]
+    },
     "SP_Portal": {
       "title": "SP_Portal",
       "description": "Student Points Portal setting node",
@@ -511,6 +525,10 @@
     "/program_categories/{categoryId}": {
       "schema": "ProgramCategory",
       "description": "Program categories belonging to account"
+    },
+    "/program_subcategories/{subCategoryId}": {
+      "schema": "ProgramSubCategory",
+      "description": "Program subcategories belonging to account"
     },
     "/sp_portals/{portalId}": {
       "schema": "SP_Portal",

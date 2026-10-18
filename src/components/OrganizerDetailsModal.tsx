@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Mail, Phone, GraduationCap, Shield, Edit2, User, Trash2 } from 'lucide-react';
 import { Organizer } from '../types';
-import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
+import { OrganizerAvatar } from './common/OrganizerAvatar';
 
 interface OrganizerDetailsModalProps {
   isOpen: boolean;
@@ -22,36 +22,27 @@ export const OrganizerDetailsModal: React.FC<OrganizerDetailsModalProps> = ({
 }) => {
   if (!isOpen || !organizer) return null;
 
-  const hasPhoto = Boolean(organizer.photo && organizer.photo.trim().length > 0 && !organizer.photo.includes('unsplash.com') && !organizer.photo.includes('photo-1534528741775'));
-
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative animate-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-sm text-slate-500 hover:text-slate-900 rounded-full shadow-sm border border-slate-200 transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 bg-white/80 backdrop-blur-sm text-slate-500 hover:text-slate-900 rounded-full shadow-sm border border-slate-200 transition-colors cursor-pointer"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Large Photo Section */}
-        <div className="relative h-64 sm:h-80 bg-slate-100 flex items-center justify-center">
-          {hasPhoto ? (
-            <img
-              src={organizer.photo}
-              alt={organizer.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <MaleSilhouetteAvatar className="w-full h-full" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+        <div className="relative h-64 sm:h-80 bg-slate-100 flex items-center justify-center overflow-hidden">
+          <OrganizerAvatar
+            photo={organizer.photo}
+            name={organizer.name}
+            className="w-full h-full"
+            imgClassName="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent pointer-events-none" />
           
           <div className="absolute bottom-6 left-6 right-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-white font-heading leading-tight">

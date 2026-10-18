@@ -39,7 +39,7 @@ import {
   PermissionHistoryItem,
   AppNotification,
 } from '../types';
-import { determineProgramStatusByDate, getProgramEffectiveStatus } from '../utils/helpers';
+import { determineProgramStatusByDate, getProgramEffectiveStatus, isGirlOrPlaceholderPhoto } from '../utils/helpers';
 import { generateSecurePermissionToken, getPublicApprovalUrl } from '../utils/permissionTokens';
 import {
   createNotification,
@@ -132,7 +132,7 @@ interface AppContextType {
   updateProgramCategory: (id: string, name: string) => Promise<void>;
   deleteProgramCategory: (id: string) => Promise<void>;
   ensureCategoryExists: (name: string) => Promise<ProgramCategory | null>;
-  addProgramSubCategory: (name: string) => Promise<ProgramSubCategory>;
+  addProgramSubCategory: (name: string, categoryId: string) => Promise<ProgramSubCategory>;
   updateProgramSubCategory: (id: string, name: string) => Promise<void>;
   deleteProgramSubCategory: (id: string) => Promise<void>;
   subWings: SubWing[];
@@ -290,7 +290,12 @@ export const AppProvider: React.FC<{
   const [organizers, setOrganizers] = useState<Organizer[]>(() => {
     try {
       const cached = localStorage.getItem('local_organizers');
-      return cached ? JSON.parse(cached) : [];
+      if (!cached) return [];
+      const parsed: Organizer[] = JSON.parse(cached);
+      return parsed.map((o) => ({
+        ...o,
+        photo: isGirlOrPlaceholderPhoto(o.photo) ? '' : o.photo,
+      }));
     } catch {
       return [];
     }
@@ -559,11 +564,17 @@ export const AppProvider: React.FC<{
           const list: Organizer[] = [];
           orgSnap.forEach((docSnap) => {
             const d = docSnap.data();
+            const rawPhoto = d.photo || '';
+            const isPlaceholder = isGirlOrPlaceholderPhoto(rawPhoto);
+            const cleanPhoto = isPlaceholder ? '' : rawPhoto;
+            if (rawPhoto && isPlaceholder) {
+              updateDoc(doc(db, 'organizers', docSnap.id), { photo: '' }).catch(() => {});
+            }
             list.push({
               id: docSnap.id,
               organization_id: targetAccountId!,
               name: d.name || '',
-              photo: d.photo || '',
+              photo: cleanPhoto,
               position: d.position || '',
               raw_position: d.raw_position || undefined,
               custom_position: d.custom_position || undefined,
@@ -1109,11 +1120,17 @@ export const AppProvider: React.FC<{
         const list: Organizer[] = [];
         snapshot.forEach((docSnap) => {
           const d = docSnap.data();
+          const rawPhoto = d.photo || '';
+          const isPlaceholder = isGirlOrPlaceholderPhoto(rawPhoto);
+          const cleanPhoto = isPlaceholder ? '' : rawPhoto;
+          if (rawPhoto && isPlaceholder) {
+            updateDoc(doc(db, 'organizers', docSnap.id), { photo: '' }).catch(() => {});
+          }
           list.push({
             id: docSnap.id,
             organization_id: uid,
             name: d.name || '',
-            photo: d.photo || '',
+            photo: cleanPhoto,
             position: d.position || '',
             display_order: d.display_order ?? 0,
             email: d.email || '',
@@ -1154,6 +1171,31 @@ export const AppProvider: React.FC<{
           localStorage.setItem('local_categories', JSON.stringify(list));
         } catch {}
       }, (err) => handleFirestoreError(err, OperationType.GET, 'program_categories'));
+    });
+
+    // 2.6 Program Subcategories
+    attachAuthListener(`auth_subcategories_${uid}`, () => {
+      const qSubCategories = query(collection(db, 'program_subcategories'), where('accountId', '==', uid));
+      return onSnapshot(qSubCategories, (snapshot) => {
+        setIsQuotaExceeded(false);
+        const list: ProgramSubCategory[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            organization_id: uid,
+            category_id: d.categoryId || d.category_id || '',
+            name: d.name || '',
+            created_at: d.createdAt || d.created_at || '',
+            updated_at: d.updatedAt || d.updated_at || '',
+          });
+        });
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+        setProgramSubCategories(list);
+        try {
+          localStorage.setItem('local_sub_categories', JSON.stringify(list));
+        } catch {}
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'program_subcategories'));
     });
 
     // 3. Programs
@@ -1733,10 +1775,12 @@ export const AppProvider: React.FC<{
     const docRef = doc(collection(db, 'organizers'));
     const docId = docRef.id;
 
+    const cleanPhoto = isGirlOrPlaceholderPhoto(organizer.photo) ? '' : (organizer.photo || '').trim();
     const newOrganizer: Organizer = {
       id: docId,
       organization_id: user.id,
       ...organizer,
+      photo: cleanPhoto,
       display_order: organizer.display_order ?? organizers.length + 1,
       created_at: now,
       updated_at: now,
@@ -1759,7 +1803,7 @@ export const AppProvider: React.FC<{
         raw_position: organizer.raw_position || organizer.position,
         custom_position: organizer.custom_position || '',
         display_order: organizer.display_order ?? organizers.length + 1,
-        photo: organizer.photo || '',
+        photo: cleanPhoto,
         email: organizer.email || '',
         phone: organizer.phone || '',
         bio: organizer.bio || '',
@@ -1794,8 +1838,15 @@ export const AppProvider: React.FC<{
     if (!user?.id) return;
     const now = new Date().toISOString();
 
+    const sanitizedOrganizer = {
+      ...organizer,
+      ...(organizer.photo !== undefined
+        ? { photo: isGirlOrPlaceholderPhoto(organizer.photo) ? '' : organizer.photo.trim() }
+        : {}),
+    };
+
     setOrganizers((prev) => {
-      const updated = prev.map((o) => o.id === organizer.id ? { ...o, ...organizer, updated_at: now } : o);
+      const updated = prev.map((o) => o.id === organizer.id ? { ...o, ...sanitizedOrganizer, updated_at: now } : o);
       try {
         localStorage.setItem('local_organizers', JSON.stringify(updated));
       } catch {}
@@ -1804,7 +1855,7 @@ export const AppProvider: React.FC<{
 
     try {
       const docRef = doc(db, 'organizers', organizer.id);
-      const { id, organization_id, ...updates } = organizer;
+      const { id, organization_id, ...updates } = sanitizedOrganizer;
       const cleanedUpdates = cleanFirestorePayload({
         ...updates,
         updated_at: now,
@@ -1927,37 +1978,92 @@ export const AppProvider: React.FC<{
   const updateProgramCategory = async (id: string, name: string): Promise<void> => {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('Category name cannot be empty.');
-    await updateDoc(doc(db, 'program_categories', id), { name: trimmed, updatedAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    setProgramCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, name: trimmed, updated_at: now } : c))
+    );
+    if (user?.id) {
+      await updateDoc(doc(db, 'program_categories', id), { name: trimmed, updatedAt: now });
+    }
   };
 
   const deleteProgramCategory = async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, 'program_categories', id));
+    setProgramCategories((prev) => prev.filter((c) => c.id !== id));
+    setProgramSubCategories((prev) => prev.filter((s) => s.category_id !== id));
+    if (user?.id) {
+      await deleteDoc(doc(db, 'program_categories', id));
+      const subcatsToDelete = programSubCategories.filter((s) => s.category_id === id);
+      for (const sub of subcatsToDelete) {
+        try {
+          await deleteDoc(doc(db, 'program_subcategories', sub.id));
+        } catch {}
+      }
+    }
   };
 
   const addProgramSubCategory = async (name: string, categoryId: string): Promise<ProgramSubCategory> => {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('Subcategory name cannot be empty.');
-    if (!categoryId) throw new Error('Category ID is required.');
-    
+    if (!categoryId) throw new Error('Category is required.');
+
     const now = new Date().toISOString();
+    const existing = programSubCategories.find(
+      (s) => s.category_id === categoryId && (s.name || '').trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing;
+
+    if (!user?.id) {
+      const tempSub: ProgramSubCategory = {
+        id: 'sub_' + Date.now(),
+        organization_id: 'guest',
+        category_id: categoryId,
+        name: trimmed,
+        created_at: now,
+        updated_at: now,
+      };
+      setProgramSubCategories((prev) => [...prev, tempSub]);
+      return tempSub;
+    }
+
     const docRef = await addDoc(collection(db, 'program_subcategories'), {
-      accountId: user?.id,
+      accountId: user.id,
       categoryId,
       name: trimmed,
       createdAt: now,
       updatedAt: now,
     });
-    return { id: docRef.id, organization_id: user?.id || '', category_id: categoryId, name: trimmed, created_at: now, updated_at: now };
+    const newSub: ProgramSubCategory = {
+      id: docRef.id,
+      organization_id: user.id,
+      category_id: categoryId,
+      name: trimmed,
+      created_at: now,
+      updated_at: now,
+    };
+    setProgramSubCategories((prev) => {
+      if (prev.some((s) => s.id === newSub.id)) return prev;
+      return [...prev, newSub].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    });
+    return newSub;
   };
 
   const updateProgramSubCategory = async (id: string, name: string): Promise<void> => {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('Subcategory name cannot be empty.');
-    await updateDoc(doc(db, 'program_subcategories', id), { name: trimmed, updatedAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    setProgramSubCategories((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: trimmed, updated_at: now } : s))
+    );
+    if (user?.id) {
+      await updateDoc(doc(db, 'program_subcategories', id), { name: trimmed, updatedAt: now });
+    }
   };
 
   const deleteProgramSubCategory = async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, 'program_subcategories', id));
+    setProgramSubCategories((prev) => prev.filter((s) => s.id !== id));
+    if (user?.id) {
+      await deleteDoc(doc(db, 'program_subcategories', id));
+    }
   };
 
   // Program Mutations

@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import { uploadFile, DEFAULT_ORG_LOGO, optimizeImageFile, isImageFile } from '../utils/helpers';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { PWAInstallModal } from './pwa/PWAInstallModal';
+import { ProgramCategorySettings } from './ProgramCategorySettings';
 
 interface OrgSettingsViewProps {
   onOpenNewOrgModal?: () => void;
@@ -401,8 +402,10 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
                 </button>
               )}
             </form>
-        </div>
+          </div>
 
+          {/* Program Categories & Subcategories Settings */}
+          <ProgramCategorySettings />
         </div>
 
         {/* Right Sidebar: Backup Tools */}
@@ -421,9 +424,9 @@ export const OrgSettingsView: React.FC<OrgSettingsViewProps> = ({
               </p>
 
               <div className="space-y-2">
-                {organizations.map((org) => (
+                {organizations.map((org, idx) => (
                   <button
-                    key={org.id}
+                    key={`${org.id}_${idx}`}
                     onClick={() => setCurrentOrgId(org.id)}
                     className={`w-full p-3 text-left rounded-2xl border transition-all flex items-center gap-3 cursor-pointer ${
                       org.id === currentOrgId

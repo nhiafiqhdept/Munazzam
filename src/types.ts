@@ -225,7 +225,8 @@ export type ActiveTab =
   | 'treasury-ledger'
   | 'treasury-cashbook'
   | 'treasury-reports'
-  | 'student-points';
+  | 'student-points'
+  | 'program-categories';
 
 export type NotificationType =
   | 'program_created'

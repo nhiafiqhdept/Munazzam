@@ -227,6 +227,13 @@ const MainLayout: React.FC = () => {
           />
         )}
 
+        {activeTab === 'program-categories' && !isPublicView && (
+          <div className="max-w-4xl mx-auto">
+            <ProgramCategorySettings />
+          </div>
+        )}
+
+
         {/* Treasury Views */}
         {(activeTab === 'treasury-dashboard' || (isPublicView && isTreasuryTab)) && (
           <TreasuryDashboardView

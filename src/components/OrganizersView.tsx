@@ -5,7 +5,7 @@ import { Organizer } from '../types';
 import { ConfirmModal } from './ConfirmModal';
 import { OrganizerDetailsModal } from './OrganizerDetailsModal';
 import { getRoleBadgeStyle } from '../utils/helpers';
-import { MaleSilhouetteAvatar } from './common/MaleSilhouetteAvatar';
+import { OrganizerAvatar } from './common/OrganizerAvatar';
 
 interface OrganizersViewProps {
   onOpenAddModal: () => void;
@@ -99,7 +99,6 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
           data-purpose="members-grid"
         >
           {organizers.map((orgzr) => {
-            const hasPhoto = Boolean(orgzr.photo && orgzr.photo.trim().length > 0 && !orgzr.photo.includes('unsplash.com') && !orgzr.photo.includes('photo-1534528741775'));
             const roleStyle = getRoleBadgeStyle(orgzr.position);
 
             return (
@@ -113,19 +112,12 @@ export const OrganizersView: React.FC<OrganizersViewProps> = ({
                 <div className="relative mb-2 sm:mb-3 shrink-0">
                   <div className="w-14 h-14 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-full p-0.5 bg-gradient-to-tr from-[#0f1f4b] via-[#1d4ed8] to-indigo-400 shadow-sm mx-auto group-hover:scale-105 transition-transform duration-200">
                     <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white">
-                      {hasPhoto ? (
-                        <img
-                          src={orgzr.photo}
-                          alt={orgzr.name}
-                          className="w-full h-full object-cover rounded-full"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <MaleSilhouetteAvatar />
-                      )}
+                      <OrganizerAvatar
+                        photo={orgzr.photo}
+                        name={orgzr.name}
+                        className="w-full h-full"
+                        imgClassName="w-full h-full object-cover rounded-full"
+                      />
                     </div>
                   </div>
 
