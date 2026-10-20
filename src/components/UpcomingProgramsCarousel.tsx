@@ -167,26 +167,59 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
   onOpenAddProgram,
 }) => {
   // Filter and sort programs:
-  // 1. Ongoing (Happening Today) first
-  // 2. Upcoming (sorted nearest date ascending) next
-  // 3. Completed (sorted recent date descending) next
-  // Ensures all three status badges appear accurately with real dates
+  // Filter and sort programs:
+  // 1. If upcoming programs exist (today or future, not completed/cancelled/rejected), show ONLY upcoming programs.
+  // 2. Completed programs should show ONLY if there are no upcoming programs.
+  // 3. If neither exist, the carousel renders the empty state.
   const showcasePrograms = useMemo(() => {
     const ongoing: Program[] = [];
     const upcoming: Program[] = [];
     const completed: Program[] = [];
 
+    const parseDateMs = (d?: string) => {
+      if (!d) return 0;
+      const t = new Date(d).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
     programs.forEach((p) => {
-      const derived = getProgramEffectiveStatus(p);
-      if (derived === 'ongoing') ongoing.push(p);
-      else if (derived === 'upcoming') upcoming.push(p);
+      // Exclude cancelled or rejected programs
+      const isCancelledOrRejected =
+        (p.status as string) === 'cancelled' ||
+        (p.status as string) === 'rejected' ||
+        p.subWingStatus === 'rejected';
+      if (isCancelledOrRejected) return;
+
+      const effective = getProgramEffectiveStatus(p);
+      const isCompleted = p.status === 'completed' || effective === 'completed';
+
+      if (!isCompleted) {
+        if (effective === 'ongoing') {
+          ongoing.push(p);
+        } else {
+          upcoming.push(p);
+        }
+      } else {
+        completed.push(p);
+      }
     });
 
-    ongoing.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
-    upcoming.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+    // Sort today and future programs ascending (soonest first)
+    ongoing.sort((a, b) => parseDateMs(a.date) - parseDateMs(b.date));
+    upcoming.sort((a, b) => parseDateMs(a.date) - parseDateMs(b.date));
 
-    // Combine all
-    return [...ongoing, ...upcoming];
+    // Sort completed programs descending (most recently completed first)
+    completed.sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
+
+    const upcomingPrograms = [...ongoing, ...upcoming];
+
+    // If upcoming programs exist, do NOT show completed programs along with upcoming.
+    // Completed programs should show only if there are no upcoming programs.
+    if (upcomingPrograms.length > 0) {
+      return upcomingPrograms;
+    }
+
+    return completed;
   }, [programs]);
 
   const programThemes = useMemo(() => {
