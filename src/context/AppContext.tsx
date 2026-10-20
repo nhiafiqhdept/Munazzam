@@ -133,7 +133,7 @@ interface AppContextType {
   deleteProgramCategory: (id: string) => Promise<void>;
   ensureCategoryExists: (name: string) => Promise<ProgramCategory | null>;
   addProgramSubCategory: (name: string, categoryId: string) => Promise<ProgramSubCategory>;
-  updateProgramSubCategory: (id: string, name: string) => Promise<void>;
+  updateProgramSubCategory: (id: string, name: string, categoryId?: string) => Promise<void>;
   deleteProgramSubCategory: (id: string) => Promise<void>;
   subWings: SubWing[];
   subWingPrograms: Program[];
@@ -2047,15 +2047,17 @@ export const AppProvider: React.FC<{
     return newSub;
   };
 
-  const updateProgramSubCategory = async (id: string, name: string): Promise<void> => {
+  const updateProgramSubCategory = async (id: string, name: string, categoryId?: string): Promise<void> => {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('Subcategory name cannot be empty.');
     const now = new Date().toISOString();
     setProgramSubCategories((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, name: trimmed, updated_at: now } : s))
+      prev.map((s) => (s.id === id ? { ...s, name: trimmed, category_id: categoryId || s.category_id, updated_at: now } : s))
     );
     if (user?.id) {
-      await updateDoc(doc(db, 'program_subcategories', id), { name: trimmed, updatedAt: now });
+      const updatePayload: Record<string, any> = { name: trimmed, updatedAt: now };
+      if (categoryId) updatePayload.categoryId = categoryId;
+      await updateDoc(doc(db, 'program_subcategories', id), updatePayload);
     }
   };
 

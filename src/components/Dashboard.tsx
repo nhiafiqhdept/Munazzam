@@ -90,7 +90,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
     return { todayProgramsCount: today, upcomingProgramsCount: upcoming };
   }, [programs]);
 
-  // Four Quick-Navigation Module Cards in distinct Blue / Indigo / Cobalt / Amber tones
+  // Four Quick-Navigation Module Cards in distinct Blue / Indigo / Cobalt / Emerald tones
   const quickModules = [
     {
       id: 'programs' as ActiveTab,
@@ -136,29 +136,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
       badgeText: 'text-emerald-700',
       arrowBg: 'text-emerald-700 bg-emerald-50',
     },
-    isPublicView
-      ? {
-          id: 'student-points' as ActiveTab,
-          title: 'Points & Awards',
-          subtitle: 'Merit leaderboard & badges',
-          icon: Trophy,
-          tone: 'amber',
-          cardBg: 'bg-white hover:bg-amber-50/40 border-amber-100 hover:border-amber-400',
-          iconBg: 'bg-amber-500 text-slate-950',
-          badgeText: 'text-amber-700',
-          arrowBg: 'text-amber-700 bg-amber-50',
-        }
-      : {
-          id: 'settings' as ActiveTab,
-          title: 'Organization Profile',
-          subtitle: 'Identity, motto & mission',
-          icon: Building,
-          tone: 'amber',
-          cardBg: 'bg-white hover:bg-amber-50/40 border-amber-100 hover:border-amber-400',
-          iconBg: 'bg-amber-500 text-slate-950',
-          badgeText: 'text-amber-700',
-          arrowBg: 'text-amber-700 bg-amber-50',
-        },
   ];
 
   return (
@@ -257,39 +234,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAddProgram, onOpenAd
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-3 lg:gap-4">
           {quickModules.map((mod) => {
             const Icon = mod.icon;
             return (
               <div
                 key={mod.id}
                 onClick={() => setActiveTab(mod.id)}
-                className={`bg-white rounded-2xl p-4 sm:p-5 lg:p-6 border shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative min-h-[140px] sm:min-h-[170px] ${mod.cardBg}`}
+                className={`bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3.5 lg:p-4 border shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative min-h-[96px] sm:min-h-[135px] lg:min-h-[150px] ${mod.cardBg}`}
               >
                 <div>
                   {/* Icon */}
                   <div
-                    className={`w-11 h-11 sm:w-12 sm:h-12 lg:w-13 lg:h-13 rounded-2xl ${mod.iconBg} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-105 transition-transform shadow-xs shrink-0`}
+                    className={`w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg sm:rounded-xl ${mod.iconBg} flex items-center justify-center mb-1.5 sm:mb-2.5 group-hover:scale-105 transition-transform shadow-xs shrink-0`}
                   >
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <Icon className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 lg:w-5 lg:h-5" />
                   </div>
 
                   {/* Title & Subtitle */}
-                  <h3 className="text-xs sm:text-sm lg:text-base font-bold text-slate-900 group-hover:text-[#1e3a8a] transition-colors leading-snug line-clamp-2">
+                  <h3 className="text-[10px] sm:text-xs lg:text-sm font-bold text-slate-900 group-hover:text-[#1e3a8a] transition-colors leading-tight line-clamp-2">
                     {mod.title}
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-1 mt-1 hidden sm:block">
+                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 hidden md:block">
                     {mod.subtitle}
                   </p>
                 </div>
 
                 {/* Bottom Row / Arrow */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold mt-2">
-                  <span className={`text-[11px] sm:text-xs font-bold ${mod.badgeText}`}>
+                <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-xs font-bold mt-1 sm:mt-1.5">
+                  <span className={`text-[9px] sm:text-[11px] lg:text-xs font-bold ${mod.badgeText}`}>
                     Open
                   </span>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${mod.arrowBg} group-hover:translate-x-1 transition-transform`}>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                  <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center ${mod.arrowBg} group-hover:translate-x-0.5 transition-transform shrink-0`}>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   </div>
                 </div>
               </div>

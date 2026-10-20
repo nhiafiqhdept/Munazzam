@@ -435,7 +435,9 @@ export const ProgramThumbnail: React.FC<{
   return (
     <div
       id={`program-thumbnail-${program.id}`}
-      className={`relative h-52 sm:h-56 md:h-64 w-full overflow-hidden select-none flex flex-col justify-between p-5 rounded-2xl shadow-md border border-slate-200/90 group ${
+      data-width="1280"
+      data-height="720"
+      className={`relative aspect-video w-full overflow-hidden select-none flex flex-col justify-between p-4 sm:p-5 rounded-2xl shadow-md border border-slate-200/90 group ${
         isClickable ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''
       } ${className}`}
       onClick={() => {
@@ -560,7 +562,7 @@ export const ProgramCard: React.FC<ProgramCardProps> = ({
       {/* 1. VISUAL HEADER AREA (Always Generated Program Thumbnail)     */}
       {/* ============================================================== */}
       <div
-        className="relative h-48 sm:h-52 lg:h-[280px] w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-4 lg:p-6"
+        className="relative aspect-video w-full overflow-hidden select-none cursor-pointer flex flex-col justify-between p-3.5 sm:p-4 lg:p-5"
         onClick={() => onViewDetails(program.id)}
       >
         {/* Rich Gradient Canvas */}

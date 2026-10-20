@@ -14,6 +14,7 @@ import { OrganizerModal } from './components/OrganizerModal';
 import { ProgramModal } from './components/ProgramModal';
 import { StudentPointsPortal } from './components/points/StudentPointsPortal';
 import { SubWingProgramsPortal } from './components/SubWingProgramsPortal';
+import { ProgramCategorySettings } from './components/ProgramCategorySettings';
 
 import { TreasuryNav } from './components/treasury/TreasuryNav';
 import { TreasuryDashboardView } from './components/treasury/TreasuryDashboardView';

@@ -445,11 +445,11 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
               </div>
             ) : (
               /* No Poster Case: Exact Same Generated Thumbnail Component as Listing */
-              <div className="w-full h-full min-h-[340px] lg:min-h-[460px] flex items-stretch">
+              <div className="w-full h-full flex items-center justify-center p-3 sm:p-5">
                 <ProgramThumbnail
                   program={program}
                   interactive={false}
-                  className="h-full min-h-[340px] lg:min-h-[460px] w-full rounded-none border-0 shadow-none"
+                  className="w-full aspect-video rounded-2xl border border-white/10 shadow-xl"
                 />
               </div>
             )}
@@ -623,7 +623,7 @@ export const ProgramDetailsView: React.FC<ProgramDetailsViewProps> = ({ onOpenEd
             <ProgramThumbnail
               program={program}
               interactive={false}
-              className="h-56 w-full rounded-t-[20px] rounded-b-none border-0 shadow-none"
+              className="w-full aspect-video rounded-t-[20px] rounded-b-none border-0 shadow-none"
             />
           </div>
         )}

@@ -70,7 +70,8 @@ const ShowcaseCard: React.FC<ShowcaseCardProps> = ({
           onViewDetails(program.id);
         }
       }}
-      className={`relative w-full h-full rounded-2xl overflow-hidden select-none flex flex-col justify-between p-4 sm:p-5 lg:p-6 transition-all duration-300 ${
+      style={{ aspectRatio: '16 / 9' }}
+      className={`relative w-full h-full aspect-video rounded-2xl overflow-hidden select-none flex flex-col justify-between p-3 sm:p-4.5 lg:p-5 transition-all duration-300 ${
         interactive ? 'cursor-pointer' : ''
       } ${className}`}
     >
@@ -408,13 +409,13 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
 
   const currentProgram = showcasePrograms[currentIndex] || showcasePrograms[0];
 
-  // Desktop Dimensions: Prominent Hero Showcase
-  // Card height 290px, prominent cardWidth up to 460px
+  // Desktop Dimensions: 16:9 Aspect Ratio (1280 x 720 proportions)
   const gap = 24;
   const availableWidth = Math.max(700, containerWidth - 48);
-  const cardWidth = Math.min(480, Math.max(320, Math.floor((availableWidth - 2 * gap) / 2.75)));
+  const cardWidth = Math.min(520, Math.max(340, Math.floor((availableWidth - 2 * gap) / 2.6)));
+  const cardHeight = Math.round((cardWidth * 9) / 16);
   const shiftX = cardWidth + gap;
-  const cardHeight = 290;
+  const stageHeight = Math.round(cardHeight * 1.1 + 32);
 
   const desktopOffsets = [-2, -1, 0, 1, 2];
 
@@ -450,8 +451,11 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Card Container */}
-          <div className="w-full h-[260px] rounded-2xl shadow-md overflow-hidden transition-all duration-300 ease-in-out">
+          {/* Card Container - Strict 16:9 Aspect Ratio (1280 x 720) */}
+          <div
+            style={{ aspectRatio: '16 / 9' }}
+            className="w-full aspect-video rounded-2xl shadow-md overflow-hidden transition-all duration-300 ease-in-out"
+          >
             <ShowcaseCard
               program={currentProgram}
               theme={programThemes[currentIndex]}
@@ -506,9 +510,12 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
         onMouseUp={handleDesktopMouseUp}
       >
         {totalSlides === 1 ? (
-          /* Single slide on desktop */
+          /* Single slide on desktop - 16:9 YouTube aspect ratio */
           <div className="flex justify-center items-center py-4">
-            <div style={{ width: cardWidth, height: cardHeight }} className="relative">
+            <div
+              style={{ width: `${Math.min(640, cardWidth * 1.25)}px`, height: `${Math.round((Math.min(640, cardWidth * 1.25) * 9) / 16)}px`, aspectRatio: '16 / 9' }}
+              className="relative aspect-video max-w-2xl w-full"
+            >
               <div
                 className="absolute -inset-3 rounded-3xl -z-10 pointer-events-none transition-all duration-500"
                 style={{
@@ -517,7 +524,10 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                   opacity: 0.5,
                 }}
               />
-              <div className="w-full h-full rounded-2xl shadow-[0_20px_45px_-12px_rgba(15,31,75,0.4)] ring-1 ring-white/25">
+              <div
+                style={{ aspectRatio: '16 / 9' }}
+                className="w-full h-full aspect-video rounded-2xl shadow-[0_20px_45px_-12px_rgba(15,31,75,0.4)] ring-1 ring-white/25 overflow-hidden"
+              >
                 <ShowcaseCard
                   program={showcasePrograms[0]}
                   theme={programThemes[0]}
@@ -529,8 +539,8 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
             </div>
           </div>
         ) : (
-          /* 3-Poster Horizontal Stage */
-          <div className="relative w-full h-[340px] overflow-hidden py-3">
+          /* 3-Poster Horizontal Stage - 16:9 Aspect Ratio */
+          <div style={{ height: `${stageHeight}px` }} className="relative w-full overflow-hidden py-3">
             {/* Ambient Radial Backlight for Center Poster */}
             <div
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[300px] rounded-full pointer-events-none -z-10 transition-colors duration-300"
@@ -596,10 +606,11 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
                     key={`slot-${off}-${prog.id}`}
                     style={{
                       position: 'absolute',
-                      top: '16px',
+                      top: '12px',
                       left: `${baseLeft}px`,
                       width: `${cardWidth}px`,
                       height: `${cardHeight}px`,
+                      aspectRatio: '16 / 9',
                       transform: `scale(${cardScale})`,
                       opacity: cardOpacity,
                       zIndex: cardZIndex,
@@ -649,7 +660,8 @@ export const UpcomingProgramsCarousel: React.FC<UpcomingProgramsCarouselProps> =
 
                     {/* Program Card Container */}
                     <div
-                      className={`w-full h-full rounded-2xl overflow-hidden transition-shadow duration-300 ${
+                      style={{ aspectRatio: '16 / 9' }}
+                      className={`w-full h-full aspect-video rounded-2xl overflow-hidden transition-shadow duration-300 ${
                         isCenter
                           ? 'shadow-[0_20px_45px_-12px_rgba(15,31,75,0.45)] ring-1 ring-white/30'
                           : 'shadow-md'
